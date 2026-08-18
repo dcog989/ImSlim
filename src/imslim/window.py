@@ -1,0 +1,596 @@
+import os
+
+from PySide6.QtCore import QObject, QPointF, QRectF, Qt, Signal
+from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter, QPainterPath, QPixmap
+from PySide6.QtWidgets import (
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QMessageBox,
+    QProgressBar,
+    QPushButton,
+    QScrollArea,
+    QStackedWidget,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from . import __version__
+from .compression_manager import CompressionManager
+from .compressors.avif_compressor import AVIFCompressor
+from .compressors.jpeg_compressor import JPEGCompressor
+from .compressors.png_compressor import PNGCompressor
+from .compressors.svg_compressor import SVGCompressor
+from .compressors.webp_compressor import WEBPCompressor
+from .preferences import PreferencesDialog
+from .result_item import ResultItem
+from .result_item_manager import ResultItemManager
+from .result_item_row import ResultItemRow
+from .settings_manager import SettingsManager
+from .tools import (
+    debug_infos,
+    get_image_paths_from_folder,
+    image_filter,
+    sizeof_fmt,
+)
+from .whats_new_dialog import WhatsNewDialog
+
+
+class _Bridge(QObject):
+    result_updated = Signal(object)
+    compression_enabled = Signal(bool)
+
+
+_HAMBURGER = "\u2630"
+
+
+class ModeToggle(QWidget):
+    """Lossless / Lossy rocker switch."""
+
+    modeChanged = Signal(bool)  # True -> lossy
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMinimumSize(160, 56)
+        self._lossy = False
+        self._track = QRectF()
+        self._thumb = QRectF()
+        self._update_geometry(self.width(), self.height())
+
+    def _track_rect(self, w: float, h: float) -> QRectF:
+        inset_x = 0
+        inset_y = h * 0.25
+        track_h = h - 2 * inset_y
+        return QRectF(inset_x, inset_y, w, track_h)
+
+    def _thumb_rect(self) -> QRectF:
+        margin = 3
+        half = (self._track.width() - 2 * margin) / 2
+        left = self._track.left() + margin
+        if self._lossy:
+            left += half
+        return QRectF(left, self._track.top() + margin, half, self._track.height() - 2 * margin)
+
+    def _update_geometry(self, w: float, h: float):
+        self._track = self._track_rect(w, h)
+        self._refresh_thumb()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._update_geometry(self.width(), self.height())
+
+    def _refresh_thumb(self):
+        self._thumb = self._thumb_rect()
+        self.update()
+
+    def setLossy(self, lossy: bool):
+        if self._lossy == lossy:
+            return
+        self._lossy = lossy
+        self._refresh_thumb()
+
+    def isLossy(self) -> bool:
+        return self._lossy
+
+    def sizeHint(self):
+        return self.size()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        acc = self.palette().color(self.palette().ColorRole.Highlight)
+        base = self.palette().color(self.palette().ColorRole.Mid)
+        text = self.palette().color(self.palette().ColorRole.WindowText)
+        on_text = self.palette().color(self.palette().ColorRole.HighlightedText)
+
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(base))
+        painter.drawRoundedRect(self._track, 7, 7)
+
+        painter.setBrush(QColor(acc))
+        painter.drawRoundedRect(self._thumb, 7, 7)
+
+        font = painter.font()
+        font.setBold(True)
+        font.setPointSize(10)
+        painter.setFont(font)
+
+        half = (self._track.width() - 6) / 2
+        inactive = QColor(text)
+        inactive.setAlphaF(0.5)
+        painter.setPen(QColor(on_text) if not self._lossy else QColor(inactive))
+        painter.drawText(
+            QRectF(self._track.left(), self._track.top(), half, self._track.height()),
+            Qt.AlignCenter,
+            _("Lossless"),
+        )
+        painter.setPen(QColor(inactive) if not self._lossy else QColor(on_text))
+        painter.drawText(
+            QRectF(self._track.left() + half, self._track.top(), half, self._track.height()),
+            Qt.AlignCenter,
+            _("Lossy"),
+        )
+        painter.end()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.setLossy(not self._lossy)
+            self.modeChanged.emit(self._lossy)
+
+
+def stylized_i_icon(size: int) -> QPixmap:
+    """Render a large stylised 'I' (slab-serif) onto a transparent pixmap."""
+    pm = QPixmap(size, size)
+    pm.fill(Qt.transparent)
+    p = QPainter(pm)
+    p.setRenderHint(QPainter.Antialiasing)
+    color = QColor(Qt.white)
+    w = size
+    bar = max(2.5, w * 0.09)  # crossbar thickness
+    stem = max(3.0, w * 0.14)  # vertical stem thickness
+    gap = w * 0.16  # space between bars and stem
+    radius = bar / 2
+    cx = w / 2
+    top_y = w * 0.10
+    bottom_y = w * 0.90 - bar
+
+    p.setPen(Qt.NoPen)
+    p.setBrush(color)
+
+    # top bar
+    p.drawRoundedRect(QRectF(w * 0.10, top_y, w * 0.80, bar), radius, radius)
+    # bottom bar
+    p.drawRoundedRect(QRectF(w * 0.10, bottom_y, w * 0.80, bar), radius, radius)
+    # stem
+    path = QPainterPath()
+    path.moveTo(QPointF(cx - stem / 2, top_y + bar + gap))
+    path.lineTo(QPointF(cx + stem / 2, top_y + bar + gap))
+    path.lineTo(QPointF(cx + stem / 2, bottom_y - gap))
+    path.lineTo(QPointF(cx - stem / 2, bottom_y - gap))
+    path.closeSubpath()
+    p.drawPath(path)
+    p.end()
+    return pm
+
+
+class ImSlimWindow(QWidget):
+    def __init__(self, app, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.app = app
+        self.setWindowTitle("ImSlim")
+        self.resize(650, 500)
+        self.setAcceptDrops(True)
+
+        self.settings = SettingsManager()
+        self.bridge = _Bridge()
+        self.bridge.result_updated.connect(self.update_result_item)
+        self.bridge.compression_enabled.connect(self.enable_compression)
+        self.prefs_dialog = None
+        self.whats_new_dialog = None
+
+        self.create_actions()
+        self.build_ui()
+        self.show_view("home")
+
+        self.manager = CompressionManager(self.settings)
+        self.manager.register_compressor(PNGCompressor)
+        self.manager.register_compressor(JPEGCompressor)
+        self.manager.register_compressor(WEBPCompressor)
+        self.manager.register_compressor(AVIFCompressor)
+        self.manager.register_compressor(SVGCompressor)
+
+        self.result_item_manager = ResultItemManager(self.settings)
+        self.rows: list[ResultItemRow] = []
+
+    # ------------------------------------------------------------------ UI
+    def build_ui(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        # Header
+        header = QWidget()
+        header_layout = QHBoxLayout(header)
+        header_layout.setContentsMargins(8, 6, 8, 6)
+
+        self.clear_button = QToolButton()
+        self.clear_button.setText(_("Clear"))
+        self.clear_button.setToolTip(_("Clear Results"))
+        self.clear_button.clicked.connect(self.clear_results)
+
+        header_layout.addWidget(self.clear_button)
+        header_layout.addStretch(1)
+
+        self.mode_toggle = ModeToggle()
+        self.mode_toggle.setMinimumWidth(240)
+        self.mode_toggle.setMaximumWidth(240)
+        header_layout.addWidget(self.mode_toggle, alignment=Qt.AlignCenter)
+
+        header_layout.addStretch(1)
+
+        self.menu_button = QToolButton()
+        self.menu_button.setText(_HAMBURGER)
+        self.menu_button.setToolTip(_("Main Menu"))
+        self.menu_button.setPopupMode(QToolButton.InstantPopup)
+        self.menu_button.setMenu(self._build_main_menu())
+        self.menu_button.setFixedWidth(38)
+        header_layout.addWidget(self.menu_button)
+
+        self.subtitle_label = QLabel()
+        self.subtitle_label.setAlignment(Qt.AlignCenter)
+        self.subtitle_label.hide()
+
+        root.addWidget(header)
+
+        # Content stack
+        self.stack = QStackedWidget()
+
+        self.home_page = self._build_home_page()
+        self.loading_page = self._build_loading_page()
+        self.results_page = self._build_results_page()
+
+        self.stack.addWidget(self.home_page)  # index 0
+        self.stack.addWidget(self.loading_page)  # index 1
+        self.stack.addWidget(self.results_page)  # index 2
+
+        root.addWidget(self.stack, 1)
+
+        self._apply_mode_state()
+        self.set_saving_subtitle()
+
+    def _build_home_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(40, 24, 40, 32)
+        layout.addStretch(1)
+
+        icon = QLabel()
+        icon.setPixmap(stylized_i_icon(120))
+        icon.setAlignment(Qt.AlignCenter)
+        layout.addWidget(icon)
+
+        layout.addSpacing(8)
+
+        drop_label = QLabel(_("Drop or paste files or directory here to compress."))
+        drop_font = drop_label.font()
+        drop_font.setPointSize(12)
+        drop_font.setBold(True)
+        drop_label.setFont(drop_font)
+        drop_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(drop_label)
+
+        layout.addStretch(1)
+
+        # Bottom buttons
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
+
+        lozenge = (
+            "QPushButton {"
+            "  border-radius: 18px;"
+            "  background-color: palette(highlight);"
+            "  color: palette(highlighted-text);"
+            "  border: none;"
+            "  padding: 6px 20px;"
+            "}"
+            "QPushButton:hover {"
+            "  background-color: palette(Highlight);"
+            "}"
+            "QPushButton:pressed {"
+            "  background-color: palette(dark);"
+            "}"
+        )
+
+        select_files = QPushButton(_("Select Files"))
+        select_files.setMinimumHeight(36)
+        select_files.setFixedWidth(200)
+        select_files.setCursor(Qt.PointingHandCursor)
+        select_files.clicked.connect(self.on_select)
+        select_files.setStyleSheet(lozenge)
+        buttons.addWidget(select_files, 0, Qt.AlignCenter)
+
+        select_dir = QPushButton(_("Select Directory"))
+        select_dir.setMinimumHeight(36)
+        select_dir.setFixedWidth(200)
+        select_dir.setCursor(Qt.PointingHandCursor)
+        select_dir.clicked.connect(self.on_select_folder)
+        select_dir.setStyleSheet(lozenge)
+        buttons.addWidget(select_dir, 0, Qt.AlignCenter)
+
+        layout.addLayout(buttons)
+        return page
+
+    def _build_loading_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.addStretch(1)
+        self.loading_spinner = QProgressBar()
+        self.loading_spinner.setRange(0, 0)
+        self.loading_spinner.setTextVisible(False)
+        self.loading_spinner.setFixedWidth(120)
+        self.loading_spinner.setAlignment(Qt.AlignCenter)
+
+        title = QLabel(_("Analyzing Images"))
+        title_font = title.font()
+        title_font.setPointSize(18)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        title.setAlignment(Qt.AlignCenter)
+
+        description = QLabel(_("Analyzing your images before compression…"))
+        description.setAlignment(Qt.AlignCenter)
+
+        layout.addWidget(self.loading_spinner, alignment=Qt.AlignCenter)
+        layout.addSpacing(12)
+        layout.addWidget(title)
+        layout.addWidget(description)
+        layout.addStretch(1)
+        return page
+
+    def _build_results_page(self):
+        self.results_container = QWidget()
+        self.results_layout = QVBoxLayout(self.results_container)
+        self.results_layout.setContentsMargins(12, 12, 12, 12)
+        self.results_layout.setSpacing(2)
+        self.results_layout.addStretch(1)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.results_container)
+        return scroll
+
+    def _build_main_menu(self) -> QMenu:
+        menu = QMenu(self)
+        menu.addAction(self.act_settings)
+        menu.addAction(self.act_whats_new)
+        menu.addAction(self.act_about)
+        return menu
+
+    # ----------------------------------------------------------------- actions
+    def create_actions(self):
+        self.act_select = QAction(_("Browse Files"), self)
+        self.act_select.setShortcut(QKeySequence("Ctrl+O"))
+        self.act_select.triggered.connect(self.on_select)
+
+        self.act_clear = QAction(_("Clear Results"), self)
+        self.act_clear.setShortcut(QKeySequence("Ctrl+Shift+C"))
+        self.act_clear.triggered.connect(self.clear_results)
+
+        self.act_settings = QAction(_("Settings"), self)
+        self.act_settings.setShortcut(QKeySequence("Ctrl+,"))
+        self.act_settings.triggered.connect(self.on_preferences)
+
+        self.act_whats_new = QAction(_("What's New"), self)
+        self.act_whats_new.triggered.connect(self.open_whats_new)
+
+        self.act_about = QAction(_("About ImSlim"), self)
+        self.act_about.triggered.connect(self.on_about)
+
+        self.act_quit = QAction(_("Quit"), self)
+        self.act_quit.setShortcut(QKeySequence("Ctrl+Q"))
+        self.act_quit.triggered.connect(self.app.quit)
+
+        self.addAction(self.act_select)
+        self.addAction(self.act_clear)
+        self.addAction(self.act_settings)
+        self.addAction(self.act_quit)
+
+    # ----------------------------------------------------------------- helpers
+    def enable_compression(self, enable):
+        self.clear_button.setEnabled(enable)
+
+    def show_view(self, view):
+        if view == "home":
+            self.stack.setCurrentIndex(0)
+            self.clear_button.setVisible(False)
+        elif view == "loading":
+            self.stack.setCurrentIndex(1)
+            self.clear_button.setVisible(False)
+        elif view == "results":
+            self.stack.setCurrentIndex(2)
+            self.clear_button.setVisible(True)
+
+    def _apply_mode_state(self):
+        self.mode_toggle.setLossy(self.settings.lossy)
+        self.mode_toggle.modeChanged.connect(self.on_mode_selected)
+
+    def on_mode_selected(self, lossy):
+        self.settings.lossy = lossy
+
+    def clear_results(self):
+        self.show_view("home")
+        self.rows.clear()
+        while self.results_layout.count() > 1:
+            item = self.results_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+
+    # ------------------------------------------------------- compression flow
+    def handle_files(self, paths):
+        final_files = []
+        for path in paths:
+            if os.path.isdir(path):
+                if self.settings.recursive:
+                    final_files.extend(get_image_paths_from_folder(path, True))
+                else:
+                    final_files.extend(get_image_paths_from_folder(path, False))
+            else:
+                final_files.append(path)
+        return final_files
+
+    def compress_files(self, paths):
+        paths = self.handle_files(paths)
+        if not paths:
+            QMessageBox.information(self, _("No files found"), _("No files found"))
+            return
+
+        result_items = []
+        for path in paths:
+            result_item = self.result_item_manager.build(path)
+            self.add_row(result_item)
+            if result_item.error:
+                self.update_result_item(result_item)
+            else:
+                result_items.append(result_item)
+
+        self.show_view("results")
+        self.enable_compression(False)
+
+        self.manager.compress(
+            result_items,
+            self.bridge.result_updated.emit,
+            self.bridge.compression_enabled.emit,
+        )
+
+    def add_row(self, result_item):
+        row = ResultItemRow(result_item)
+        self.results_layout.insertWidget(self.results_layout.count() - 1, row)
+        self.rows.append(row)
+
+    def update_result_item(self, result_item: ResultItem):
+        result_item.running = False
+        if result_item.error:
+            result_item.subtitle_label = result_item.error_message
+        elif result_item.skipped:
+            result_item.savings = _("Skipped")
+        else:
+            result_item.savings = (
+                str(round(100 - (result_item.new_size * 100 / result_item.size), 2)) + "%"
+            )
+            result_item.subtitle_label += " → " + sizeof_fmt(result_item.new_size)
+        result_item.updated.emit()
+
+    # ----------------------------------------------------------------- file IO
+    def on_select(self):
+        files, _filter = QFileDialog.getOpenFileNames(self, _("Select Images"), "", image_filter())
+        if not files:
+            return
+        self.show_view("loading")
+        self.compress_files(files)
+
+    def on_select_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, _("Select Folder"))
+        if not folder:
+            return
+        if not self._confirm_directory_compression():
+            return
+        self.show_view("loading")
+        self.compress_files([folder])
+
+    def _confirm_directory_compression(self) -> bool:
+        if self.settings.new_file:
+            message = _(
+                "All of the images in the directories selected and their "
+                "subdirectories will be compressed. The original images will not "
+                "be modified."
+            )
+        elif self.settings.backup:
+            message = _(
+                "All of the images in the directories selected and their "
+                "subdirectories will be compressed and overwritten. A backup of "
+                "the original images will be saved in .bak files."
+            )
+        else:
+            message = _(
+                "All of the images in the directories selected and their "
+                "subdirectories will be compressed and overwritten!"
+            )
+        box = QMessageBox(self)
+        box.setWindowTitle(_("Are you sure you want to compress images in these directories?"))
+        box.setText(message)
+        box.setIcon(
+            QMessageBox.Warning
+            if not (self.settings.new_file or self.settings.backup)
+            else QMessageBox.Question
+        )
+        box.addButton(QMessageBox.Cancel)
+        box.addButton(QMessageBox.Ok)
+        return box.exec() == QMessageBox.Ok
+
+    # ------------------------------------------------------------------ DnD
+    def dragEnterEvent(self, event):
+        mime = event.mimeData()
+        if mime.hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        urls = event.mimeData().urls()
+        paths = []
+        for url in urls:
+            local = url.toLocalFile()
+            if local:
+                paths.append(local)
+        if not paths:
+            return
+        self.show_view("loading")
+        self.compress_files(paths)
+
+    # ------------------------------------------------------------- save mode
+    def set_saving_subtitle(self, new_file=None):
+        if new_file is None:
+            new_file = self.settings.new_file
+        if new_file:
+            suffix_prefix = self.settings.suffix_prefix
+            if self.settings.naming_mode == 0:
+                label = _(f"Safe mode with “{suffix_prefix}” suffix")
+            else:
+                label = _(f"Safe mode with “{suffix_prefix}” prefix")
+        else:
+            label = ""
+        self.subtitle_label.setText(label)
+
+    # ------------------------------------------------------------- dialogs
+    def open_whats_new(self, last_version=None):
+        if self.whats_new_dialog is not None:
+            self.whats_new_dialog.close()
+        self.whats_new_dialog = WhatsNewDialog(__version__, last_version or "", self)
+        self.whats_new_dialog.show()
+
+    def on_preferences(self):
+        if self.prefs_dialog is not None:
+            self.prefs_dialog.close()
+        self.prefs_dialog = PreferencesDialog(self)
+        self.prefs_dialog.show()
+
+    def on_about(self):
+        QMessageBox.about(
+            self,
+            _("About ImSlim"),
+            _(
+                "<b>ImSlim</b> — compress your images.\n\n"
+                "Supports PNG, JPEG, WebP, AVIF and SVG, in both lossless and "
+                "lossy modes.\n\nVersion: {version}\n\n{debug}"
+            ).format(version=__version__, debug=debug_infos()),
+        )
+
+    def check_version_update(self):
+        if not __version__:
+            return False
+        last_version = self.settings.last_version
+        if last_version != __version__:
+            self.settings.last_version = __version__
+            self.open_whats_new(last_version=last_version)
