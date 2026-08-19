@@ -1,7 +1,7 @@
 import os
 
 from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QAction, QDesktopServices, QPixmap
+from PySide6.QtGui import QAction, QDesktopServices
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -41,10 +41,6 @@ class ResultItemRow(QWidget):
         self.spinner.setFixedSize(20, 16)
         self.spinner.setTextVisible(False)
 
-        self.error_image = QLabel()
-        self.error_image.setPixmap(self._make_error_icon())
-        self.error_image.setVisible(False)
-
         self.skipped_button = QToolButton()
         self.skipped_button.setText("i")
         self.skipped_button.setToolTip(_("More Information"))
@@ -69,7 +65,6 @@ class ResultItemRow(QWidget):
         layout.addLayout(text_vbox, 1)
         layout.addWidget(self.savings_label)
         layout.addWidget(self.spinner)
-        layout.addWidget(self.error_image)
         layout.addWidget(self.skipped_button)
         layout.addWidget(self.error_button)
 
@@ -80,11 +75,6 @@ class ResultItemRow(QWidget):
         result_item.updated.connect(self.refresh)
         self.refresh()
 
-    def _make_error_icon(self) -> QPixmap:
-        pixmap = QPixmap(18, 18)
-        pixmap.fill(Qt.transparent)
-        return pixmap
-
     def refresh(self):
         item = self.result_item
         self.spinner.setVisible(item.running)
@@ -93,7 +83,6 @@ class ResultItemRow(QWidget):
         self.savings_label.setText(item.savings)
         self.savings_label.setVisible(not item.running)
 
-        self.error_image.setVisible(item.error)
         self.skipped_button.setVisible(item.skipped and not item.running)
         self.error_button.setVisible(item.error and item.error_details)
 
