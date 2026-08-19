@@ -692,7 +692,7 @@ class ImSlimWindow(QWidget):
     def on_preferences(self):
         if self.prefs_dialog is not None:
             self.prefs_dialog.close()
-        self.prefs_dialog = PreferencesDialog(self)
+        self.prefs_dialog = PreferencesDialog(self.settings, self)
         self.prefs_dialog.show()
 
     def on_about(self):

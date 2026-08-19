@@ -19,14 +19,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .settings_manager import SettingsManager
-
 
 class PreferencesDialog(QDialog):
-    def __init__(self, parent):
+    def __init__(self, settings, parent=None):
         super().__init__(parent)
         self.setWindowTitle(_("Preferences"))
-        self.settings = SettingsManager()
+        self.settings = settings
         self.window = parent
         self.build_ui()
 
