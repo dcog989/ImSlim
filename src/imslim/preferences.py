@@ -43,6 +43,8 @@ class PreferencesDialog(QDialog):
     def _build_general_tab(self) -> QWidget:
         tab = QWidget()
         form = QFormLayout(tab)
+        form.setContentsMargins(16, 16, 16, 16)
+        form.setVerticalSpacing(16)
 
         self.combo_save_method = QComboBox()
         self.combo_save_method.addItems(
