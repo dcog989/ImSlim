@@ -7,15 +7,16 @@ class SVGCompressor(Compressor):
         return "svg"
 
     def build_command(self, result_item) -> list[tuple[list[str], str | None]]:
-        scour = ["scour", "-i", result_item.filename, "-o", result_item.tmp_filename]
+        svgo = ["svgo", "--output", result_item.tmp_filename]
 
         if self.settings.svg_maximum_level:
-            scour += [
-                "--enable-viewboxing",
-                "--enable-id-stripping",
-                "--enable-comment-stripping",
-                "--shorten-ids",
-                "--indent=none",
+            svgo += [
+                "--multipass",
+                "--enable",
+                "removeDimensions",
+                "sortAttrs",
             ]
 
-        return [(scour, None)]
+        svgo.append(result_item.filename)
+
+        return [(svgo, None)]

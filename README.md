@@ -18,12 +18,13 @@ The compression backend shells out to standard Linux CLI tools (distro packages)
 - [jpegoptim](https://github.com/tjko/jpegoptim)
 - [libwebp](https://developers.google.com/speed/webp) (`cwebp`)
 - [libavif](https://github.com/AOMediaCodec/libavif) (`avifenc`/`avifdec`)
-- [scour](https://github.com/scour-project/scour)
+- [svgo](https://github.com/svg/svgo)
 
 On Debian/Ubuntu:
 
 ```sh
-sudo apt install oxipng pngquant jpegoptim webp libavif-bin python3-scour
+sudo apt install oxipng pngquant jpegoptim webp libavif-bin
+npm install -g svgo
 ```
 
 ## Development

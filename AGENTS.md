@@ -3,7 +3,7 @@
 ## Project
 
 - Name: ImSlim
-- Description: Desktop app to compress images in PNG, JPEG, WebP, AVIF and SVG formats, in lossless or lossy mode. Built on the external tools pngquant/oxipng, jpegoptim, cwebp, avifdec/avifenc and scour.
+- Description: Desktop app to compress images in PNG, JPEG, WebP, AVIF and SVG formats, in lossless or lossy mode. Built on the external tools pngquant/oxipng, jpegoptim, cwebp, avifdec/avifenc and svgo.
 - Tech: Python (>=3.13), PySide6 (Qt6). Setup and deps managed via `uv`. Lint/format via `ruff`.
 
 ## Key Files
