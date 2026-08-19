@@ -84,18 +84,22 @@ class Compressor(ABC):
                     raise
         except subprocess.TimeoutExpired as err:
             logging.error(str(err))
-            result_item.error_message = (
+            result_item.set_error(
                 _("Compression has reached the configured timeout of %s seconds.")
                 % self.settings.compression_timeout
             )
-            result_item.error = True
-        except Exception as err:
+        except subprocess.CalledProcessError as err:
             details = str(err)
-            if isinstance(err, subprocess.CalledProcessError):
-                tool_output = err.stderr if err.stderr else err.stdout
-                if tool_output:
-                    details += "\n" + tool_output.decode(errors="replace").strip()
-            result_item.set_error(_("An unknown error has occurred."), html.escape(details))
+            tool_output = err.stderr if err.stderr else err.stdout
+            if tool_output:
+                details += "\n" + tool_output.decode(errors="replace").strip()
+            result_item.set_error(_("Compression failed."), html.escape(details))
+            logging.error(result_item.error_details_message)
+        except OSError as err:
+            result_item.set_error(_("An error has occurred."), html.escape(str(err)))
+            logging.error(result_item.error_details_message)
+        except Exception as err:
+            result_item.set_error(_("An unknown error has occurred."), html.escape(str(err)))
             logging.error(result_item.error_details_message)
 
         if result_item.error:
