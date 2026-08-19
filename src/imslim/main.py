@@ -80,7 +80,8 @@ def _extend_plugin_paths() -> None:
     QApplication.setLibraryPaths(current)
 
 
-SOCKET_NAME = "imslim"
+_APP_NAME = "ImSlim"
+SOCKET_NAME = _APP_NAME.lower()
 _CONNECT_TIMEOUT_MS = 1000
 _WRITE_TIMEOUT_MS = 500
 
@@ -158,9 +159,9 @@ class ImSlimApp(QApplication):
         _configure_platform_theme()
         super().__init__(argv)
         _extend_plugin_paths()
-        self.setApplicationName("ImSlim")
-        self.setOrganizationName("ImSlim")
-        self.setApplicationDisplayName("ImSlim")
+        self.setApplicationName(_APP_NAME)
+        self.setOrganizationName(_APP_NAME)
+        self.setApplicationDisplayName(_APP_NAME)
         self.win: ImSlimWindow | None = None
 
     def run(self):

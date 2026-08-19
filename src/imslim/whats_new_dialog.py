@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from .release_notes import RELEASE_NOTES, release_notes_since
+from .release_notes import release_notes_since
 
 
 class WhatsNewDialog(QDialog):
@@ -38,7 +38,7 @@ class WhatsNewDialog(QDialog):
 
     @staticmethod
     def _build_markup(current_version, last_version):
-        notes = release_notes_since(last_version) if last_version else RELEASE_NOTES
+        notes = release_notes_since(last_version)
         parts = []
         for release in notes:
             version = html.escape(release["version"])
