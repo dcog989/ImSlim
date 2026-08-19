@@ -52,16 +52,30 @@ class Compressor(ABC):
                 argv = self.adapt_command(argv, result_item)
                 last_argv = argv
                 try:
-                    output = subprocess.run(
-                        argv,
-                        capture_output=True,
-                        check=True,
-                        timeout=self.settings.compression_timeout,
-                    )
                     if stdout_path is not None:
+                        # Stream stdout straight to the sidecar file instead of
+                        # buffering the whole payload in memory first.
                         with open(stdout_path, "wb") as fp:
-                            fp.write(output.stdout)
+                            subprocess.run(
+                                argv,
+                                stdout=fp,
+                                stderr=subprocess.PIPE,
+                                check=True,
+                                timeout=self.settings.compression_timeout,
+                            )
+                    else:
+                        subprocess.run(
+                            argv,
+                            capture_output=True,
+                            check=True,
+                            timeout=self.settings.compression_timeout,
+                        )
                 except Exception:
+                    if stdout_path is not None:
+                        try:
+                            os.remove(stdout_path)
+                        except OSError:
+                            pass
                     if ignore_errors:
                         logging.warning("Optional command failed, ignoring: %s", argv)
                         continue
