@@ -1,13 +1,12 @@
 # ImSlim
 
-Compress your images — PNG, JPEG, WebP, AVIF and SVG. A Linux-first image
-compressor built on [PySide6 / Qt 6](https://doc.qt.io/qtforpython-6/) (renders
-natively under Plasma/Breeze), ported from [Curtail](https://github.com/Huluti/Curtail).
+A Linux-first image compressor for PNG, JPEG, WebP, AVIF, GIF, and SVG images. Built with Python / PySide6 with native rendering under KDE Plasma.
+
+Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
 ## Supported formats
 
-PNG, JPEG, WebP, AVIF, SVG — both lossless and lossy modes, with options to keep
-or strip metadata.
+PNG, JPEG, GIF, WebP, AVIF, SVG — both lossless and lossy modes, with options to keep or strip metadata. Animated GIFs are always compressed losslessly.
 
 ## Requirements
 
@@ -19,12 +18,13 @@ The compression backend shells out to standard Linux CLI tools (distro packages)
 - [mozjpeg](https://github.com/mozilla/mozjpeg) (`jpegtran`)
 - [libwebp](https://developers.google.com/speed/webp) (`cwebp`)
 - [libavif](https://github.com/AOMediaCodec/libavif) (`avifenc`/`avifdec`)
+- [gifsicle](https://www.lcdf.org/gifsicle/)
 - [svgo](https://github.com/svg/svgo)
 
 On Debian/Ubuntu:
 
 ```sh
-sudo apt install oxipng pngquant libjxl-tools mozjpeg webp libavif-bin
+sudo apt install oxipng pngquant libjxl-tools mozjpeg webp libavif-bin gifsicle
 npm install -g svgo
 ```
 
