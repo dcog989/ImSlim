@@ -16,7 +16,7 @@
 - `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools
 - `src/imslim/compressors/` — per-format compressors (png, jpeg, webp, avif, jxl, svg)
 - `src/imslim/compression_manager.py` — thread-pool orchestration of compressors
-- `assets/imslim.svg` — main window logo
+- `src/imslim/assets/imslim.svg` — main window logo
 - Tests: none yet (no test suite currently present)
 
 ## Workflow

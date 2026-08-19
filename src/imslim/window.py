@@ -3,7 +3,7 @@ import tempfile
 import time
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QRectF, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QImage, QKeySequence, QPainter, QPixmap
+from PySide6.QtGui import QAction, QColor, QIcon, QImage, QKeySequence, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QApplication,
@@ -172,7 +172,7 @@ class ModeToggle(QWidget):
 
 def stylized_i_icon(size: int) -> QPixmap:
     """Render the ImSlim logo SVG onto a transparent pixmap of the given size."""
-    svg_path = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "imslim.svg")
+    svg_path = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
     renderer = QSvgRenderer(svg_path)
     pm = QPixmap(size, size)
     pm.fill(Qt.transparent)
@@ -188,6 +188,7 @@ class ImSlimWindow(QWidget):
         super().__init__(*args, **kwargs)
         self.app = app
         self.setWindowTitle("ImSlim")
+        self.setWindowIcon(QIcon(stylized_i_icon(128)))
         self.resize(650, 500)
         self.setAcceptDrops(True)
 
