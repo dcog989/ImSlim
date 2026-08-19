@@ -1,6 +1,7 @@
 import os
 import tempfile
 import time
+from typing import ClassVar
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QRectF, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QIcon, QImage, QKeySequence, QPainter, QPixmap
@@ -468,19 +469,17 @@ class ImSlimWindow(QWidget):
     def enable_compression(self, enable):
         self.clear_button.setEnabled(enable)
 
+    _VIEWS: ClassVar[dict[str, tuple[int, bool, bool]]] = {
+        "home": (0, False, True),
+        "loading": (1, False, True),
+        "results": (2, True, False),
+    }
+
     def show_view(self, view):
-        if view == "home":
-            self.stack.setCurrentIndex(0)
-            self.clear_button.setVisible(False)
-            self.mode_toggle.setVisible(True)
-        elif view == "loading":
-            self.stack.setCurrentIndex(1)
-            self.clear_button.setVisible(False)
-            self.mode_toggle.setVisible(True)
-        elif view == "results":
-            self.stack.setCurrentIndex(2)
-            self.clear_button.setVisible(True)
-            self.mode_toggle.setVisible(False)
+        index, show_clear, show_mode = self._VIEWS[view]
+        self.stack.setCurrentIndex(index)
+        self.clear_button.setVisible(show_clear)
+        self.mode_toggle.setVisible(show_mode)
 
     def _apply_mode_state(self):
         self.mode_toggle.setLossy(self.settings.lossy)
