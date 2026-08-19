@@ -1,6 +1,7 @@
 import os
 import sys
 import sysconfig
+from collections.abc import Callable
 
 try:
     import gettext
@@ -80,6 +81,8 @@ def _extend_plugin_paths() -> None:
 
 
 SOCKET_NAME = "imslim"
+_CONNECT_TIMEOUT_MS = 1000
+_WRITE_TIMEOUT_MS = 500
 
 
 def _local_paths(argv) -> list[str]:
@@ -92,6 +95,64 @@ def _local_paths(argv) -> list[str]:
     return paths
 
 
+class SingleInstance:
+    """Single-instance gate over a local socket.
+
+    The first process becomes the primary and listens on a named socket;
+    later processes forward their command-line paths to it, which the primary
+    delivers through the `on_paths` callback.
+    """
+
+    def __init__(self, name: str, on_paths: Callable[[list[str]], None]) -> None:
+        self._name = name
+        self._on_paths = on_paths
+        self._server: QLocalServer | None = None
+        self._conn_buffer: dict[QLocalSocket, bytearray] = {}
+        self.is_primary = False
+
+    def become_primary(self) -> None:
+        self._server = QLocalServer()
+        self._server.removeServer(self._name)
+        self.is_primary = self._server.listen(self._name)
+        if self.is_primary:
+            self._server.newConnection.connect(self._on_new_connection)
+
+    def send_paths(self, paths: list[str]) -> None:
+        socket = QLocalSocket()
+        socket.connectToServer(self._name)
+        if not socket.waitForConnected(_CONNECT_TIMEOUT_MS):
+            return
+        socket.write("\0".join(paths).encode("utf-8"))
+        socket.waitForBytesWritten(_WRITE_TIMEOUT_MS)
+        socket.disconnectFromServer()
+
+    def _on_new_connection(self) -> None:
+        conn = self._server.nextPendingConnection()
+        if conn is None:
+            return
+        self._conn_buffer[conn] = bytearray()
+        conn.readyRead.connect(lambda: self._read_more(conn))
+        conn.readChannelFinished.connect(lambda: self._finish(conn))
+        self._read_more(conn)
+
+    def _read_more(self, conn) -> None:
+        buffer = self._conn_buffer.get(conn)
+        if buffer is None:
+            return
+        buffer.extend(bytes(conn.readAll()))
+
+    def _finish(self, conn) -> None:
+        buffer = self._conn_buffer.get(conn)
+        if buffer is None:
+            return
+        buffer.extend(bytes(conn.readAll()))
+        self._conn_buffer.pop(conn, None)
+        conn.disconnectFromServer()
+        data = bytes(buffer)
+        if data:
+            self._on_paths(data.decode("utf-8").split("\0"))
+
+
 class ImSlimApp(QApplication):
     def __init__(self, argv):
         _configure_platform_theme()
@@ -101,63 +162,13 @@ class ImSlimApp(QApplication):
         self.setOrganizationName("ImSlim")
         self.setApplicationDisplayName("ImSlim")
         self.win: ImSlimWindow | None = None
-        self.server: QLocalServer | None = None
-        self._conn_buffer: dict[QLocalSocket, bytearray] = {}
-
-    def is_primary(self) -> bool:
-        self.server = QLocalServer(self)
-        self.server.removeServer(SOCKET_NAME)
-        if self.server.listen(SOCKET_NAME):
-            self.server.newConnection.connect(self._on_new_connection)
-            return True
-        return False
-
-    def _on_new_connection(self):
-        conn = self.server.nextPendingConnection()
-        if conn is None:
-            return
-        self._conn_buffer[conn] = bytearray()
-        conn.readyRead.connect(lambda: self._read_more(conn))
-        conn.readChannelFinished.connect(lambda: self._finish_connection(conn))
-        self._read_more(conn)
-
-    def _read_more(self, conn):
-        buffer = self._conn_buffer.get(conn)
-        if buffer is None:
-            return
-        buffer.extend(bytes(conn.readAll()))
-
-    def _finish_connection(self, conn):
-        buffer = self._conn_buffer.get(conn)
-        if buffer is None:
-            return
-        buffer.extend(bytes(conn.readAll()))
-        self._conn_buffer.pop(conn, None)
-        conn.disconnectFromServer()
-        data = bytes(buffer)
-        if not data:
-            return
-        paths = data.decode("utf-8").split("\0")
-        if self.win is not None:
-            self.win.show()
-            self.win.raise_()
-            self.win.activateWindow()
-            self.win.compress_files(paths)
-
-    def send_to_existing(self, paths) -> None:
-        socket = QLocalSocket(self)
-        socket.connectToServer(SOCKET_NAME)
-        if not socket.waitForConnected(1000):
-            return
-        socket.write("\0".join(paths).encode("utf-8"))
-        socket.waitForBytesWritten(500)
-        socket.disconnectFromServer()
 
     def run(self):
         paths = _local_paths(sys.argv)
-
-        if not self.is_primary():
-            self.send_to_existing(paths)
+        single = SingleInstance(SOCKET_NAME, self._on_foreign_paths)
+        single.become_primary()
+        if not single.is_primary:
+            single.send_paths(paths)
             return 0
 
         self.win = ImSlimWindow(self)
@@ -168,6 +179,14 @@ class ImSlimApp(QApplication):
 
         self.win.check_version_update()
         return self.exec()
+
+    def _on_foreign_paths(self, paths: list[str]) -> None:
+        if self.win is None:
+            return
+        self.win.show()
+        self.win.raise_()
+        self.win.activateWindow()
+        self.win.compress_files(paths)
 
 
 def main():
