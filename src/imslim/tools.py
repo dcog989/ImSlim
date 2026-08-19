@@ -114,7 +114,7 @@ def _is_image_path(path: str) -> bool:
     return path.lower().endswith(_IMAGE_EXTENSIONS)
 
 
-def debug_infos():
+def debug_pairs() -> list[tuple[str, str]]:
     python_version = platform.python_version()
     try:
         import PySide6
@@ -137,7 +137,7 @@ def debug_infos():
             continue
         sections.append((tool, _tool_version(_version_flag(path, tool))))
 
-    return "\n".join(f"{key}: {value}" for key, value in sections)
+    return sections
 
 
 def _version_flag(path: str, tool: str) -> list[str]:

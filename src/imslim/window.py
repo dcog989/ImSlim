@@ -36,7 +36,7 @@ from .result_item_manager import ResultItemManager
 from .result_item_row import ResultItemRow
 from .settings_manager import SAVE_BACKUP_OVERWRITE, SAVE_NEW_FILE, SettingsManager
 from .tools import (
-    debug_infos,
+    debug_pairs,
     get_image_paths_from_folder,
     image_filter,
     sizeof_fmt,
@@ -597,12 +597,25 @@ class ImSlimWindow(QWidget):
         self.prefs_dialog.show()
 
     def on_about(self):
+        debug_lines = "".join(
+            f"<tr><td><b>{key}</b></td><td>{value}</td></tr>" for key, value in debug_pairs()
+        )
         QMessageBox.about(
             self,
             _("About ImSlim"),
             _(
-                "<b>ImSlim</b> — compress your images.\n\n"
-                "Supports PNG, JPEG, GIF, WebP, AVIF, JXL and SVG, in both lossless and "
-                "lossy modes.\n\nVersion: {version}\n\n{debug}"
-            ).format(version=__version__, debug=debug_infos()),
+                "<div style='min-width: 360px;'>"
+                "<div style='font-size: 18pt; font-weight: bold;'>ImSlim</div>"
+                "<div style='font-size: 9pt; color: #808080;'>"
+                "Version {version}</div>"
+                "<div style='margin-top: 10px;'>"
+                "Compress your images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG, "
+                "in both lossless and lossy modes.</div>"
+                "<hr style='color: palette(mid); background-color: palette(mid); height: 1px; border: none; margin: 12px 0;'/>"
+                "<div style='font-weight: bold;'>Environment</div>"
+                "<table style='border-spacing: 6px 2px;'>"
+                "{debug}"
+                "</table>"
+                "</div>"
+            ).format(version=__version__, debug=debug_lines),
         )

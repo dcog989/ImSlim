@@ -256,32 +256,15 @@ class PreferencesDialog(QDialog):
 
         for attr_name, label, hint, key in checks:
             check = QCheckBox(label)
-            check.setToolTip(hint)
             check.toggled.connect(self.on_bool_changed(key))
             setattr(self, f"toggle_{attr_name}", check)
             self._format_checks.append((check, key))
             layout.addWidget(check)
+            layout.addWidget(self._hint_label(hint))
 
         return group
 
-    def _spin_row(self, attr_name, label, hint, key, lower, upper) -> QVBoxLayout:
-        column = QVBoxLayout()
-        column.setSpacing(2)
-
-        row = QHBoxLayout()
-        row.setContentsMargins(0, 0, 0, 0)
-        label_widget = QLabel(label)
-        label_widget.setMinimumWidth(110)
-        spin = QSpinBox()
-        spin.setRange(lower, upper)
-        spin.valueChanged.connect(self.on_int_changed(key))
-        setattr(self, f"spin_{attr_name}", spin)
-        self._format_spins.append((spin, key))
-        row.addWidget(label_widget)
-        row.addStretch(1)
-        row.addWidget(spin)
-        column.addLayout(row)
-
+    def _hint_label(self, hint: str) -> QLabel:
         hint_label = QLabel(hint)
         hint_label.setWordWrap(True)
         hint_label.setMinimumHeight(hint_label.fontMetrics().height() + 4)
@@ -305,7 +288,27 @@ class PreferencesDialog(QDialog):
         hint_font.setPointSizeF(hint_font.pointSizeF() * 0.9)
         hint_label.setFont(hint_font)
 
-        column.addWidget(hint_label)
+        return hint_label
+
+    def _spin_row(self, attr_name, label, hint, key, lower, upper) -> QVBoxLayout:
+        column = QVBoxLayout()
+        column.setSpacing(2)
+
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        label_widget = QLabel(label)
+        label_widget.setMinimumWidth(110)
+        spin = QSpinBox()
+        spin.setRange(lower, upper)
+        spin.valueChanged.connect(self.on_int_changed(key))
+        setattr(self, f"spin_{attr_name}", spin)
+        self._format_spins.append((spin, key))
+        row.addWidget(label_widget)
+        row.addStretch(1)
+        row.addWidget(spin)
+        column.addLayout(row)
+
+        column.addWidget(self._hint_label(hint))
 
         return column
 
