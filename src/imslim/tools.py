@@ -6,7 +6,7 @@ import re
 import subprocess
 
 from PySide6.QtCore import QSize
-from PySide6.QtGui import QImageReader, QPixmap
+from PySide6.QtGui import QImage, QImageReader
 
 from .binary_resolver import KNOWN_TOOLS, resolve_tool
 
@@ -54,7 +54,12 @@ def _decimal_separator() -> str:
     return separator
 
 
-def create_thumbnail(filename: str, max_width: int, max_height: int) -> QPixmap | None:
+def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> QImage | None:
+    """Decode and scale an image for use as a thumbnail, returning a value QImage.
+
+    Safe to call from a non-GUI thread; the caller converts the result to a
+    QPixmap on the main thread.
+    """
     try:
         reader = QImageReader(filename)
         reader.setAutoTransform(True)
@@ -71,7 +76,7 @@ def create_thumbnail(filename: str, max_width: int, max_height: int) -> QPixmap 
         return None
     if image.isNull():
         return None
-    return QPixmap.fromImage(image)
+    return image
 
 
 def get_image_paths_from_folder(folder_path: str, recursive: bool = False) -> list[str]:

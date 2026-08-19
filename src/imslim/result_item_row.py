@@ -1,7 +1,7 @@
 import os
 
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QAction, QDesktopServices
+from PySide6.QtCore import Qt, QThread, QUrl, Signal
+from PySide6.QtGui import QAction, QDesktopServices, QImage, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -14,7 +14,21 @@ from PySide6.QtWidgets import (
 )
 
 from .result_item import ResultItem
-from .tools import create_thumbnail
+from .tools import create_thumbnail_qimage
+
+
+class _ThumbnailLoader(QThread):
+    """Decode a thumbnail image off the UI thread; emits a value QImage."""
+
+    loaded = Signal(object)
+
+    def __init__(self, filename: str, size: int, parent=None):
+        super().__init__(parent)
+        self._filename = filename
+        self._size = size
+
+    def run(self):
+        self.loaded.emit(create_thumbnail_qimage(self._filename, self._size, self._size))
 
 
 class ResultItemRow(QWidget):
@@ -68,12 +82,19 @@ class ResultItemRow(QWidget):
         layout.addWidget(self.skipped_button)
         layout.addWidget(self.error_button)
 
-        thumbnail = create_thumbnail(result_item.filename, 48, 48)
-        if thumbnail:
-            self.thumbnail.setPixmap(thumbnail)
+        self._thumbnail_loader = _ThumbnailLoader(result_item.filename, 48, self)
+        self._thumbnail_loader.loaded.connect(self._set_thumbnail)
+        self._thumbnail_loader.start()
 
         result_item.updated.connect(self.refresh)
         self.refresh()
+
+    def _set_thumbnail(self, image: QImage | None):
+        self._thumbnail_loader.deleteLater()
+        self._thumbnail_loader = None
+        if image is None:
+            return
+        self.thumbnail.setPixmap(QPixmap.fromImage(image))
 
     def refresh(self):
         item = self.result_item
