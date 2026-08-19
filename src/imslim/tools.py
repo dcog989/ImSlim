@@ -5,10 +5,10 @@ import platform
 import re
 import subprocess
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import QSize
+from PySide6.QtGui import QImageReader, QPixmap
 
-from .binary_resolver import resolve_tool
+from .binary_resolver import KNOWN_TOOLS, resolve_tool
 
 
 def image_filter() -> str:
@@ -27,7 +27,7 @@ def image_filter() -> str:
     )
 
 
-def sizeof_fmt(num: float) -> str:
+def sizeof_fmt(num: float | None) -> str:
     if num is None or num < 0:
         return ""
     value = float(num)
@@ -47,8 +47,8 @@ def _decimal_separator() -> str:
         return separator
     try:
         locale.setlocale(locale.LC_NUMERIC, "")
-        separator = locale.nl_langinfo(locale.RADIXCHAR)
-    except (locale.Error, ValueError):
+        separator = locale.localeconv()["decimal_point"]
+    except (locale.Error, ValueError, AttributeError, KeyError):
         separator = "."
     _decimal_separator._cached = separator
     return separator
@@ -56,49 +56,37 @@ def _decimal_separator() -> str:
 
 def create_thumbnail(filename: str, max_width: int, max_height: int) -> QPixmap | None:
     try:
-        pixmap = QPixmap(filename)
-        if pixmap.isNull():
+        reader = QImageReader(filename)
+        reader.setAutoTransform(True)
+        size = reader.size()
+        width = size.width()
+        height = size.height()
+        if width <= 0 or height <= 0:
             return None
+        ratio = min(max_width / width, max_height / height, 1.0)
+        reader.setScaledSize(QSize(max(1, int(width * ratio)), max(1, int(height * ratio))))
+        image = reader.read()
     except Exception as err:
         logging.error(str(err))
         return None
-
-    width = pixmap.width()
-    height = pixmap.height()
-    if width <= 0 or height <= 0:
+    if image.isNull():
         return None
-
-    if width > height:
-        ratio = max_width / float(width)
-        new_width = max_width
-        new_height = int(height * ratio)
-    else:
-        ratio = max_height / float(height)
-        new_width = int(width * ratio)
-        new_height = max_height
-
-    scaled = pixmap.scaled(
-        new_width,
-        new_height,
-        Qt.KeepAspectRatio,
-        Qt.SmoothTransformation,
-    )
-    return scaled
+    return QPixmap.fromImage(image)
 
 
 def get_image_paths_from_folder(folder_path: str, recursive: bool = False) -> list[str]:
     images = []
     try:
         with os.scandir(folder_path) as it:
-            for entry in it:
+            for entry in sorted(it, key=lambda e: e.name):
                 if entry.is_dir(follow_symlinks=False):
                     if recursive:
                         images.extend(get_image_paths_from_folder(entry.path, True))
                     continue
                 if entry.is_file(follow_symlinks=False) and _is_image_path(entry.name):
                     images.append(entry.path)
-    except OSError:
-        pass
+    except OSError as err:
+        logging.warning("Could not read folder %s: %s", folder_path, err)
     return images
 
 
@@ -134,49 +122,31 @@ def debug_infos():
         ("Python", python_version),
         ("PySide6/Qt", qt_version),
     ]
-    for tool in (
-        "cjpegli",
-        "djpegli",
-        "jpegtran",
-        "oxipng",
-        "pngquant",
-        "cwebp",
-        "avifdec",
-        "avifenc",
-        "cjxl",
-        "djxl",
-        "gifsicle",
-        "svgo",
-    ):
-        sections.append(
-            (
-                tool,
-                _tool_version(_version_flag(resolve_tool(tool), tool))
-                if _tool_available(tool)
-                else _("Version not found"),
-            )
-        )
+    for tool in KNOWN_TOOLS:
+        try:
+            path = resolve_tool(tool)
+        except OSError:
+            path = None
+        if path is None:
+            sections.append((tool, _("Version not found")))
+            continue
+        sections.append((tool, _tool_version(_version_flag(path, tool))))
 
     return "\n".join(f"{key}: {value}" for key, value in sections)
 
 
-def _tool_available(tool: str) -> bool:
-    try:
-        resolve_tool(tool)
-        return True
-    except OSError:
-        return False
-
-
 def _version_flag(path: str, tool: str) -> list[str]:
-    if tool == "cwebp":
+    if tool in ("cwebp", "jpegtran"):
         return [path, "-version"]
     return [path, "--version"]
 
 
+_VERSION_TIMEOUT = 10
+
+
 def _tool_version(argv: list[str]) -> str:
     try:
-        text = subprocess.check_output(argv)
+        text = subprocess.check_output(argv, timeout=_VERSION_TIMEOUT)
         return extract_version(text.decode("utf-8"))
     except Exception:
         return _("Version not found")
