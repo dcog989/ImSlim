@@ -24,12 +24,10 @@ class Compressor(ABC):
 
     @classmethod
     @abstractmethod
-    def get_file_type(cls) -> str:
-        return ""
+    def get_file_type(cls) -> str: ...
 
     @abstractmethod
-    def build_command(self, result_item: ResultItem) -> list[Command]:
-        return []
+    def build_command(self, result_item: ResultItem) -> list[Command]: ...
 
     def adapt_command(self, argv: list[str], result_item: ResultItem) -> list[str]:
         return argv
