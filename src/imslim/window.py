@@ -128,7 +128,16 @@ class ImSlimWindow(QWidget):
         self.clear_button.setStyleSheet("QToolButton { padding: 0 12px; }")
         self.clear_button.clicked.connect(self.clear_results)
 
+        self.stop_button = QToolButton()
+        self.stop_button.setText(_("Stop"))
+        self.stop_button.setToolTip(_("Stop the current compression."))
+        self.stop_button.setFixedHeight(32)
+        self.stop_button.setStyleSheet("QToolButton { padding: 0 12px; }")
+        self.stop_button.clicked.connect(self.stop_compression)
+        self.stop_button.hide()
+
         header_layout.addWidget(self.clear_button)
+        header_layout.addWidget(self.stop_button)
         header_layout.addStretch(1)
 
         self.mode_toggle = ModeToggle()
@@ -354,6 +363,11 @@ class ImSlimWindow(QWidget):
     # ----------------------------------------------------------------- helpers
     def enable_compression(self, enable):
         self.clear_button.setEnabled(enable)
+        self.stop_button.setVisible(not enable)
+
+    def stop_compression(self):
+        self.manager.cancel()
+        self.stop_button.setEnabled(False)
 
     _VIEWS: ClassVar[dict[str, tuple[int, bool, bool]]] = {
         "home": (0, False, True),
@@ -377,6 +391,7 @@ class ImSlimWindow(QWidget):
     def clear_results(self):
         self.show_view("home")
         self.rows.clear()
+        self.stop_button.hide()
         while self.results_layout.count() > 2:
             item = self.results_layout.takeAt(1)
             widget = item.widget()
@@ -432,6 +447,11 @@ class ImSlimWindow(QWidget):
 
     def update_result_item(self, result_item: ResultItem):
         result_item.running = False
+        if result_item.cancelled:
+            result_item.subtitle_label = _("Cancelled")
+            result_item.savings = ""
+            result_item.updated.emit()
+            return
         if result_item.error:
             result_item.subtitle_label = result_item.error_message
         elif result_item.skipped:

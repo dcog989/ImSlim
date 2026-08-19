@@ -10,6 +10,10 @@ from .output_writer import OutputWriter
 from .result_item import ResultItem
 
 
+class CancelledError(Exception):
+    """Raised to abort a compression when the batch is cancelled."""
+
+
 class Command(NamedTuple):
     argv: list[str]
     stdout_path: str | None = None
@@ -45,11 +49,41 @@ class Compressor(ABC):
         except OSError:
             pass
 
+    def _run_command(self, argv: list[str], context, stdout) -> None:
+        """Run one tool invocation as a killable subprocess."""
+        process = subprocess.Popen(argv, stdout=stdout, stderr=subprocess.PIPE)
+        context.register_process(process)
+        try:
+            try:
+                stdout_data, stderr_data = process.communicate(
+                    timeout=self.settings.compression_timeout
+                )
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.communicate()
+                raise
+        finally:
+            context.unregister_process(process)
+        if context.cancelled:
+            raise CancelledError
+        if process.returncode != 0:
+            raise subprocess.CalledProcessError(process.returncode, argv, stdout_data, stderr_data)
+
+    def _mark_cancelled(self, result_item: ResultItem, c_update_result_item: Callable) -> None:
+        result_item.cancelled = True
+        result_item.running = False
+        self._cleanup_temp_files(result_item)
+        c_update_result_item(result_item)
+
     def _cleanup_temp_files(self, result_item: ResultItem) -> None:
         for path in [result_item.tmp_filename, *self.get_intermediate_files(result_item)]:
             self._remove_quietly(path)
 
-    def run(self, result_item: ResultItem, c_update_result_item: Callable) -> None:
+    def run(self, result_item: ResultItem, c_update_result_item: Callable, context) -> None:
+        if context.cancelled:
+            self._mark_cancelled(result_item, c_update_result_item)
+            return
+
         last_argv: list[str] | None = None
         try:
             commands = self.build_command(result_item)
@@ -61,20 +95,11 @@ class Compressor(ABC):
                         # Stream stdout straight to the sidecar file instead of
                         # buffering the whole payload in memory first.
                         with open(command.stdout_path, "wb") as fp:
-                            subprocess.run(
-                                argv,
-                                stdout=fp,
-                                stderr=subprocess.PIPE,
-                                check=True,
-                                timeout=self.settings.compression_timeout,
-                            )
+                            self._run_command(argv, context, stdout=fp)
                     else:
-                        subprocess.run(
-                            argv,
-                            capture_output=True,
-                            check=True,
-                            timeout=self.settings.compression_timeout,
-                        )
+                        self._run_command(argv, context, stdout=subprocess.PIPE)
+                except CancelledError:
+                    raise
                 except Exception:
                     if command.stdout_path is not None:
                         self._remove_quietly(command.stdout_path)
@@ -82,6 +107,9 @@ class Compressor(ABC):
                         logging.warning("Optional command failed, ignoring: %s", argv)
                         continue
                     raise
+        except CancelledError:
+            self._mark_cancelled(result_item, c_update_result_item)
+            return
         except subprocess.TimeoutExpired as err:
             logging.error(str(err))
             result_item.set_error(
@@ -102,7 +130,7 @@ class Compressor(ABC):
             result_item.set_error(_("An unknown error has occurred."), html.escape(str(err)))
             logging.error(result_item.error_details_message)
 
-        if result_item.error:
+        if context.cancelled or result_item.error:
             self._cleanup_temp_files(result_item)
             c_update_result_item(result_item)
             return

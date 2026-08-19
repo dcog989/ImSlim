@@ -19,6 +19,7 @@ class ResultItem(QObject):
         self.savings = ""
         self.running = False
         self.skipped = False
+        self.cancelled = False
         self.error = False
         self.error_message = ""
         self.error_details = False
