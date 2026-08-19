@@ -55,17 +55,8 @@ class ResultItemRow(QWidget):
         self.spinner.setFixedSize(20, 16)
         self.spinner.setTextVisible(False)
 
-        self.skipped_button = QToolButton()
-        self.skipped_button.setText("i")
-        self.skipped_button.setToolTip(_("More Information"))
-        self.skipped_button.setVisible(False)
-        self.skipped_button.clicked.connect(self._show_skipped_info)
-
-        self.error_button = QToolButton()
-        self.error_button.setText("i")
-        self.error_button.setToolTip(_("More Information"))
-        self.error_button.setVisible(False)
-        self.error_button.clicked.connect(self._show_error_info)
+        self.skipped_button = self._make_info_button(self._show_skipped_info)
+        self.error_button = self._make_info_button(self._show_error_info)
 
         text_vbox = QVBoxLayout()
         text_vbox.setSpacing(0)
@@ -95,6 +86,15 @@ class ResultItemRow(QWidget):
         if image is None:
             return
         self.thumbnail.setPixmap(QPixmap.fromImage(image))
+
+    @staticmethod
+    def _make_info_button(handler) -> QToolButton:
+        button = QToolButton()
+        button.setText("i")
+        button.setToolTip(_("More Information"))
+        button.setVisible(False)
+        button.clicked.connect(handler)
+        return button
 
     def refresh(self):
         item = self.result_item
