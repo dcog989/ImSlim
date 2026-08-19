@@ -1,5 +1,6 @@
 import os
 
+from ..binary_resolver import resolve_tool
 from ..compressor import Compressor
 from ..result_item import ResultItem
 
@@ -22,7 +23,7 @@ class JXLCompressor(Compressor):
 
         # cjxl can't read JXL input, so decode to a temporary PNG first
         commands: list[tuple[list[str], str | None] | tuple[list[str], str | None, bool]] = [
-            (["djxl", result_item.filename, intermediate], None)
+            ([resolve_tool("djxl"), result_item.filename, intermediate], None)
         ]
 
         if self.settings.metadata:
@@ -33,13 +34,13 @@ class JXLCompressor(Compressor):
             for kind in _JXL_METADATA:
                 commands.append(
                     (
-                        ["djxl", result_item.filename, "-", "--output_format", kind],
+                        [resolve_tool("djxl"), result_item.filename, "-", "--output_format", kind],
                         self._sidecar_path(result_item, kind),
                         True,
                     )
                 )
 
-        cjxl = ["cjxl"]
+        cjxl = [resolve_tool("cjxl")]
 
         # cjxl v0.12: -q 100 is lossless (the -q 100/--lossless flag was removed).
         if self.settings.lossy:
@@ -60,7 +61,7 @@ class JXLCompressor(Compressor):
         return commands
 
     def adapt_command(self, argv: list[str], result_item: ResultItem) -> list[str]:
-        if not argv or argv[0] != "cjxl":
+        if not argv or argv[0] != resolve_tool("cjxl"):
             return argv
 
         # Prune -x exif=xmp=jumbf hint args whose sidecar wasn't produced so a

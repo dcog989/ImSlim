@@ -1,3 +1,4 @@
+from ..binary_resolver import resolve_tool
 from ..compressor import Compressor
 from ..result_item import ResultItem
 
@@ -14,9 +15,9 @@ class AVIFCompressor(Compressor):
         intermediate = self._intermediate_path(result_item)
 
         # avifenc can't read AVIF input, so decode to a temporary PNG first
-        avifdec = ["avifdec", result_item.filename, intermediate]
+        avifdec = [resolve_tool("avifdec"), result_item.filename, intermediate]
 
-        avifenc = ["avifenc"]
+        avifenc = [resolve_tool("avifenc")]
 
         # avifenc preserves metadata by default
         if not self.settings.metadata:

@@ -1,3 +1,4 @@
+from ..binary_resolver import resolve_tool
 from ..compressor import Compressor
 
 
@@ -11,7 +12,7 @@ class PNGCompressor(Compressor):
 
         if self.settings.lossy:  # lossy compression
             pngquant = [
-                "pngquant",
+                resolve_tool("pngquant"),
                 f"--quality=0-{self.settings.png_lossy_level}",
                 "-f",
             ]
@@ -20,7 +21,13 @@ class PNGCompressor(Compressor):
             pngquant += [result_item.filename, "--output", result_item.tmp_filename]
             commands.append((pngquant, None))
 
-        oxipng = ["oxipng", "-o", str(self.settings.png_lossless_level), "-i", "1"]
+        oxipng = [
+            resolve_tool("oxipng"),
+            "-o",
+            str(self.settings.png_lossless_level),
+            "-i",
+            "1",
+        ]
         if not self.settings.metadata:
             oxipng += ["--strip", "safe"]
         if self.settings.file_attributes:

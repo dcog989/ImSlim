@@ -1,3 +1,4 @@
+from ..binary_resolver import resolve_tool
 from ..compressor import Compressor
 
 
@@ -7,7 +8,7 @@ class SVGCompressor(Compressor):
         return "svg"
 
     def build_command(self, result_item) -> list[tuple[list[str], str | None]]:
-        svgo = ["svgo", "--output", result_item.tmp_filename]
+        svgo = [resolve_tool("svgo"), "--output", result_item.tmp_filename]
 
         if self.settings.svg_maximum_level:
             svgo += [

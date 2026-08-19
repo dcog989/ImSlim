@@ -8,6 +8,8 @@ import subprocess
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 
+from .binary_resolver import resolve_tool
+
 
 def image_filter() -> str:
     return _(
@@ -132,16 +134,30 @@ def debug_infos():
         "gifsicle",
         "svgo",
     ):
-        sections.append((tool, _tool_version(_version_flag(tool))))
+        sections.append(
+            (
+                tool,
+                _tool_version(_version_flag(resolve_tool(tool), tool))
+                if _tool_available(tool)
+                else _("Version not found"),
+            )
+        )
 
-    debug = "\n".join(f"{key}: {value}" for key, value in sections)
-    return debug
+    return "\n".join(f"{key}: {value}" for key, value in sections)
 
 
-def _version_flag(tool: str) -> list[str]:
+def _tool_available(tool: str) -> bool:
+    try:
+        resolve_tool(tool)
+        return True
+    except OSError:
+        return False
+
+
+def _version_flag(path: str, tool: str) -> list[str]:
     if tool == "cwebp":
-        return ["cwebp", "-version"]
-    return [tool, "--version"]
+        return [path, "-version"]
+    return [path, "--version"]
 
 
 def _tool_version(argv: list[str]) -> str:

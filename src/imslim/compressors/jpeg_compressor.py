@@ -1,3 +1,4 @@
+from ..binary_resolver import resolve_tool
 from ..compressor import Compressor
 
 
@@ -18,7 +19,7 @@ class JPEGCompressor(Compressor):
         return self._build_lossless_command(result_item)
 
     def _build_lossless_command(self, result_item) -> list[tuple[list[str], str | None]]:
-        jpegtran = ["jpegtran", "-optimize"]
+        jpegtran = [resolve_tool("jpegtran"), "-optimize"]
 
         if self.settings.jpg_progressive:
             jpegtran.append("-progressive")
@@ -34,14 +35,14 @@ class JPEGCompressor(Compressor):
         intermediate = self._intermediate_path(result_item)
 
         # jpegli can't read JPEG input, so decode to a temporary PNG first
-        djpegli = ["djpegli", result_item.filename, intermediate]
+        djpegli = [resolve_tool("djpegli"), result_item.filename, intermediate]
 
         output = result_item.tmp_filename
         if not self.settings.metadata:
             output = self._encoded_path(result_item)
 
         cjpegli = [
-            "cjpegli",
+            resolve_tool("cjpegli"),
             intermediate,
             output,
             "--quality",
@@ -56,7 +57,7 @@ class JPEGCompressor(Compressor):
         if not self.settings.metadata:
             # jpegli carries ICC/EXIF/XMP from the PNG; strip all but the ICC profile
             jpegtran = [
-                "jpegtran",
+                resolve_tool("jpegtran"),
                 "-copy",
                 "icc",
                 "-outfile",

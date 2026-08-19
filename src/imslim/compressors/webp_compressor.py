@@ -1,3 +1,4 @@
+from ..binary_resolver import resolve_tool
 from ..compressor import Compressor
 from ..result_item import ResultItem
 
@@ -8,7 +9,7 @@ class WEBPCompressor(Compressor):
         return "webp"
 
     def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
-        cwebp = ["cwebp"]
+        cwebp = [resolve_tool("cwebp")]
 
         # cwebp doesn't preserve any metadata by default
         if self.settings.metadata:

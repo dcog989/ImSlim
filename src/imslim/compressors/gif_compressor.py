@@ -1,5 +1,6 @@
 from PySide6.QtGui import QImageReader
 
+from ..binary_resolver import resolve_tool
 from ..compressor import Compressor
 from ..result_item import ResultItem
 
@@ -19,7 +20,7 @@ class GIFCompressor(Compressor):
     def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
         is_animated = self._is_animated(result_item)
 
-        gifsicle = ["gifsicle", "--optimize", str(self.settings.gif_lossless_level)]
+        gifsicle = [resolve_tool("gifsicle"), "--optimize", str(self.settings.gif_lossless_level)]
 
         # gifsicle --lossy can visibly flicker/posterize complex animation,
         # so animated GIFs are always compressed losslessly

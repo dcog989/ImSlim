@@ -3,7 +3,7 @@
 ## Project
 
 - Name: ImSlim
-- Description: Desktop app to compress images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG formats, in lossless or lossy mode. Built on the external tools pngquant/oxipng, cjpegli/djpegli, mozjpeg jpegtran, cwebp, gifsicle, cjxl/djxl, avifdec/avifenc and svgo.
+- Description: Desktop app to compress images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG formats, in lossless or lossy mode. Built on the external tools pngquant/oxipng, cjpegli/djpegli, mozjpeg jpegtran, cwebp, gifsicle, cjxl/djxl, avifdec/avifenc and svgo. Tools are bundled per-platform in `src/imslim/bin/` (built by `scripts/build_tools.sh`); `src/imslim/binary_resolver.py` resolves them.
 - Tech: Python (>=3.13), PySide6 (Qt6). Setup and deps managed via `uv`. Lint/format via `ruff`.
 
 ## Key Files
@@ -13,6 +13,7 @@
 - `src/imslim/preferences.py` — preferences dialog
 - `src/imslim/settings_manager.py` — persistent settings/state store
 - `src/imslim/compressor.py` — base compressor + run logic
+- `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools
 - `src/imslim/compressors/` — per-format compressors (png, jpeg, webp, avif, jxl, svg)
 - `src/imslim/compression_manager.py` — thread-pool orchestration of compressors
 - `assets/imslim.svg` — main window logo
@@ -24,6 +25,7 @@
 
 - Install: `uv sync`
 - Dev: `uv run imslim` (or `python -m imslim`)
+- Build bundled tools: `./scripts/build_tools.sh` (populates `src/imslim/bin/<platform>/`); run after a fresh clone so the app has its backends
 - Test: no test suite configured
 - Lint: `uv run ruff check`
 - Format: `uv run ruff format .`
