@@ -121,7 +121,7 @@ def debug_pairs() -> list[tuple[str, str]]:
 
         qt_version = PySide6.__version__
     except Exception:
-        qt_version = _("Version not found")
+        qt_version = _("Version not available")
 
     sections = [
         ("Python", python_version),
@@ -133,7 +133,7 @@ def debug_pairs() -> list[tuple[str, str]]:
         except OSError:
             path = None
         if path is None:
-            sections.append((tool, _("Version not found")))
+            sections.append((tool, _("Version not available")))
             continue
         sections.append((tool, _tool_version(_version_flag(path, tool))))
 
@@ -157,7 +157,7 @@ def _tool_version(argv: list[str]) -> str:
         text = completed.stdout + completed.stderr
         return extract_version(text.decode("utf-8", errors="replace"))
     except Exception:
-        return _("Version not found")
+        return _("Version not available")
 
 
 def extract_version(text: str) -> str:
@@ -166,4 +166,4 @@ def extract_version(text: str) -> str:
     match = re.search(version_regex, text)
     if match:
         return match.group(1)
-    return _("Version not found")
+    return _("Version not available")
