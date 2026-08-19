@@ -126,7 +126,7 @@ class PreferencesDialog(QDialog):
                 (),
             ),
             (
-                "JPG",
+                "JPEG / Jpegli",
                 (("jpg_lossy_level", _("Lossy"), quality_hint, "jpg-lossy-level", 0, 100),),
                 (
                     (
