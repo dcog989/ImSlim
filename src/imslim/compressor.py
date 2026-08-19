@@ -74,7 +74,12 @@ class Compressor(ABC):
             result_item.error = True
         except Exception as err:
             result_item.error_message = _("An unknown error has occurred.")
-            result_item.error_details_message = html.escape(str(err))
+            details = str(err)
+            if isinstance(err, subprocess.CalledProcessError):
+                tool_output = err.stderr if err.stderr else err.stdout
+                if tool_output:
+                    details += "\n" + tool_output.decode(errors="replace").strip()
+            result_item.error_details_message = html.escape(details)
             logging.error(result_item.error_details_message)
             result_item.error = True
             result_item.error_details = True
