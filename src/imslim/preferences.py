@@ -103,7 +103,7 @@ class PreferencesDialog(QDialog):
         quality_hint = _("Set the quality; 100 is best.")
 
         def level_hint(max_level: int) -> str:
-            return _(f"Set the level; {max_level} is highest but slowest.")
+            return _("Set the level; {} is highest but slowest.").format(max_level)
 
         formats = (
             (
