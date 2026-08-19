@@ -1,3 +1,4 @@
+import locale
 import logging
 import os
 import platform
@@ -25,13 +26,27 @@ def sizeof_fmt(num: float) -> str:
     if num is None or num < 0:
         return ""
     value = float(num)
-    for unit in ("B", "KB", "MB", "GB", "TB"):
-        if value < 1024.0 or unit == "TB":
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if value < 1024.0 or unit == "TiB":
             if unit == "B":
                 return f"{int(value)} {unit}"
-            return f"{value:.1f} {unit}"
+            return f"{value:.1f}".replace(".", _decimal_separator()) + f" {unit}"
         value /= 1024.0
-    return f"{value:.1f} TB"
+    return ""
+
+
+def _decimal_separator() -> str:
+    """Return the host locale's decimal separator (e.g. "." or ",")."""
+    separator = getattr(_decimal_separator, "_cached", None)
+    if separator is not None:
+        return separator
+    try:
+        locale.setlocale(locale.LC_NUMERIC, "")
+        separator = locale.nl_langinfo(locale.RADIXCHAR)
+    except (locale.Error, ValueError):
+        separator = "."
+    _decimal_separator._cached = separator
+    return separator
 
 
 def create_thumbnail(filename: str, max_width: int, max_height: int) -> QPixmap | None:
