@@ -28,9 +28,19 @@ class ResultItemManager:
         self.settings = settings_manager
         self._used_names: set[str] = set()
 
-    def begin_batch(self) -> None:
-        """Reset the per-batch path reservation so each run gets fresh suffixes."""
+    def begin_batch(self) -> bool:
+        """Start a new batch: reset name reservations and prepare the output folder.
+
+        Returns False if the output folder cannot be created and the batch
+        should be aborted.
+        """
         self._used_names.clear()
+        if self.settings.output_folder:
+            try:
+                os.makedirs(self.settings.output_folder, exist_ok=True)
+            except OSError:
+                return False
+        return True
 
     def build(self, path: str) -> ResultItem:
         result_item = ResultItem()
@@ -55,13 +65,6 @@ class ResultItemManager:
         if mime not in ALLOWED_MIME_TYPES or result_item.size <= 0:
             result_item.set_error(_("Format of this file is not supported."))
             return result_item
-
-        if self.settings.output_folder:
-            try:
-                os.makedirs(self.settings.output_folder, exist_ok=True)
-            except OSError:
-                result_item.set_error(_("Can't create the output folder."))
-                return result_item
 
         result_item.subtitle_label = sizeof_fmt(result_item.size)
 
@@ -94,15 +97,12 @@ class ResultItemManager:
         extension = OUTPUT_EXTENSIONS.get(mime, extension)
         timestamp = time.strftime("%Y%m%d%H%M%S")
         parent = self._output_parent(path)
-        candidate = os.path.join(parent, f"{stem}.{marker}.{timestamp}{extension}")
-        if not os.path.exists(candidate) and candidate not in self._used_names:
-            self._used_names.add(candidate)
-            return candidate
-        stem_with_marker = f"{stem}.{marker}.{timestamp}"
-        counter = 1
+        base = os.path.join(parent, f"{stem}.{marker}.{timestamp}")
+        counter = 0
         while True:
-            next_candidate = os.path.join(parent, f"{stem_with_marker}-{counter}{extension}")
-            if not os.path.exists(next_candidate) and next_candidate not in self._used_names:
-                self._used_names.add(next_candidate)
-                return next_candidate
+            suffix = "" if counter == 0 else f"-{counter}"
+            candidate = f"{base}{suffix}{extension}"
+            if not os.path.exists(candidate) and candidate not in self._used_names:
+                self._used_names.add(candidate)
+                return candidate
             counter += 1

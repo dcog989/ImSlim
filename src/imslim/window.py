@@ -517,7 +517,9 @@ class ImSlimWindow(QWidget):
             QMessageBox.information(self, _("No files found"), _("No files found"))
             return
 
-        self.result_item_manager.begin_batch()
+        if not self.result_item_manager.begin_batch():
+            QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
+            return
 
         result_items = []
         for path in paths:
