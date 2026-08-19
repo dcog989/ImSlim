@@ -32,6 +32,13 @@ class Compressor(ABC):
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         return []
 
+    def _cleanup_temp_files(self, result_item: ResultItem) -> None:
+        for path in [result_item.tmp_filename, *self.get_intermediate_files(result_item)]:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
     def run(self, result_item: ResultItem, c_update_result_item: Callable) -> None:
         commands = self.build_command(result_item)
         output = None
@@ -73,6 +80,7 @@ class Compressor(ABC):
             result_item.error_details = True
 
         if result_item.error:
+            self._cleanup_temp_files(result_item)
             c_update_result_item(result_item)
             return
 
@@ -120,10 +128,6 @@ class Compressor(ABC):
             result_item.error_message = _("Can't find the compressed file")
             result_item.error = True
 
-        for path in self.get_intermediate_files(result_item):
-            try:
-                os.remove(path)
-            except OSError:
-                pass
+        self._cleanup_temp_files(result_item)
 
         c_update_result_item(result_item)
