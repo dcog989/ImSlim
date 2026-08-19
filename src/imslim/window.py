@@ -124,7 +124,7 @@ class ModeToggle(QWidget):
         return self._lossy
 
     def sizeHint(self):
-        return self.size()
+        return self.minimumSize()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -555,9 +555,11 @@ class ImSlimWindow(QWidget):
         elif result_item.skipped:
             result_item.savings = _("Skipped")
         else:
-            result_item.savings = (
-                str(round(100 - (result_item.new_size * 100 / result_item.size))) + "%"
-            )
+            if result_item.size > 0:
+                savings = round(100 - (result_item.new_size * 100 / result_item.size))
+            else:
+                savings = 0
+            result_item.savings = str(savings) + "%"
             result_item.subtitle_label += " → " + sizeof_fmt(result_item.new_size)
         result_item.updated.emit()
 
