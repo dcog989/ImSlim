@@ -1,14 +1,13 @@
 import html
 import logging
 import os
-import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import NamedTuple
 
+from .output_writer import OutputWriter
 from .result_item import ResultItem
-from .settings_manager import SAVE_BACKUP_OVERWRITE
 
 
 class Command(NamedTuple):
@@ -21,6 +20,7 @@ class Compressor(ABC):
     def __init__(self, settings):
         super().__init__()
         self.settings = settings
+        self._output_writer = OutputWriter(settings)
 
     @classmethod
     @abstractmethod
@@ -103,45 +103,11 @@ class Compressor(ABC):
             c_update_result_item(result_item)
             return
 
-        if os.path.exists(result_item.tmp_filename):
-            result_item.new_size = os.path.getsize(result_item.tmp_filename)
-
-            if result_item.new_size >= result_item.size:
-                # Output is larger (or equal) than input
-                # Don't use compressed temp file
-                result_item.skipped = True
-            else:
-                # Output is smaller than input; copy the compressed temp file
-                overwriting = (
-                    self.settings.save_method == SAVE_BACKUP_OVERWRITE
-                    and result_item.filename == result_item.new_filename
-                )
-                if overwriting:
-                    try:
-                        shutil.copy2(result_item.filename, result_item.backup_filename)
-                    except OSError as err:
-                        result_item.set_error(
-                            _("Can't backup the original file"), html.escape(str(err))
-                        )
-                        logging.error(result_item.error_details_message)
-
-                if not result_item.error:
-                    final_path = result_item.filename if overwriting else result_item.new_filename
-                    shutil.copy2(result_item.tmp_filename, final_path)
-                    if self.settings.file_attributes and (
-                        result_item.atime > 0 and result_item.mtime > 0
-                    ):
-                        try:
-                            os.utime(final_path, (result_item.atime, result_item.mtime))
-                        except OSError:
-                            pass
-
-            # Remove the temp file
-            self._remove_quietly(result_item.tmp_filename)
-        else:
+        try:
+            self._output_writer.finalize(result_item)
+        except FileNotFoundError:
             logging.error("Command produced no output file: %s", last_argv)
-            result_item.error_message = _("Can't find the compressed file")
-            result_item.error = True
+            result_item.set_error(_("Can't find the compressed file"))
 
         self._cleanup_temp_files(result_item)
 
