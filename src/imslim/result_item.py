@@ -6,9 +6,7 @@ class ResultItem(QObject):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.file = None
         self.mime_type = ""
-        self.name = ""
         self.filename = ""
         self.new_filename = ""
         self.backup_filename = ""
@@ -19,7 +17,7 @@ class ResultItem(QObject):
         self.mtime = -1.0
         self.subtitle_label = ""
         self.savings = ""
-        self.running = True
+        self.running = False
         self.skipped = False
         self.error = False
         self.error_message = ""
@@ -29,6 +27,8 @@ class ResultItem(QObject):
     def set_error(self, error: str) -> None:
         self.error = True
         self.error_message = error
+        self.running = False
+        self.savings = ""
 
-    def __repr__(self):
-        return str(self.name)
+    def __repr__(self) -> str:
+        return self.filename

@@ -531,6 +531,10 @@ class ImSlimWindow(QWidget):
         self.show_view("results")
         self.enable_compression(False)
 
+        for result_item in result_items:
+            result_item.running = True
+            result_item.updated.emit()
+
         self.manager.compress(
             result_items,
             self.bridge.result_updated.emit,
