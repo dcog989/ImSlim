@@ -117,7 +117,7 @@ class ImSlimApp(QApplication):
         data = bytes(buffer)
         if not data:
             return
-        paths = data.decode("utf-8").split("\n")
+        paths = data.decode("utf-8").split("\0")
         if self.win is not None:
             self.win.show()
             self.win.raise_()
@@ -129,7 +129,7 @@ class ImSlimApp(QApplication):
         socket.connectToServer(SOCKET_NAME)
         if not socket.waitForConnected(1000):
             return
-        socket.write("\n".join(paths).encode("utf-8"))
+        socket.write("\0".join(paths).encode("utf-8"))
         socket.waitForBytesWritten(500)
         socket.disconnectFromServer()
 
