@@ -50,9 +50,9 @@ class Compressor(ABC):
             self._remove_quietly(path)
 
     def run(self, result_item: ResultItem, c_update_result_item: Callable) -> None:
-        commands = self.build_command(result_item)
         last_argv: list[str] | None = None
         try:
+            commands = self.build_command(result_item)
             for command in commands:
                 argv = self.adapt_command(command.argv, result_item)
                 last_argv = argv

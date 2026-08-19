@@ -1,7 +1,6 @@
-import sys
-
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor
+from ..image_convert import to_png
 from ..result_item import ResultItem
 
 _CONVERTED_MIME_TYPES = ("image/bmp", "image/tiff")
@@ -26,17 +25,7 @@ class WEBPCompressor(Compressor):
         # either to a temporary PNG with Qt before feeding it to cwebp.
         if self._needs_conversion(result_item):
             intermediate = self._intermediate_path(result_item)
-            commands.append(
-                Command(
-                    [
-                        sys.executable,
-                        "-m",
-                        "imslim.image_convert",
-                        result_item.filename,
-                        intermediate,
-                    ]
-                )
-            )
+            to_png(result_item.filename, intermediate)
             input_path = intermediate
 
         cwebp = [resolve_tool("cwebp")]
