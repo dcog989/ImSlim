@@ -41,7 +41,7 @@ class Compressor(ABC):
 
     def run(self, result_item: ResultItem, c_update_result_item: Callable) -> None:
         commands = self.build_command(result_item)
-        output = None
+        last_argv: list[str] | None = None
         try:
             # Each command is a (argv, stdout_path) tuple; an optional third
             # element (True) marks the command as non-fatal: on failure it is
@@ -50,6 +50,7 @@ class Compressor(ABC):
                 argv, stdout_path = command[0], command[1]
                 ignore_errors = command[2] if len(command) > 2 else False
                 argv = self.adapt_command(argv, result_item)
+                last_argv = argv
                 try:
                     output = subprocess.run(
                         argv,
@@ -129,7 +130,7 @@ class Compressor(ABC):
             except OSError:
                 pass
         else:
-            logging.error(str(output))
+            logging.error("Command produced no output file: %s", last_argv)
             result_item.error_message = _("Can't find the compressed file")
             result_item.error = True
 
