@@ -85,9 +85,9 @@ _CONNECT_TIMEOUT_MS = 1000
 _WRITE_TIMEOUT_MS = 500
 
 
-def _local_paths(argv) -> list[str]:
+def _local_paths() -> list[str]:
     paths = []
-    for arg in argv[1:]:
+    for arg in sys.argv[1:]:
         url = QUrl.fromUserInput(arg)
         path = url.toLocalFile() or arg
         if path:
@@ -164,7 +164,7 @@ class ImSlimApp(QApplication):
         self.win: ImSlimWindow | None = None
 
     def run(self):
-        paths = _local_paths(sys.argv)
+        paths = _local_paths()
         single = SingleInstance(SOCKET_NAME, self._on_foreign_paths)
         single.become_primary()
         if not single.is_primary:
