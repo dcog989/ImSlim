@@ -229,7 +229,9 @@ class ImSlimWindow(QWidget):
 
         self.clear_button = QToolButton()
         self.clear_button.setText(_("Clear"))
-        self.clear_button.setToolTip(_("Clear Results"))
+        self.clear_button.setToolTip(_("Clear results and return to the main window."))
+        self.clear_button.setFixedHeight(32)
+        self.clear_button.setStyleSheet("QToolButton { padding: 0 12px; }")
         self.clear_button.clicked.connect(self.clear_results)
 
         header_layout.addWidget(self.clear_button)
@@ -467,12 +469,15 @@ class ImSlimWindow(QWidget):
         if view == "home":
             self.stack.setCurrentIndex(0)
             self.clear_button.setVisible(False)
+            self.mode_toggle.setVisible(True)
         elif view == "loading":
             self.stack.setCurrentIndex(1)
             self.clear_button.setVisible(False)
+            self.mode_toggle.setVisible(True)
         elif view == "results":
             self.stack.setCurrentIndex(2)
             self.clear_button.setVisible(True)
+            self.mode_toggle.setVisible(False)
 
     def _apply_mode_state(self):
         self.mode_toggle.setLossy(self.settings.lossy)
