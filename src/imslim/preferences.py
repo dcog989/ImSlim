@@ -28,6 +28,8 @@ class PreferencesDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(_("Preferences"))
         self.settings = settings
+        self._format_spins: list[tuple[QSpinBox, str]] = []
+        self._format_checks: list[tuple[QCheckBox, str]] = []
         self.build_ui()
 
     def build_ui(self):
@@ -257,6 +259,7 @@ class PreferencesDialog(QDialog):
             check.setToolTip(hint)
             check.toggled.connect(self.on_bool_changed(key))
             setattr(self, f"toggle_{attr_name}", check)
+            self._format_checks.append((check, key))
             layout.addWidget(check)
 
         return group
@@ -273,6 +276,7 @@ class PreferencesDialog(QDialog):
         spin.setRange(lower, upper)
         spin.valueChanged.connect(self.on_int_changed(key))
         setattr(self, f"spin_{attr_name}", spin)
+        self._format_spins.append((spin, key))
         row.addWidget(label_widget)
         row.addStretch(1)
         row.addWidget(spin)
@@ -314,19 +318,10 @@ class PreferencesDialog(QDialog):
         self.toggle_file_attributes.setChecked(s.file_attributes)
         self.spin_timeout.setValue(s.compression_timeout)
 
-        self.spin_png_lossy_level.setValue(s.png_lossy_level)
-        self.spin_png_lossless_level.setValue(s.png_lossless_level)
-        self.spin_jpg_lossy_level.setValue(s.jpg_lossy_level)
-        self.toggle_jpg_progressive.setChecked(s.jpg_progressive)
-        self.spin_webp_lossy_level.setValue(s.webp_lossy_level)
-        self.spin_webp_lossless_level.setValue(s.webp_lossless_level)
-        self.spin_avif_lossy_level.setValue(s.avif_lossy_level)
-        self.spin_avif_lossless_level.setValue(s.avif_lossless_level)
-        self.spin_jxl_lossy_level.setValue(s.jxl_lossy_level)
-        self.spin_jxl_lossless_level.setValue(s.jxl_lossless_level)
-        self.spin_gif_lossy_level.setValue(s.gif_lossy_level)
-        self.spin_gif_lossless_level.setValue(s.gif_lossless_level)
-        self.toggle_svg_maximum_level.setChecked(s.svg_maximum_level)
+        for spin, key in self._format_spins:
+            spin.setValue(getattr(s, key.replace("-", "_")))
+        for check, key in self._format_checks:
+            check.setChecked(getattr(s, key.replace("-", "_")))
 
     def on_save_method_changed(self, index):
         self.settings.save_method = index
