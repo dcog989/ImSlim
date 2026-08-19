@@ -1,11 +1,12 @@
 import os
 import sys
+import sysconfig
 
 try:
     import gettext
 
     gettext.install("imslim")
-except Exception:
+except ImportError:
     pass
 
 from PySide6.QtCore import QUrl
@@ -16,10 +17,10 @@ from .window import ImSlimWindow
 
 # Native-desktop integration comes from a Qt platform theme plugin read during
 # QApplication construction, so pick one before the app object is built.
-# Preferred is the desktop's own theme (e.g. KDE plasma-integration, which is
-# loaded once the system plugin paths are added below). Fall back to the
-# freedesktop portal, which forwards file dialogs to the desktop's native
-# picker via xdg-desktop-portal, unless the user pinned a specific theme.
+# With a bundled PySide6 the desktop's plugin (e.g. KDE plasma-integration)
+# often can't load, so in a graphical desktop session the freedesktop portal
+# theme is the default: it forwards file dialogs to the desktop's native
+# picker via xdg-desktop-portal. An explicit QT_QPA_PLATFORMTHEME always wins.
 _PLATFORM_THEME_ENV = "QT_QPA_PLATFORMTHEME"
 _PORTAL_THEME = "xdgdesktopportal"
 
@@ -33,12 +34,31 @@ def _configure_platform_theme() -> None:
     when XDG_CURRENT_DESKTOP lists KDE, but if that theme can't load (e.g. the
     bundled Qt's private-API version no longer matches the system theme), Qt
     silently falls back to no native dialogs. Setting the portal theme as the
-    default makes native dialogs work regardless, while letting an explicit
-    QT_QPA_PLATFORMTHEME win.
+    default in desktop sessions makes native dialogs work regardless, while
+    letting an explicit QT_QPA_PLATFORMTHEME win.
     """
     if os.environ.get(_PLATFORM_THEME_ENV):
         return
+    # Only force the portal inside a graphical desktop session; without one
+    # (bare X11, CI, ssh -X) no portal exists and Qt would warn about a
+    # missing platform theme before falling back to its own dialog.
+    if not os.environ.get("XDG_CURRENT_DESKTOP"):
+        return
     os.environ[_PLATFORM_THEME_ENV] = _PORTAL_THEME
+
+
+def _system_plugin_roots() -> list[str]:
+    """Common system Qt plugin roots across distro layouts."""
+    multiarch = sysconfig.get_config_var("MULTIARCH")
+    roots = [
+        "/usr/lib64/qt6/plugins",
+        "/usr/lib/qt6/plugins",
+        "/usr/lib64/qt/plugins",
+        "/usr/lib/qt/plugins",
+    ]
+    if multiarch:
+        roots.insert(0, f"/usr/lib/{multiarch}/qt6/plugins")
+    return roots
 
 
 def _extend_plugin_paths() -> None:
@@ -53,7 +73,7 @@ def _extend_plugin_paths() -> None:
     run after the QApplication is constructed.
     """
     current = QApplication.libraryPaths()
-    for root in ("/usr/lib/qt6/plugins", "/usr/lib/qt/plugins"):
+    for root in _system_plugin_roots():
         if root not in current:
             current.insert(0, root)
     QApplication.setLibraryPaths(current)
