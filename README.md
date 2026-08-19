@@ -10,7 +10,7 @@ PNG, JPEG, GIF, WebP, AVIF, JXL, SVG — both lossless and lossy modes, with opt
 
 ## Requirements
 
-The compression backends are bundled with the app (no system packages needed). They are built from pinned sources by `./scripts/build_tools.sh` (see `.github/workflows/build-binaries.yml`), then shipped inside the wheel under `src/imslim/bin/linux-x86_64`, along with their licenses:
+The compression backends are bundled with the app (no system packages needed). They are built from the latest stable releases by `./scripts/build_tools.sh` (see `.github/workflows/build-binaries.yml`), which rebuilds each tool only when a newer version is available, then shipped inside the wheel under `src/imslim/bin/linux-x86_64`, along with their licenses:
 
 - [libjxl](https://github.com/libjxl/libjxl) (`cjxl`/`djxl`)
 - [jpegli](https://github.com/google/jpegli) (`cjpegli`/`djpegli`)
