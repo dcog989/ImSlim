@@ -7,3 +7,8 @@ pre-commit:
     format:
       glob: "*.py"
       run: uv run ruff format --check {staged_files}
+
+commit-msg:
+  commands:
+    commitizen:
+      run: uv run cz check --message-length-limit 100 --commit-msg-file {1}
