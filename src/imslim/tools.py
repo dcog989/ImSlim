@@ -101,7 +101,17 @@ def debug_infos():
         ("Python", python_version),
         ("PySide6/Qt", qt_version),
     ]
-    for tool in ("cjpegli", "djpegli", "jpegtran", "oxipng", "pngquant", "cwebp", "avifenc", "svgo"):
+    for tool in (
+        "cjpegli",
+        "djpegli",
+        "jpegtran",
+        "oxipng",
+        "pngquant",
+        "cwebp",
+        "avifdec",
+        "avifenc",
+        "svgo",
+    ):
         sections.append((tool, _tool_version(_version_flag(tool))))
 
     debug = "\n".join(f"{key}: {value}" for key, value in sections)
