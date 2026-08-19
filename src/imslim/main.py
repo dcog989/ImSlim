@@ -126,11 +126,10 @@ class ImSlimApp(QApplication):
             return 0
 
         self.win = ImSlimWindow(self)
+        self.win.show()
         if paths:
             self.win.show_view("loading")
             self.win.compress_files(paths)
-        else:
-            self.win.show()
 
         self.win.check_version_update()
         return self.exec()
