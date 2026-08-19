@@ -43,8 +43,10 @@ class CompressionManager:
         ).start()
 
     def _compress(self, result_items, c_update_result_item, c_enable_compression):
-        cpu_count = os.cpu_count() or 1
-        executor = ThreadPoolExecutor(max_workers=cpu_count)
+        # Each worker runs a subprocess that is itself multithreaded (cwebp
+        # -mt, cjpegli, cjxl, avifenc), so cap the pool to avoid oversubscription.
+        max_workers = max(1, (os.cpu_count() or 1) // 2)
+        executor = ThreadPoolExecutor(max_workers=max_workers)
         futures = []
         for result_item in result_items:
             compressor_type = self.mime_type_to_compressor_type(result_item.mime_type)
