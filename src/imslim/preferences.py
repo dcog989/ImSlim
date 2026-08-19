@@ -1,3 +1,4 @@
+from PySide6.QtCore import Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -21,11 +22,12 @@ from PySide6.QtWidgets import (
 
 
 class PreferencesDialog(QDialog):
+    settings_changed = Signal()
+
     def __init__(self, settings, parent=None):
         super().__init__(parent)
         self.setWindowTitle(_("Preferences"))
         self.settings = settings
-        self.window = parent
         self.build_ui()
 
     def build_ui(self):
@@ -328,11 +330,11 @@ class PreferencesDialog(QDialog):
 
     def on_save_method_changed(self, index):
         self.settings.save_method = index
-        self.window.set_saving_subtitle()
+        self.settings_changed.emit()
 
     def on_output_folder_changed(self, text):
         self.settings.output_folder = text.strip()
-        self.window.set_saving_subtitle()
+        self.settings_changed.emit()
 
     def on_browse_output_folder(self):
         folder = QFileDialog.getExistingDirectory(

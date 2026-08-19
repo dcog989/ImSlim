@@ -693,6 +693,7 @@ class ImSlimWindow(QWidget):
         if self.prefs_dialog is not None:
             self.prefs_dialog.close()
         self.prefs_dialog = PreferencesDialog(self.settings, self)
+        self.prefs_dialog.settings_changed.connect(self.set_saving_subtitle)
         self.prefs_dialog.show()
 
     def on_about(self):
