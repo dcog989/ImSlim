@@ -64,12 +64,12 @@ class JXLCompressor(Compressor):
         if not argv or argv[0] != resolve_tool("cjxl"):
             return argv
 
-        # Prune -x exif=xmp=jumbf hint args whose sidecar wasn't produced so a
-        # missing file can't turn into a hard error.
+        # Prune -x hint args whose sidecar wasn't produced so a missing file
+        # can't turn into a hard error.
         pruned: list[str] = []
         i = 0
         while i < len(argv):
-            if argv[i] in ("-x", "--dec-hints") and i + 1 < len(argv):
+            if argv[i] == "-x" and i + 1 < len(argv):
                 key, has_value, path = argv[i + 1].partition("=")
                 if has_value and key in _JXL_METADATA and path and not os.path.exists(path):
                     i += 2

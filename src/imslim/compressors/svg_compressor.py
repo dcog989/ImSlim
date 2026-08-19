@@ -30,17 +30,13 @@ class SVGCompressor(Compressor):
             # file. sortAttrs already runs in preset-default, so only
             # removeDimensions is added here.
             svgo += ["--config", config_path]
-        svgo += ["-i", result_item.filename, "-o", result_item.tmp_filename]
-
-        return [Command(svgo)]
-
-    def adapt_command(self, argv: list[str], result_item: ResultItem) -> list[str]:
-        if "--config" in argv:
-            with open(self._config_path(result_item), "w") as fp:
+            with open(config_path, "w") as fp:
                 # svgo configs must be CommonJS regardless of the project
                 # package.json type, so inline the JSON as module.exports.
                 fp.write(_SVGO_CONFIG_HEADER + json.dumps(_SVGO_CONFIG))
-        return argv
+        svgo += ["-i", result_item.filename, "-o", result_item.tmp_filename]
+
+        return [Command(svgo)]
 
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         return [self._config_path(result_item)] if self.settings.svg_maximum_level else []
