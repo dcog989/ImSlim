@@ -1,9 +1,12 @@
 import os
+import tempfile
+import time
 
-from PySide6.QtCore import QObject, QPoint, QRectF, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter, QPixmap
+from PySide6.QtCore import QEvent, QObject, QPoint, QRectF, Qt, Signal
+from PySide6.QtGui import QAction, QColor, QImage, QKeySequence, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -43,6 +46,29 @@ from .whats_new_dialog import WhatsNewDialog
 class _Bridge(QObject):
     result_updated = Signal(object)
     compression_enabled = Signal(bool)
+
+
+class _PasteFilter(QObject):
+    """Shows the paste context menu for widgets without their own handler."""
+
+    context_menu_requested = Signal(QPoint)
+
+    def eventFilter(self, obj, event) -> bool:
+        if event.type() == QEvent.ContextMenu:
+            target = QApplication.widgetAt(event.globalPos())
+            if target is None or not self._is_result_row(target):
+                self.context_menu_requested.emit(event.globalPos())
+                return True
+        return super().eventFilter(obj, event)
+
+    @staticmethod
+    def _is_result_row(widget) -> bool:
+        current = widget
+        while current is not None:
+            if isinstance(current, ResultItemRow):
+                return True
+            current = current.parentWidget()
+        return False
 
 
 _HAMBURGER = "\u2630"
@@ -170,6 +196,10 @@ class ImSlimWindow(QWidget):
         self.bridge.compression_enabled.connect(self.enable_compression)
         self.prefs_dialog = None
         self.whats_new_dialog = None
+
+        self.paste_filter = _PasteFilter()
+        self.paste_filter.context_menu_requested.connect(self.on_context_menu)
+        self.installEventFilter(self.paste_filter)
 
         self.create_actions()
         self.build_ui()
@@ -379,6 +409,13 @@ class ImSlimWindow(QWidget):
         self.act_select.setShortcut(QKeySequence("Ctrl+O"))
         self.act_select.triggered.connect(self.on_select)
 
+        self.act_paste = QAction(_("Paste from Clipboard"), self)
+        self.act_paste.setShortcut(QKeySequence.StandardKey.Paste)
+        self.act_paste.triggered.connect(self.on_paste)
+
+        self.act_select_folder = QAction(_("Browse Directory"), self)
+        self.act_select_folder.triggered.connect(self.on_select_folder)
+
         self.act_clear = QAction(_("Clear Results"), self)
         self.act_clear.setShortcut(QKeySequence("Ctrl+Shift+C"))
         self.act_clear.triggered.connect(self.clear_results)
@@ -398,6 +435,7 @@ class ImSlimWindow(QWidget):
         self.act_quit.triggered.connect(self.app.quit)
 
         self.addAction(self.act_select)
+        self.addAction(self.act_paste)
         self.addAction(self.act_clear)
         self.addAction(self.act_settings)
         self.addAction(self.act_quit)
@@ -491,6 +529,62 @@ class ImSlimWindow(QWidget):
         result_item.updated.emit()
 
     # ----------------------------------------------------------------- file IO
+    def on_context_menu(self, pos: QPoint):
+        menu = QMenu(self)
+        menu.addAction(self.act_paste)
+        menu.addSeparator()
+        menu.addAction(self.act_select)
+        menu.addAction(self.act_select_folder)
+        menu.exec(pos)
+
+    def on_paste(self):
+        clipboard = self.app.clipboard()
+        mime = clipboard.mimeData()
+
+        paths = []
+        if mime.hasUrls():
+            for url in mime.urls():
+                local = url.toLocalFile()
+                if local:
+                    paths.append(local)
+
+        if paths:
+            self.show_view("loading")
+            self.compress_files(paths)
+            return
+
+        image = self._read_clipboard_image(clipboard)
+        if image.isNull():
+            return
+        path = self._save_clipboard_image(image)
+        if path:
+            self.show_view("loading")
+            self.compress_files([path])
+
+    def _read_clipboard_image(self, clipboard) -> QImage:
+        # On Wayland, image data is transferred asynchronously from the
+        # clipboard owner, so the first read may come back empty.
+        image = clipboard.image()
+        for _ in range(20):
+            if not image.isNull():
+                break
+            self.app.processEvents()
+            time.sleep(0.05)
+            image = clipboard.image()
+        return image
+
+    def _save_clipboard_image(self, image) -> str | None:
+        directory = tempfile.gettempdir()
+        for _ in range(100):
+            path = os.path.join(directory, f"imslim-pasted-{time.time_ns()}.png")
+            if not os.path.exists(path):
+                break
+        else:
+            return None
+        if image.save(path, "PNG"):
+            return path
+        return None
+
     def on_select(self):
         files, _filter = QFileDialog.getOpenFileNames(self, _("Select Images"), "", image_filter())
         if not files:
