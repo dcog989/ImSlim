@@ -178,7 +178,6 @@ class ImSlimApp(QApplication):
             self.win.show_view("loading")
             self.win.compress_files(paths)
 
-        self.win.check_version_update()
         return self.exec()
 
     def _on_foreign_paths(self, paths: list[str]) -> None:

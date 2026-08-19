@@ -42,7 +42,6 @@ from .tools import (
     image_filter,
     sizeof_fmt,
 )
-from .whats_new_dialog import WhatsNewDialog
 
 
 class _Bridge(QObject):
@@ -198,7 +197,6 @@ class ImSlimWindow(QWidget):
         self.bridge.result_updated.connect(self.update_result_item)
         self.bridge.compression_enabled.connect(self.enable_compression)
         self.prefs_dialog = None
-        self.whats_new_dialog = None
 
         self.paste_filter = _PasteFilter()
         self.paste_filter.context_menu_requested.connect(self.on_context_menu)
@@ -400,7 +398,6 @@ class ImSlimWindow(QWidget):
     def _build_main_menu(self) -> QMenu:
         menu = QMenu(self)
         menu.addAction(self.act_settings)
-        menu.addAction(self.act_whats_new)
         menu.addAction(self.act_about)
         menu.setStyleSheet(
             "QMenu {"
@@ -448,9 +445,6 @@ class ImSlimWindow(QWidget):
         self.act_settings = QAction(_("Settings"), self)
         self.act_settings.setShortcut(QKeySequence("Ctrl+,"))
         self.act_settings.triggered.connect(self.on_preferences)
-
-        self.act_whats_new = QAction(_("What's New"), self)
-        self.act_whats_new.triggered.connect(self.open_whats_new)
 
         self.act_about = QAction(_("About ImSlim"), self)
         self.act_about.triggered.connect(self.on_about)
@@ -683,12 +677,6 @@ class ImSlimWindow(QWidget):
         self.subtitle_label.setText(label)
 
     # ------------------------------------------------------------- dialogs
-    def open_whats_new(self, last_version=None):
-        if self.whats_new_dialog is not None:
-            self.whats_new_dialog.close()
-        self.whats_new_dialog = WhatsNewDialog(__version__, last_version or "", self)
-        self.whats_new_dialog.show()
-
     def on_preferences(self):
         if self.prefs_dialog is not None:
             self.prefs_dialog.close()
@@ -706,11 +694,3 @@ class ImSlimWindow(QWidget):
                 "lossy modes.\n\nVersion: {version}\n\n{debug}"
             ).format(version=__version__, debug=debug_infos()),
         )
-
-    def check_version_update(self):
-        if not __version__:
-            return False
-        last_version = self.settings.last_version
-        if last_version != __version__:
-            self.settings.last_version = __version__
-            self.open_whats_new(last_version=last_version)

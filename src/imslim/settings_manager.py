@@ -24,7 +24,6 @@ DEFAULTS: dict[str, str | int | bool] = {
     "gif-lossless-level": 3,
     "svg-maximum-level": False,
     "compression-timeout": 30,
-    "last-version": "",
 }
 
 
