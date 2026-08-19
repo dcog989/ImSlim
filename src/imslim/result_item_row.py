@@ -23,10 +23,11 @@ class ResultItemRow(QWidget):
         self.result_item = result_item
 
         self.thumbnail = QLabel()
-        self.title_label = QLabel(result_item.name)
+        self.title_label = QLabel(result_item.filename)
         title_font = self.title_label.font()
         title_font.setBold(True)
         self.title_label.setFont(title_font)
+        self.title_label.setWordWrap(True)
         self.subtitle_label = QLabel()
         self.subtitle_label.setObjectName("rowSubtitle")
         self.subtitle_label.setWordWrap(True)
