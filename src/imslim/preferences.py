@@ -1,3 +1,4 @@
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -5,10 +6,13 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QTabWidget,
     QVBoxLayout,
@@ -93,96 +97,213 @@ class PreferencesDialog(QDialog):
 
     def _build_formats_tab(self) -> QWidget:
         tab = QWidget()
-        layout = QVBoxLayout(tab)
+        grid = QGridLayout(tab)
+        grid.setContentsMargins(12, 12, 12, 12)
+        grid.setHorizontalSpacing(12)
+        grid.setVerticalSpacing(12)
 
-        layout.addWidget(
-            self._build_format_group(
+        quality_hint = _("Set the quality; 100 is best.")
+
+        def level_hint(max_level: int) -> str:
+            return _(f"Set the level; {max_level} is highest but slowest.")
+
+        formats = (
+            (
                 "PNG",
-                [
-                    ("png_lossy_level", _("Lossy Compression"), "png-lossy-level", 0, 100),
-                    ("png_lossless_level", _("Lossless Compression"), "png-lossless-level", 0, 6),
-                ],
-            )
-        )
-        layout.addWidget(self._build_jpg_group())
-        layout.addWidget(
-            self._build_format_group(
+                (
+                    ("png_lossy_level", _("Lossy"), quality_hint, "png-lossy-level", 0, 100),
+                    (
+                        "png_lossless_level",
+                        _("Lossless"),
+                        level_hint(6),
+                        "png-lossless-level",
+                        0,
+                        6,
+                    ),
+                ),
+                (),
+            ),
+            (
+                "JPG",
+                (("jpg_lossy_level", _("Lossy"), quality_hint, "jpg-lossy-level", 0, 100),),
+                (
+                    (
+                        "jpg_progressive",
+                        _("Progressive Encode"),
+                        _("Render incrementally, from blurry to clear."),
+                        "jpg-progressive",
+                    ),
+                ),
+            ),
+            (
                 "WebP",
-                [
-                    ("webp_lossy_level", _("Lossy Compression"), "webp-lossy-level", 0, 100),
-                    ("webp_lossless_level", _("Lossless Compression"), "webp-lossless-level", 0, 6),
-                ],
-            )
-        )
-        layout.addWidget(
-            self._build_format_group(
+                (
+                    ("webp_lossy_level", _("Lossy"), quality_hint, "webp-lossy-level", 0, 100),
+                    (
+                        "webp_lossless_level",
+                        _("Lossless"),
+                        level_hint(6),
+                        "webp-lossless-level",
+                        0,
+                        6,
+                    ),
+                ),
+                (),
+            ),
+            (
                 "AVIF",
-                [
-                    ("avif_lossy_level", _("Lossy Compression"), "avif-lossy-level", 0, 100),
+                (
+                    ("avif_lossy_level", _("Lossy"), quality_hint, "avif-lossy-level", 0, 100),
                     (
                         "avif_lossless_level",
-                        _("Lossless Compression"),
+                        _("Lossless"),
+                        level_hint(10),
                         "avif-lossless-level",
                         0,
                         10,
                     ),
-                ],
-            )
-        )
-        layout.addWidget(
-            self._build_format_group(
+                ),
+                (),
+            ),
+            (
                 "JXL",
-                [
-                    ("jxl_lossy_level", _("Lossy Compression"), "jxl-lossy-level", 1, 100),
-                    ("jxl_lossless_level", _("Lossless Compression"), "jxl-lossless-level", 1, 10),
-                ],
-            )
-        )
-        layout.addWidget(
-            self._build_format_group(
+                (
+                    ("jxl_lossy_level", _("Lossy"), quality_hint, "jxl-lossy-level", 1, 100),
+                    (
+                        "jxl_lossless_level",
+                        _("Lossless"),
+                        level_hint(10),
+                        "jxl-lossless-level",
+                        1,
+                        10,
+                    ),
+                ),
+                (),
+            ),
+            (
                 "GIF",
-                [
-                    ("gif_lossy_level", _("Lossy Compression"), "gif-lossy-level", 1, 100),
-                    ("gif_lossless_level", _("Lossless Compression"), "gif-lossless-level", 1, 3),
-                ],
-            )
+                (
+                    ("gif_lossy_level", _("Lossy"), quality_hint, "gif-lossy-level", 1, 100),
+                    (
+                        "gif_lossless_level",
+                        _("Lossless"),
+                        level_hint(3),
+                        "gif-lossless-level",
+                        1,
+                        3,
+                    ),
+                ),
+                (),
+            ),
+            (
+                "SVG",
+                (),
+                (
+                    (
+                        "svg_maximum_level",
+                        _("Maximum Compression Level"),
+                        _("Enable maximum cleaning of SVG images; can be more destructive."),
+                        "svg-maximum-level",
+                    ),
+                ),
+            ),
         )
-        layout.addWidget(self._build_svg_group())
-        layout.addStretch(1)
+
+        for index, format_spec in enumerate(formats):
+            row, column = divmod(index, 2)
+            grid.addWidget(self._build_format_group(*format_spec), row, column)
+        for column in range(2):
+            grid.setColumnStretch(column, 1)
+        for row in range((len(formats) + 1) // 2):
+            grid.setRowStretch(row, 1)
+
+        note_row = (len(formats) + 1) // 2
+        grid.addWidget(
+            self._build_note_group(
+                _("BMP / TIFF"),
+                _(
+                    "BMP and TIFF images are always converted to WebP: they are decoded and "
+                    "re-encoded with the WebP settings above. The original file is never "
+                    "modified and the compressed result is saved as a new .webp file."
+                ),
+            ),
+            note_row,
+            0,
+            1,
+            2,
+        )
         return tab
 
-    def _build_format_group(self, title, rows):
+    def _build_note_group(self, title, text) -> QWidget:
         group = QGroupBox(title)
-        form = QFormLayout(group)
-        for attr_name, label, key, lower, upper in rows:
-            spin = QSpinBox()
-            spin.setRange(lower, upper)
-            spin.valueChanged.connect(self.on_int_changed(key))
-            setattr(self, f"spin_{attr_name}", spin)
-            form.addRow(label, spin)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(12, 12, 12, 12)
+        note = QLabel(text)
+        note.setWordWrap(True)
+        layout.addWidget(note)
         return group
 
-    def _build_jpg_group(self) -> QWidget:
-        group = QGroupBox("JPG")
-        form = QFormLayout(group)
-        self.spin_jpg_lossy_level = QSpinBox()
-        self.spin_jpg_lossy_level.setRange(0, 100)
-        self.spin_jpg_lossy_level.valueChanged.connect(self.on_int_changed("jpg-lossy-level"))
-        self.toggle_jpg_progressive = QCheckBox(_("Progressive Encode"))
-        self.toggle_jpg_progressive.toggled.connect(self.on_bool_changed("jpg-progressive"))
-        form.addRow(_("Lossy Compression"), self.spin_jpg_lossy_level)
-        form.addRow(_("Progressive Encode"), self.toggle_jpg_progressive)
+    def _build_format_group(self, title, spins, checks) -> QWidget:
+        group = QGroupBox(title)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(8)
+
+        for attr_name, label, hint, key, lower, upper in spins:
+            layout.addLayout(self._spin_row(attr_name, label, hint, key, lower, upper))
+
+        for attr_name, label, hint, key in checks:
+            check = QCheckBox(label)
+            check.setToolTip(hint)
+            check.toggled.connect(self.on_bool_changed(key))
+            setattr(self, f"toggle_{attr_name}", check)
+            layout.addWidget(check)
+
         return group
 
-    def _build_svg_group(self) -> QWidget:
-        group = QGroupBox("SVG")
-        form = QFormLayout(group)
-        self.toggle_svg_maximum_level = QCheckBox(
-            _("Enable maximum cleaning of SVG images. This can be more destructive.")
+    def _spin_row(self, attr_name, label, hint, key, lower, upper) -> QVBoxLayout:
+        column = QVBoxLayout()
+        column.setSpacing(2)
+
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        label_widget = QLabel(label)
+        label_widget.setMinimumWidth(110)
+        spin = QSpinBox()
+        spin.setRange(lower, upper)
+        spin.valueChanged.connect(self.on_int_changed(key))
+        setattr(self, f"spin_{attr_name}", spin)
+        row.addWidget(label_widget)
+        row.addStretch(1)
+        row.addWidget(spin)
+        column.addLayout(row)
+
+        hint_label = QLabel(hint)
+        hint_label.setWordWrap(True)
+        hint_label.setMinimumHeight(hint_label.fontMetrics().height() + 4)
+        hint_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+
+        # Muted but readable on both light and dark themes: blend the text
+        # color toward the background instead of a hardcoded gray.
+        palette = hint_label.palette()
+        fg = palette.color(palette.ColorRole.Text)
+        bg = palette.color(palette.ColorRole.Base)
+        muted = QColor(
+            round(fg.red() * 0.5 + bg.red()),
+            round(fg.green() * 0.5 + bg.green()),
+            round(fg.blue() * 0.5 + bg.blue()),
         )
-        self.toggle_svg_maximum_level.toggled.connect(self.on_bool_changed("svg-maximum-level"))
-        form.addRow(_("Maximum Compression Level"), self.toggle_svg_maximum_level)
-        return group
+        palette.setColor(palette.ColorRole.Text, muted)
+        palette.setColor(palette.ColorRole.WindowText, muted)
+        hint_label.setPalette(palette)
+
+        hint_font = hint_label.font()
+        hint_font.setPointSizeF(hint_font.pointSizeF() * 0.9)
+        hint_label.setFont(hint_font)
+
+        column.addWidget(hint_label)
+
+        return column
 
     def _load_values(self):
         s = self.settings
