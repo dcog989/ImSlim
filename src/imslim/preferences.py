@@ -116,6 +116,15 @@ class PreferencesDialog(QDialog):
                 ],
             )
         )
+        layout.addWidget(
+            self._build_format_group(
+                "GIF",
+                [
+                    ("gif_lossy_level", _("Lossy Compression"), "gif-lossy-level", 1, 100),
+                    ("gif_lossless_level", _("Lossless Compression"), "gif-lossless-level", 1, 3),
+                ],
+            )
+        )
         layout.addWidget(self._build_svg_group())
         layout.addStretch(1)
         return tab
@@ -172,6 +181,8 @@ class PreferencesDialog(QDialog):
         self.spin_webp_lossless_level.setValue(s.webp_lossless_level)
         self.spin_avif_lossy_level.setValue(s.avif_lossy_level)
         self.spin_avif_lossless_level.setValue(s.avif_lossless_level)
+        self.spin_gif_lossy_level.setValue(s.gif_lossy_level)
+        self.spin_gif_lossless_level.setValue(s.gif_lossless_level)
         self.toggle_svg_maximum_level.setChecked(s.svg_maximum_level)
 
         self._apply_mutual_exclusion()

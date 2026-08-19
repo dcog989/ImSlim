@@ -10,9 +10,10 @@ from PySide6.QtGui import QPixmap
 
 def image_filter() -> str:
     return _(
-        "Images (*.png *.jpg *.jpeg *.webp *.avif *.svg);;"
+        "Images (*.png *.jpg *.jpeg *.gif *.webp *.avif *.svg);;"
         "PNG (*.png);;"
         "JPEG (*.jpg *.jpeg);;"
+        "GIF (*.gif);;"
         "WebP (*.webp);;"
         "AVIF (*.avif);;"
         "SVG (*.svg);;"
@@ -81,7 +82,7 @@ def get_image_paths_from_folder(folder_path: str, recursive: bool = False) -> li
     return images
 
 
-_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".avif", ".svg")
+_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg")
 
 
 def _is_image_path(path: str) -> bool:
@@ -110,6 +111,7 @@ def debug_infos():
         "cwebp",
         "avifdec",
         "avifenc",
+        "gifsicle",
         "svgo",
     ):
         sections.append((tool, _tool_version(_version_flag(tool))))

@@ -10,6 +10,7 @@ ALLOWED_MIME_TYPES = {
     "image/png",
     "image/webp",
     "image/avif",
+    "image/gif",
     "image/svg+xml",
 }
 

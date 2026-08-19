@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from . import __version__
 from .compression_manager import CompressionManager
 from .compressors.avif_compressor import AVIFCompressor
+from .compressors.gif_compressor import GIFCompressor
 from .compressors.jpeg_compressor import JPEGCompressor
 from .compressors.png_compressor import PNGCompressor
 from .compressors.svg_compressor import SVGCompressor
@@ -179,6 +180,7 @@ class ImSlimWindow(QWidget):
         self.manager.register_compressor(JPEGCompressor)
         self.manager.register_compressor(WEBPCompressor)
         self.manager.register_compressor(AVIFCompressor)
+        self.manager.register_compressor(GIFCompressor)
         self.manager.register_compressor(SVGCompressor)
 
         self.result_item_manager = ResultItemManager(self.settings)
@@ -584,7 +586,7 @@ class ImSlimWindow(QWidget):
             _("About ImSlim"),
             _(
                 "<b>ImSlim</b> — compress your images.\n\n"
-                "Supports PNG, JPEG, WebP, AVIF and SVG, in both lossless and "
+                "Supports PNG, JPEG, GIF, WebP, AVIF and SVG, in both lossless and "
                 "lossy modes.\n\nVersion: {version}\n\n{debug}"
             ).format(version=__version__, debug=debug_infos()),
         )

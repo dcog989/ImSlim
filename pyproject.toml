@@ -5,7 +5,7 @@ build-backend = "uv_build"
 [project]
 name = "imslim"
 version = "0.1.0"
-description = "Compress your images — PNG, JPEG, WebP, AVIF and SVG"
+description = "Compress PNG, JPEG, WebP, AVIF, GIF, and SVG images."
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [

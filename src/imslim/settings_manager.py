@@ -17,6 +17,8 @@ DEFAULTS: dict[str, str | int | bool] = {
     "webp-lossless-level": 4,
     "avif-lossy-level": 70,
     "avif-lossless-level": 6,
+    "gif-lossy-level": 80,
+    "gif-lossless-level": 3,
     "svg-maximum-level": False,
     "compression-timeout": 30,
     "last-version": "",
@@ -197,6 +199,23 @@ class SettingsManager:
     @avif_lossless_level.setter
     def avif_lossless_level(self, value: int) -> None:
         self.set_int("avif-lossless-level", value)
+
+    # GIF options
+    @property
+    def gif_lossy_level(self) -> int:
+        return self._int("gif-lossy-level")
+
+    @gif_lossy_level.setter
+    def gif_lossy_level(self, value: int) -> None:
+        self.set_int("gif-lossy-level", value)
+
+    @property
+    def gif_lossless_level(self) -> int:
+        return self._int("gif-lossless-level")
+
+    @gif_lossless_level.setter
+    def gif_lossless_level(self, value: int) -> None:
+        self.set_int("gif-lossless-level", value)
 
     # SVG options
     @property
