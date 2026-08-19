@@ -571,14 +571,7 @@ class ImSlimWindow(QWidget):
 
     def on_paste(self):
         clipboard = self.app.clipboard()
-        mime = clipboard.mimeData()
-
-        paths = []
-        if mime.hasUrls():
-            for url in mime.urls():
-                local = url.toLocalFile()
-                if local:
-                    paths.append(local)
+        paths = self._urls_to_paths(clipboard.mimeData())
 
         if paths:
             self.show_view("loading")
@@ -592,6 +585,16 @@ class ImSlimWindow(QWidget):
         if path:
             self.show_view("loading")
             self.compress_files([path])
+
+    @staticmethod
+    def _urls_to_paths(mime) -> list[str]:
+        paths = []
+        if mime.hasUrls():
+            for url in mime.urls():
+                local = url.toLocalFile()
+                if local:
+                    paths.append(local)
+        return paths
 
     def _read_clipboard_image(self, clipboard) -> QImage:
         # On Wayland, image data is transferred asynchronously from the
@@ -664,12 +667,7 @@ class ImSlimWindow(QWidget):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
-        urls = event.mimeData().urls()
-        paths = []
-        for url in urls:
-            local = url.toLocalFile()
-            if local:
-                paths.append(local)
+        paths = self._urls_to_paths(event.mimeData())
         if not paths:
             return
         self.show_view("loading")
