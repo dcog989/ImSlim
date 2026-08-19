@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=75"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.12.5,<0.13"]
+build-backend = "uv_build"
 
 [project]
 name = "imslim"
@@ -38,6 +38,3 @@ ignore = [
     "S110",    # try/except/pass when gettext is unavailable
     "INT001",  # f-string inside _() is intentional (matches source)
 ]
-
-[tool.setuptools.packages.find]
-where = ["src"]

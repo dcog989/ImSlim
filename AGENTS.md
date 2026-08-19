@@ -27,7 +27,7 @@
 - Test: no test suite configured
 - Lint: `uv run ruff check`
 - Format: `uv run ruff format .`
-- Build: `uv build` / `uvx --from build python -m build` (packaging via setuptools)
+- Build: `uv build` / `uvx --from build python -m build` (build backend: uv_build)
 
 ### Code Changes
 
