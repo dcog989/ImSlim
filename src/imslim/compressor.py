@@ -35,12 +35,16 @@ class Compressor(ABC):
     def _png_intermediate_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".png"
 
+    @staticmethod
+    def _remove_quietly(path: str) -> None:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
     def _cleanup_temp_files(self, result_item: ResultItem) -> None:
         for path in [result_item.tmp_filename, *self.get_intermediate_files(result_item)]:
-            try:
-                os.remove(path)
-            except OSError:
-                pass
+            self._remove_quietly(path)
 
     def run(self, result_item: ResultItem, c_update_result_item: Callable) -> None:
         commands = self.build_command(result_item)
@@ -75,10 +79,7 @@ class Compressor(ABC):
                         )
                 except Exception:
                     if stdout_path is not None:
-                        try:
-                            os.remove(stdout_path)
-                        except OSError:
-                            pass
+                        self._remove_quietly(stdout_path)
                     if ignore_errors:
                         logging.warning("Optional command failed, ignoring: %s", argv)
                         continue
@@ -138,10 +139,7 @@ class Compressor(ABC):
                             pass
 
             # Remove the temp file
-            try:
-                os.remove(result_item.tmp_filename)
-            except OSError:
-                pass
+            self._remove_quietly(result_item.tmp_filename)
         else:
             logging.error("Command produced no output file: %s", last_argv)
             result_item.error_message = _("Can't find the compressed file")
