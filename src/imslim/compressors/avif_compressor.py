@@ -23,7 +23,15 @@ class AVIFCompressor(Compressor):
             avifenc += ["--ignore-exif", "--ignore-xmp", "--ignore-profile"]
 
         if self.settings.lossy:
-            avifenc += ["-q", str(self.settings.avif_lossy_level)]
+            # tune=iq + 10-bit depth is the best quality/size operating point for libaom
+            avifenc += [
+                "-q",
+                str(self.settings.avif_lossy_level),
+                "-a",
+                "tune=iq",
+                "-d",
+                "10",
+            ]
         else:
             avifenc.append("--lossless")
 
