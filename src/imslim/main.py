@@ -82,6 +82,7 @@ class ImSlimApp(QApplication):
         self.setApplicationDisplayName("ImSlim")
         self.win: ImSlimWindow | None = None
         self.server: QLocalServer | None = None
+        self._conn_buffer: dict[QLocalSocket, bytearray] = {}
 
     def is_primary(self) -> bool:
         self.server = QLocalServer(self)
@@ -95,11 +96,25 @@ class ImSlimApp(QApplication):
         conn = self.server.nextPendingConnection()
         if conn is None:
             return
-        conn.readyRead.connect(lambda: self._read_connection(conn))
+        self._conn_buffer[conn] = bytearray()
+        conn.readyRead.connect(lambda: self._read_more(conn))
+        conn.readChannelFinished.connect(lambda: self._finish_connection(conn))
+        self._read_more(conn)
 
-    def _read_connection(self, conn):
-        data = bytes(conn.readAll())
+    def _read_more(self, conn):
+        buffer = self._conn_buffer.get(conn)
+        if buffer is None:
+            return
+        buffer.extend(bytes(conn.readAll()))
+
+    def _finish_connection(self, conn):
+        buffer = self._conn_buffer.get(conn)
+        if buffer is None:
+            return
+        buffer.extend(bytes(conn.readAll()))
+        self._conn_buffer.pop(conn, None)
         conn.disconnectFromServer()
+        data = bytes(buffer)
         if not data:
             return
         paths = data.decode("utf-8").split("\n")
