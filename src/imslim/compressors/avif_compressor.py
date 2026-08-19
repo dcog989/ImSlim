@@ -19,9 +19,11 @@ class AVIFCompressor(Compressor):
 
         avifenc = [resolve_tool("avifenc")]
 
-        # avifenc preserves metadata by default
+        # avifenc preserves metadata by default. Strip only non-rendering
+        # metadata (EXIF/XMP); keep the ICC color profile so colors still
+        # render correctly (see issue: color profiles stripped with metadata off).
         if not self.settings.metadata:
-            avifenc += ["--ignore-exif", "--ignore-xmp", "--ignore-profile"]
+            avifenc += ["--ignore-exif", "--ignore-xmp"]
 
         if self.settings.lossy:
             # tune=iq + 10-bit depth is the best quality/size operating point for libaom

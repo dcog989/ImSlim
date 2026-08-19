@@ -30,9 +30,13 @@ class WEBPCompressor(Compressor):
 
         cwebp = [resolve_tool("cwebp")]
 
-        # cwebp doesn't preserve any metadata by default
+        # cwebp drops all metadata by default. When preserving metadata copy
+        # everything; otherwise keep the ICC color profile so colors still
+        # render correctly while the rest is stripped.
         if self.settings.metadata:
             cwebp += ["-metadata", "all"]
+        else:
+            cwebp += ["-metadata", "icc"]
 
         if self.settings.lossy:
             quality = self.settings.webp_lossy_level
