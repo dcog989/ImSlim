@@ -7,7 +7,7 @@ from pathlib import Path
 
 BIN_DIR = Path(__file__).parent / "bin"
 
-_TOOLS = (
+KNOWN_TOOLS = (
     "avifdec",
     "avifenc",
     "cjpegli",
@@ -24,39 +24,50 @@ _TOOLS = (
 
 
 def _platform_dir() -> str:
-    """Return the binary subdir for the current platform (e.g. linux-x86_64)."""
-    system = platform.system().lower()
-    machine = platform.machine().lower()
-    if system == "windows":
-        machine = "x86_64"
-    return f"{system}-{machine}"
+    """Return the binary subdir for the current platform (e.g. linux-x86_64).
+
+    Binaries are only bundled for linux-x86_64; other platforms fall back to
+    PATH via shutil.which().
+    """
+    return f"{platform.system().lower()}-{platform.machine().lower()}"
+
+
+def _tool_file(directory: str, name: str) -> str | None:
+    candidate = os.path.join(directory, name)
+    if os.path.isfile(candidate):
+        return candidate
+    return None
 
 
 @functools.cache
-def resolve_tool(name: str) -> str:
-    """Return the path to a compression tool, preferring the bundled binary."""
-    if name not in _TOOLS:
-        raise FileNotFoundError(f"Unknown tool: {name}")
-
+def _resolve(name: str) -> str | None:
+    """Return the cached path to a tool, or None if it could not be found."""
     override_dir = os.environ.get("IMSLIM_TOOLS_PATH")
     if override_dir:
-        candidate = os.path.join(override_dir, name)
-        if os.path.isfile(candidate):
+        candidate = _tool_file(override_dir, name)
+        if candidate is not None:
             _make_executable(candidate)
             return candidate
 
-    bundled = BIN_DIR / _platform_dir() / name
-    if bundled.is_file():
-        _make_executable(str(bundled))
-        return str(bundled)
+    candidate = _tool_file(str(BIN_DIR / _platform_dir()), name)
+    if candidate is not None:
+        _make_executable(candidate)
+        return candidate
 
-    found = shutil.which(name)
-    if found:
-        return found
+    return shutil.which(name)
 
-    raise FileNotFoundError(
-        f"No bundled binary for '{name}' on {_platform_dir()} and it was not found on PATH."
-    )
+
+def resolve_tool(name: str) -> str:
+    """Return the path to a compression tool, preferring the bundled binary."""
+    if name not in KNOWN_TOOLS:
+        raise FileNotFoundError(f"Unknown tool: {name}")
+
+    path = _resolve(name)
+    if path is None:
+        raise FileNotFoundError(
+            f"No bundled binary for '{name}' on {_platform_dir()} and it was not found on PATH."
+        )
+    return path
 
 
 def _make_executable(path: str) -> None:
