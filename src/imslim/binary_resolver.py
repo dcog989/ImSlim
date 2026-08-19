@@ -1,3 +1,4 @@
+import functools
 import logging
 import os
 import platform
@@ -31,6 +32,7 @@ def _platform_dir() -> str:
     return f"{system}-{machine}"
 
 
+@functools.cache
 def resolve_tool(name: str) -> str:
     """Return the path to a compression tool, preferring the bundled binary."""
     if name not in _TOOLS:
