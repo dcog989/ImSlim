@@ -151,14 +151,18 @@ _VERSION_TIMEOUT = 10
 
 def _tool_version(argv: list[str]) -> str:
     try:
-        text = subprocess.check_output(argv, timeout=_VERSION_TIMEOUT)
-        return extract_version(text.decode("utf-8"))
+        # Some tools (e.g. the bundled mozjpeg jpegtran) print the version to
+        # stderr, so capture both streams rather than stdout alone.
+        completed = subprocess.run(argv, capture_output=True, check=False, timeout=_VERSION_TIMEOUT)
+        text = completed.stdout + completed.stderr
+        return extract_version(text.decode("utf-8", errors="replace"))
     except Exception:
         return _("Version not found")
 
 
 def extract_version(text: str) -> str:
-    version_regex = r"(\d+\.\d+\.\d+)"
+    # Accept both three-part (4.1.5) and two-part (gifsicle's 1.96) versions.
+    version_regex = r"(\d+\.\d+(?:\.\d+)?)"
     match = re.search(version_regex, text)
     if match:
         return match.group(1)
