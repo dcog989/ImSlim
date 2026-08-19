@@ -1,5 +1,5 @@
 from ..binary_resolver import resolve_tool
-from ..compressor import Compressor
+from ..compressor import Command, Compressor
 from ..result_item import ResultItem
 
 
@@ -11,7 +11,7 @@ class AVIFCompressor(Compressor):
     def _intermediate_path(self, result_item: ResultItem) -> str:
         return self._png_intermediate_path(result_item)
 
-    def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
+    def build_command(self, result_item: ResultItem) -> list[Command]:
         intermediate = self._intermediate_path(result_item)
 
         # avifenc can't read AVIF input, so decode to a temporary PNG first
@@ -40,7 +40,7 @@ class AVIFCompressor(Compressor):
         avifenc += ["--speed", str(10 - self.settings.avif_lossless_level)]
         avifenc += [intermediate, result_item.tmp_filename]
 
-        return [(avifdec, None), (avifenc, None)]
+        return [Command(avifdec), Command(avifenc)]
 
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         return [self._intermediate_path(result_item)]

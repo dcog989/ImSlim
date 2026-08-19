@@ -1,7 +1,7 @@
 from PySide6.QtGui import QImageReader
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Compressor
+from ..compressor import Command, Compressor
 from ..result_item import ResultItem
 
 
@@ -17,7 +17,7 @@ class GIFCompressor(Compressor):
         # GIFs written by Qt); treat unknown counts as animated to stay lossless
         return frame_count != 1
 
-    def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
+    def build_command(self, result_item: ResultItem) -> list[Command]:
         is_animated = self._is_animated(result_item)
 
         gifsicle = [
@@ -39,4 +39,4 @@ class GIFCompressor(Compressor):
 
         gifsicle += ["-o", result_item.tmp_filename, result_item.filename]
 
-        return [(gifsicle, None)]
+        return [Command(gifsicle)]

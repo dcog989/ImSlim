@@ -1,5 +1,5 @@
 from ..binary_resolver import resolve_tool
-from ..compressor import Compressor
+from ..compressor import Command, Compressor
 
 
 class JPEGCompressor(Compressor):
@@ -13,12 +13,12 @@ class JPEGCompressor(Compressor):
     def _encoded_path(self, result_item) -> str:
         return result_item.tmp_filename + ".enc.jpg"
 
-    def build_command(self, result_item) -> list[tuple[list[str], str | None]]:
+    def build_command(self, result_item) -> list[Command]:
         if self.settings.lossy:
             return self._build_lossy_command(result_item)
         return self._build_lossless_command(result_item)
 
-    def _build_lossless_command(self, result_item) -> list[tuple[list[str], str | None]]:
+    def _build_lossless_command(self, result_item) -> list[Command]:
         jpegtran = [resolve_tool("jpegtran"), "-optimize"]
 
         if self.settings.jpg_progressive:
@@ -29,9 +29,9 @@ class JPEGCompressor(Compressor):
 
         jpegtran += ["-outfile", result_item.tmp_filename, result_item.filename]
 
-        return [(jpegtran, None)]
+        return [Command(jpegtran)]
 
-    def _build_lossy_command(self, result_item) -> list[tuple[list[str], str | None]]:
+    def _build_lossy_command(self, result_item) -> list[Command]:
         intermediate = self._intermediate_path(result_item)
 
         # jpegli can't read JPEG input, so decode to a temporary PNG first
@@ -52,7 +52,7 @@ class JPEGCompressor(Compressor):
             "--progressive_level=2" if self.settings.jpg_progressive else "--progressive_level=0"
         )
 
-        commands = [(djpegli, None), (cjpegli, None)]
+        commands = [Command(djpegli), Command(cjpegli)]
 
         if not self.settings.metadata:
             # jpegli carries ICC/EXIF/XMP from the PNG; strip all but the ICC profile
@@ -64,7 +64,7 @@ class JPEGCompressor(Compressor):
                 result_item.tmp_filename,
                 self._encoded_path(result_item),
             ]
-            commands.append((jpegtran, None))
+            commands.append(Command(jpegtran))
 
         return commands
 

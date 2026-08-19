@@ -1,7 +1,7 @@
 import sys
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Compressor
+from ..compressor import Command, Compressor
 from ..result_item import ResultItem
 
 _CONVERTED_MIME_TYPES = ("image/bmp", "image/tiff")
@@ -18,8 +18,8 @@ class WEBPCompressor(Compressor):
     def _needs_conversion(self, result_item: ResultItem) -> bool:
         return result_item.mime_type in _CONVERTED_MIME_TYPES
 
-    def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
-        commands: list[tuple[list[str], str | None]] = []
+    def build_command(self, result_item: ResultItem) -> list[Command]:
+        commands: list[Command] = []
         input_path = result_item.filename
 
         # cwebp can't read BMP and this build has no TIFF support, so decode
@@ -27,15 +27,14 @@ class WEBPCompressor(Compressor):
         if self._needs_conversion(result_item):
             intermediate = self._intermediate_path(result_item)
             commands.append(
-                (
+                Command(
                     [
                         sys.executable,
                         "-m",
                         "imslim.image_convert",
                         result_item.filename,
                         intermediate,
-                    ],
-                    None,
+                    ]
                 )
             )
             input_path = intermediate
@@ -64,7 +63,7 @@ class WEBPCompressor(Compressor):
             input_path,
         ]
 
-        commands.append((cwebp, None))
+        commands.append(Command(cwebp))
         return commands
 
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:

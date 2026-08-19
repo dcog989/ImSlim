@@ -1,5 +1,5 @@
 from ..binary_resolver import resolve_tool
-from ..compressor import Compressor
+from ..compressor import Command, Compressor
 
 
 class PNGCompressor(Compressor):
@@ -7,7 +7,7 @@ class PNGCompressor(Compressor):
     def get_file_type(cls) -> str:
         return "png"
 
-    def build_command(self, result_item) -> list[tuple[list[str], str | None]]:
+    def build_command(self, result_item) -> list[Command]:
         commands = []
 
         if self.settings.lossy:  # lossy compression
@@ -19,7 +19,7 @@ class PNGCompressor(Compressor):
             if not self.settings.metadata:
                 pngquant.append("--strip")
             pngquant += [result_item.filename, "--output", result_item.tmp_filename]
-            commands.append((pngquant, None))
+            commands.append(Command(pngquant))
 
         oxipng = [
             resolve_tool("oxipng"),
@@ -38,5 +38,5 @@ class PNGCompressor(Compressor):
         else:  # lossless compression
             oxipng += [result_item.filename, "--out", result_item.tmp_filename]
 
-        commands.append((oxipng, None))
+        commands.append(Command(oxipng))
         return commands

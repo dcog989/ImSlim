@@ -1,7 +1,7 @@
 import json
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Compressor
+from ..compressor import Command, Compressor
 from ..result_item import ResultItem
 
 _SVGO_CONFIG_HEADER = "module.exports = "
@@ -21,7 +21,7 @@ class SVGCompressor(Compressor):
     def _config_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".config.cjs"
 
-    def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
+    def build_command(self, result_item: ResultItem) -> list[Command]:
         config_path = self._config_path(result_item)
 
         svgo = [resolve_tool("svgo")]
@@ -32,7 +32,7 @@ class SVGCompressor(Compressor):
             svgo += ["--config", config_path]
         svgo += ["-i", result_item.filename, "-o", result_item.tmp_filename]
 
-        return [(svgo, None)]
+        return [Command(svgo)]
 
     def adapt_command(self, argv: list[str], result_item: ResultItem) -> list[str]:
         if "--config" in argv:

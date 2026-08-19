@@ -5,9 +5,16 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from typing import NamedTuple
 
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE
+
+
+class Command(NamedTuple):
+    argv: list[str]
+    stdout_path: str | None = None
+    ignore_errors: bool = False
 
 
 class Compressor(ABC):
@@ -21,9 +28,7 @@ class Compressor(ABC):
         return ""
 
     @abstractmethod
-    def build_command(
-        self, result_item: ResultItem
-    ) -> list[tuple[list[str], str | None] | tuple[list[str], str | None, bool]]:
+    def build_command(self, result_item: ResultItem) -> list[Command]:
         return []
 
     def adapt_command(self, argv: list[str], result_item: ResultItem) -> list[str]:
@@ -50,19 +55,14 @@ class Compressor(ABC):
         commands = self.build_command(result_item)
         last_argv: list[str] | None = None
         try:
-            # Each command is a (argv, stdout_path) tuple; an optional third
-            # element (True) marks the command as non-fatal: on failure it is
-            # logged and skipped instead of failing the whole item.
             for command in commands:
-                argv, stdout_path = command[0], command[1]
-                ignore_errors = command[2] if len(command) > 2 else False
-                argv = self.adapt_command(argv, result_item)
+                argv = self.adapt_command(command.argv, result_item)
                 last_argv = argv
                 try:
-                    if stdout_path is not None:
+                    if command.stdout_path is not None:
                         # Stream stdout straight to the sidecar file instead of
                         # buffering the whole payload in memory first.
-                        with open(stdout_path, "wb") as fp:
+                        with open(command.stdout_path, "wb") as fp:
                             subprocess.run(
                                 argv,
                                 stdout=fp,
@@ -78,9 +78,9 @@ class Compressor(ABC):
                             timeout=self.settings.compression_timeout,
                         )
                 except Exception:
-                    if stdout_path is not None:
-                        self._remove_quietly(stdout_path)
-                    if ignore_errors:
+                    if command.stdout_path is not None:
+                        self._remove_quietly(command.stdout_path)
+                    if command.ignore_errors:
                         logging.warning("Optional command failed, ignoring: %s", argv)
                         continue
                     raise

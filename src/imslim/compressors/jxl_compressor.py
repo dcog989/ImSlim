@@ -1,7 +1,7 @@
 import os
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Compressor
+from ..compressor import Command, Compressor
 from ..result_item import ResultItem
 
 _JXL_METADATA = ("exif", "xmp", "jumbf")
@@ -18,12 +18,12 @@ class JXLCompressor(Compressor):
     def _sidecar_path(self, result_item: ResultItem, kind: str) -> str:
         return result_item.tmp_filename + "." + kind
 
-    def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
+    def build_command(self, result_item: ResultItem) -> list[Command]:
         intermediate = self._intermediate_path(result_item)
 
         # cjxl can't read JXL input, so decode to a temporary PNG first
-        commands: list[tuple[list[str], str | None] | tuple[list[str], str | None, bool]] = [
-            ([resolve_tool("djxl"), result_item.filename, intermediate], None)
+        commands: list[Command] = [
+            Command([resolve_tool("djxl"), result_item.filename, intermediate])
         ]
 
         if self.settings.metadata:
@@ -33,10 +33,10 @@ class JXLCompressor(Compressor):
             # matching -x argument is pruned in adapt_command().
             for kind in _JXL_METADATA:
                 commands.append(
-                    (
+                    Command(
                         [resolve_tool("djxl"), result_item.filename, "-", "--output_format", kind],
-                        self._sidecar_path(result_item, kind),
-                        True,
+                        stdout_path=self._sidecar_path(result_item, kind),
+                        ignore_errors=True,
                     )
                 )
 
@@ -56,7 +56,7 @@ class JXLCompressor(Compressor):
                 cjxl += ["-x", f"{kind}={self._sidecar_path(result_item, kind)}"]
 
         cjxl += [intermediate, result_item.tmp_filename]
-        commands.append((cjxl, None))
+        commands.append(Command(cjxl))
 
         return commands
 
