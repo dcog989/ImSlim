@@ -15,7 +15,8 @@ The compression backend shells out to standard Linux CLI tools (distro packages)
 
 - [oxipng](https://github.com/shssoichiro/oxipng)
 - [pngquant](https://pngquant.org)
-- [jpegoptim](https://github.com/tjko/jpegoptim)
+- [libjxl](https://github.com/libjxl/libjxl) (`cjpegli`/`djpegli`)
+- [mozjpeg](https://github.com/mozilla/mozjpeg) (`jpegtran`)
 - [libwebp](https://developers.google.com/speed/webp) (`cwebp`)
 - [libavif](https://github.com/AOMediaCodec/libavif) (`avifenc`/`avifdec`)
 - [svgo](https://github.com/svg/svgo)
@@ -23,7 +24,7 @@ The compression backend shells out to standard Linux CLI tools (distro packages)
 On Debian/Ubuntu:
 
 ```sh
-sudo apt install oxipng pngquant jpegoptim webp libavif-bin
+sudo apt install oxipng pngquant libjxl-tools mozjpeg webp libavif-bin
 npm install -g svgo
 ```
 
