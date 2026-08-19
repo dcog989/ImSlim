@@ -21,8 +21,13 @@ class Compressor(ABC):
         return ""
 
     @abstractmethod
-    def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
+    def build_command(
+        self, result_item: ResultItem
+    ) -> list[tuple[list[str], str | None] | tuple[list[str], str | None, bool]]:
         return []
+
+    def adapt_command(self, argv: list[str], result_item: ResultItem) -> list[str]:
+        return argv
 
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         return []
@@ -31,16 +36,28 @@ class Compressor(ABC):
         commands = self.build_command(result_item)
         output = None
         try:
-            for argv, stdout_path in commands:
-                output = subprocess.run(
-                    argv,
-                    capture_output=True,
-                    check=True,
-                    timeout=self.settings.compression_timeout,
-                )
-                if stdout_path is not None:
-                    with open(stdout_path, "wb") as fp:
-                        fp.write(output.stdout)
+            # Each command is a (argv, stdout_path) tuple; an optional third
+            # element (True) marks the command as non-fatal: on failure it is
+            # logged and skipped instead of failing the whole item.
+            for command in commands:
+                argv, stdout_path = command[0], command[1]
+                ignore_errors = command[2] if len(command) > 2 else False
+                argv = self.adapt_command(argv, result_item)
+                try:
+                    output = subprocess.run(
+                        argv,
+                        capture_output=True,
+                        check=True,
+                        timeout=self.settings.compression_timeout,
+                    )
+                    if stdout_path is not None:
+                        with open(stdout_path, "wb") as fp:
+                            fp.write(output.stdout)
+                except Exception:
+                    if ignore_errors:
+                        logging.warning("Optional command failed, ignoring: %s", argv)
+                        continue
+                    raise
         except subprocess.TimeoutExpired as err:
             logging.error(str(err))
             result_item.error_message = _(

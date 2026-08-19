@@ -26,6 +26,7 @@ from .compression_manager import CompressionManager
 from .compressors.avif_compressor import AVIFCompressor
 from .compressors.gif_compressor import GIFCompressor
 from .compressors.jpeg_compressor import JPEGCompressor
+from .compressors.jxl_compressor import JXLCompressor
 from .compressors.png_compressor import PNGCompressor
 from .compressors.svg_compressor import SVGCompressor
 from .compressors.webp_compressor import WEBPCompressor
@@ -210,6 +211,7 @@ class ImSlimWindow(QWidget):
         self.manager.register_compressor(JPEGCompressor)
         self.manager.register_compressor(WEBPCompressor)
         self.manager.register_compressor(AVIFCompressor)
+        self.manager.register_compressor(JXLCompressor)
         self.manager.register_compressor(GIFCompressor)
         self.manager.register_compressor(SVGCompressor)
 
@@ -701,7 +703,7 @@ class ImSlimWindow(QWidget):
             _("About ImSlim"),
             _(
                 "<b>ImSlim</b> — compress your images.\n\n"
-                "Supports PNG, JPEG, GIF, WebP, AVIF and SVG, in both lossless and "
+                "Supports PNG, JPEG, GIF, WebP, AVIF, JXL and SVG, in both lossless and "
                 "lossy modes.\n\nVersion: {version}\n\n{debug}"
             ).format(version=__version__, debug=debug_infos()),
         )

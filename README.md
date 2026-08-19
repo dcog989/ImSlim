@@ -1,12 +1,12 @@
 # ImSlim
 
-A Linux-first image compressor for PNG, JPEG, WebP, AVIF, GIF, and SVG images. Built with Python / PySide6 with native rendering under KDE Plasma.
+A Linux-first image compressor for PNG, JPEG, WebP, AVIF, JXL, GIF, and SVG images. Built with Python / PySide6 with native rendering under KDE Plasma.
 
 Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
 ## Supported formats
 
-PNG, JPEG, GIF, WebP, AVIF, SVG — both lossless and lossy modes, with options to keep or strip metadata. Animated GIFs are always compressed losslessly.
+PNG, JPEG, GIF, WebP, AVIF, JXL, SVG — both lossless and lossy modes, with options to keep or strip metadata. Animated GIFs are always compressed losslessly. JXL re-compression decodes via `djxl` and re-encodes via `cjxl`; EXIF/XMP/JUMBF metadata is preserved when the metadata option is enabled.
 
 ## Requirements
 
@@ -14,7 +14,7 @@ The compression backend shells out to standard Linux CLI tools (distro packages)
 
 - [oxipng](https://github.com/shssoichiro/oxipng)
 - [pngquant](https://pngquant.org)
-- [libjxl](https://github.com/libjxl/libjxl) (`cjpegli`/`djpegli`)
+- [libjxl](https://github.com/libjxl/libjxl) (`cjpegli`/`djpegli`, `cjxl`/`djxl`)
 - [mozjpeg](https://github.com/mozilla/mozjpeg) (`jpegtran`)
 - [libwebp](https://developers.google.com/speed/webp) (`cwebp`)
 - [libavif](https://github.com/AOMediaCodec/libavif) (`avifenc`/`avifdec`)

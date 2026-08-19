@@ -129,6 +129,15 @@ class PreferencesDialog(QDialog):
         )
         layout.addWidget(
             self._build_format_group(
+                "JXL",
+                [
+                    ("jxl_lossy_level", _("Lossy Compression"), "jxl-lossy-level", 1, 100),
+                    ("jxl_lossless_level", _("Lossless Compression"), "jxl-lossless-level", 1, 10),
+                ],
+            )
+        )
+        layout.addWidget(
+            self._build_format_group(
                 "GIF",
                 [
                     ("gif_lossy_level", _("Lossy Compression"), "gif-lossy-level", 1, 100),
@@ -190,6 +199,8 @@ class PreferencesDialog(QDialog):
         self.spin_webp_lossless_level.setValue(s.webp_lossless_level)
         self.spin_avif_lossy_level.setValue(s.avif_lossy_level)
         self.spin_avif_lossless_level.setValue(s.avif_lossless_level)
+        self.spin_jxl_lossy_level.setValue(s.jxl_lossy_level)
+        self.spin_jxl_lossless_level.setValue(s.jxl_lossless_level)
         self.spin_gif_lossy_level.setValue(s.gif_lossy_level)
         self.spin_gif_lossless_level.setValue(s.gif_lossless_level)
         self.toggle_svg_maximum_level.setChecked(s.svg_maximum_level)

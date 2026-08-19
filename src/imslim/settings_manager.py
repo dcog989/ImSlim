@@ -18,6 +18,8 @@ DEFAULTS: dict[str, str | int | bool] = {
     "webp-lossless-level": 4,
     "avif-lossy-level": 70,
     "avif-lossless-level": 6,
+    "jxl-lossy-level": 70,
+    "jxl-lossless-level": 6,
     "gif-lossy-level": 80,
     "gif-lossless-level": 3,
     "svg-maximum-level": False,
@@ -184,6 +186,23 @@ class SettingsManager:
     @avif_lossless_level.setter
     def avif_lossless_level(self, value: int) -> None:
         self.set_int("avif-lossless-level", value)
+
+    # JXL options
+    @property
+    def jxl_lossy_level(self) -> int:
+        return self._int("jxl-lossy-level")
+
+    @jxl_lossy_level.setter
+    def jxl_lossy_level(self, value: int) -> None:
+        self.set_int("jxl-lossy-level", value)
+
+    @property
+    def jxl_lossless_level(self) -> int:
+        return self._int("jxl-lossless-level")
+
+    @jxl_lossless_level.setter
+    def jxl_lossless_level(self, value: int) -> None:
+        self.set_int("jxl-lossless-level", value)
 
     # GIF options
     @property
