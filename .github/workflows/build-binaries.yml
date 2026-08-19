@@ -22,6 +22,7 @@ jobs:
             build-essential cmake ninja-build pkg-config curl git \
             libpng-dev zlib1g-dev libjpeg-dev libwebp-dev \
             libhwy-dev libbrotli-dev liblcms2-dev libaom-dev libyuv-dev \
+            libdav1d-dev \
             libsqlite3-dev libzstd-dev libtiff-dev
 
       - name: Install Rust for oxipng

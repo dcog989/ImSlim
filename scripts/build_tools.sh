@@ -56,10 +56,14 @@ build_libjxl() {
     fi
     ./deps.sh
 
+    # Always reconfig from scratch: stale CMake caches (e.g. after flag
+    # changes) otherwise leak old linker flags into the build.
+    cmake -E remove_directory build
     cmake -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
         -DBUILD_SHARED_LIBS=OFF \
+        -DBUILD_TESTING=OFF \
         -DJPEGXL_ENABLE_TOOLS=ON \
         -DJPEGXL_ENABLE_DEVTOOLS=OFF \
         -DJPEGXL_ENABLE_BENCHMARK=OFF \
@@ -68,8 +72,7 @@ build_libjxl() {
         -DJPEGXL_ENABLE_SJPEG=OFF \
         -DJPEGXL_ENABLE_VIEWERS=OFF \
         -DJPEGXL_ENABLE_FLAC=OFF \
-        -DJPEGXL_ENABLE_TCMALLOC=OFF \
-        -DJPEGXL_STATIC=ON
+        -DJPEGXL_ENABLE_TCMALLOC=OFF
     cmake --build build -j"$JOBS"
     cmake --install build
 
@@ -94,10 +97,14 @@ build_jpegli() {
     fi
     ./deps.sh
 
+    # Always reconfig from scratch: stale CMake caches (e.g. after flag
+    # changes) otherwise leak old linker flags into the build.
+    cmake -E remove_directory build
     cmake -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
         -DBUILD_SHARED_LIBS=OFF \
+        -DBUILD_TESTING=OFF \
         -DJPEGXL_ENABLE_TOOLS=ON \
         -DJPEGXL_ENABLE_DEVTOOLS=OFF \
         -DJPEGXL_ENABLE_PLUGINS=OFF
@@ -123,9 +130,11 @@ build_mozjpeg() {
         cd "$WORK/mozjpeg"
     fi
 
+    cmake -E remove_directory build
     cmake -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DENABLE_STATIC=ON \
         -DENABLE_SHARED=OFF \
         -DWITH_JPEG8=ON \
@@ -135,7 +144,7 @@ build_mozjpeg() {
 
     cp "$PREFIX/bin/jpegtran" "$OUT/jpegtran"
     chmod +x "$OUT/jpegtran"
-    cp "$PREFIX/share/doc/libjpeg-turbo/LICENSE.md" "$OUT/LICENSE-jpegtran"
+    cp "$WORK/mozjpeg/LICENSE.md" "$OUT/LICENSE-jpegtran"
 }
 
 # ---------------------------------------------------------------------------
@@ -169,15 +178,13 @@ build_pngquant() {
         git clone -q --depth 1 --branch "$tag" https://github.com/kornelski/pngquant.git "$WORK/pngquant"
         cd "$WORK/pngquant"
     fi
+    git submodule update --init --recursive
 
-    # pngquant grabs libpng dynamically unless given one; build with the static
-    # system zlib/libpng when present, otherwise fall back to its internal copy.
-    ./configure --prefix="$PREFIX" --enable-static --disable-shared || \
-        make install PREFIX="$PREFIX"
-    make -j"$JOBS" || true
-    cp pngquant "$OUT/pngquant" 2>/dev/null || cp "$PREFIX/bin/pngquant" "$OUT/pngquant"
+    # pngquant 3.x is a Rust project
+    cargo build --release -j"$JOBS"
+    cp target/release/pngquant "$OUT/pngquant"
     chmod +x "$OUT/pngquant"
-    cp COPYRIGHT "$OUT/LICENSE-pngquant" 2>/dev/null || true
+    cp COPYRIGHT "$OUT/LICENSE-pngquant"
 }
 
 # ---------------------------------------------------------------------------
@@ -192,6 +199,7 @@ build_webp() {
         cd "$WORK/libwebp"
     fi
 
+    cmake -E remove_directory build
     cmake -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
@@ -223,17 +231,20 @@ build_avif() {
         cd "$WORK/libavif"
     fi
 
+    cmake -E remove_directory build
     cmake -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DBUILD_SHARED_LIBS=OFF \
         -DAVIF_BUILD_APPS=ON \
-        -DAVIF_CODEC_AOM=LOCAL \
-        -DAVIF_CODEC_DAV1D=OFF \
-        -DAVIF_LIBYUV=LOCAL \
+        -DAVIF_BUILD_TESTS=OFF \
+        -DAVIF_CODEC_AOM=SYSTEM \
+        -DAVIF_CODEC_DAV1D=SYSTEM \
+        -DAVIF_LIBYUV=OFF \
         -DAVIF_JPEG=SYSTEM \
         -DAVIF_PNG=SYSTEM \
-        -DAVIF_ZLIBPNG=OFF \
+        -DAVIF_ZLIBPNG=SYSTEM \
         -DAVIF_ENABLE_WERROR=OFF
     cmake --build build -j"$JOBS"
     cmake --install build
@@ -257,14 +268,14 @@ build_gifsicle() {
         cd "$WORK/gifsicle"
     fi
 
-    ./autogen.sh
+    ./bootstrap.sh
     ./configure --prefix="$PREFIX" --disable-shared --enable-static
     make -j"$JOBS"
     make install
 
     cp "$PREFIX/bin/gifsicle" "$OUT/gifsicle"
     chmod +x "$OUT/gifsicle"
-    cp LICENSE "$OUT/LICENSE-gifsicle"
+    cp COPYING "$OUT/LICENSE-gifsicle"
 }
 
 # ---------------------------------------------------------------------------

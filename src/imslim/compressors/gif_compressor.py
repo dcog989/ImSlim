@@ -20,12 +20,15 @@ class GIFCompressor(Compressor):
     def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
         is_animated = self._is_animated(result_item)
 
-        gifsicle = [resolve_tool("gifsicle"), "--optimize", str(self.settings.gif_lossless_level)]
+        gifsicle = [
+            resolve_tool("gifsicle"),
+            f"--optimize={self.settings.gif_lossless_level}",
+        ]
 
         # gifsicle --lossy can visibly flicker/posterize complex animation,
         # so animated GIFs are always compressed losslessly
         if self.settings.lossy and not is_animated:
-            gifsicle += ["--lossy", str(self.settings.gif_lossy_level)]
+            gifsicle += [f"--lossy={self.settings.gif_lossy_level}"]
 
         if not self.settings.metadata:
             # --no-extensions would also strip the animation loop and frame
