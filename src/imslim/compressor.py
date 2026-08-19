@@ -84,7 +84,11 @@ class Compressor(ABC):
                 result_item.skipped = True
             else:
                 # Output is smaller than input; copy the compressed temp file
-                if self.settings.save_method == SAVE_BACKUP_OVERWRITE:
+                overwriting = (
+                    self.settings.save_method == SAVE_BACKUP_OVERWRITE
+                    and result_item.filename == result_item.new_filename
+                )
+                if overwriting:
                     try:
                         shutil.copy2(result_item.filename, result_item.backup_filename)
                     except OSError as err:
@@ -95,11 +99,7 @@ class Compressor(ABC):
                         logging.error(result_item.error_details_message)
 
                 if not result_item.error:
-                    final_path = (
-                        result_item.filename
-                        if self.settings.save_method == SAVE_BACKUP_OVERWRITE
-                        else result_item.new_filename
-                    )
+                    final_path = result_item.filename if overwriting else result_item.new_filename
                     shutil.copy2(result_item.tmp_filename, final_path)
                     if self.settings.file_attributes and (
                         result_item.atime > 0 and result_item.mtime > 0

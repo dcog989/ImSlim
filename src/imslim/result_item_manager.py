@@ -3,6 +3,7 @@ import time
 
 from PySide6.QtCore import QMimeDatabase
 
+from .compression_manager import OUTPUT_EXTENSIONS
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE
 from .tools import sizeof_fmt
@@ -15,6 +16,8 @@ ALLOWED_MIME_TYPES = {
     "image/jxl",
     "image/gif",
     "image/svg+xml",
+    "image/bmp",
+    "image/tiff",
 }
 
 _mime_db = QMimeDatabase()
@@ -63,8 +66,8 @@ class ResultItemManager:
 
         result_item.subtitle_label = sizeof_fmt(result_item.size)
 
-        result_item.new_filename = self.create_new_filename(result_item.filename)
-        result_item.backup_filename = self.create_backup_filename(result_item.filename)
+        result_item.new_filename = self.create_new_filename(result_item.filename, mime)
+        result_item.backup_filename = self.create_backup_filename(result_item.filename, mime)
 
         output_dir = os.path.dirname(result_item.new_filename)
         result_item.tmp_filename = os.path.join(
@@ -73,22 +76,23 @@ class ResultItemManager:
 
         return result_item
 
-    def create_new_filename(self, path: str) -> str:
-        if self.settings.save_method == SAVE_BACKUP_OVERWRITE:
+    def create_new_filename(self, path: str, mime: str) -> str:
+        if self.settings.save_method == SAVE_BACKUP_OVERWRITE and mime not in OUTPUT_EXTENSIONS:
             return path
-        return self._output_path(path, "imslim")
+        return self._output_path(path, "imslim", mime)
 
-    def create_backup_filename(self, path: str) -> str:
-        return self._output_path(path, "BAK")
+    def create_backup_filename(self, path: str, mime: str) -> str:
+        return self._output_path(path, "BAK", mime)
 
     def _output_parent(self, path: str) -> str:
         if self.settings.output_folder:
             return self.settings.output_folder
         return os.path.dirname(path)
 
-    def _output_path(self, path: str, marker: str) -> str:
+    def _output_path(self, path: str, marker: str, mime: str) -> str:
         basename = os.path.basename(path)
         stem, extension = os.path.splitext(basename)
+        extension = OUTPUT_EXTENSIONS.get(mime, extension)
         timestamp = time.strftime("%Y%m%d%H%M%S")
         parent = self._output_parent(path)
         candidate = os.path.join(parent, f"{stem}.{marker}.{timestamp}{extension}")

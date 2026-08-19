@@ -2,6 +2,25 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
+# MIME types that are re-encoded to a different format on output. The value is
+# the output file extension (the source file itself is left untouched).
+OUTPUT_EXTENSIONS = {
+    "image/bmp": ".webp",
+    "image/tiff": ".webp",
+}
+
+_MIME_TO_COMPRESSOR_TYPE = {
+    "image/jpeg": "jpeg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/avif": "avif",
+    "image/jxl": "jxl",
+    "image/gif": "gif",
+    "image/svg+xml": "svg",
+    "image/bmp": "webp",
+    "image/tiff": "webp",
+}
+
 
 class CompressionManager:
     def __init__(self, settings_manager):
@@ -9,21 +28,7 @@ class CompressionManager:
         self.compressors = {}
 
     def mime_type_to_compressor_type(self, mime_type: str) -> str | None:
-        if mime_type == "image/jpeg":
-            return "jpeg"
-        elif mime_type == "image/png":
-            return "png"
-        elif mime_type == "image/webp":
-            return "webp"
-        elif mime_type == "image/avif":
-            return "avif"
-        elif mime_type == "image/jxl":
-            return "jxl"
-        elif mime_type == "image/gif":
-            return "gif"
-        elif mime_type == "image/svg+xml":
-            return "svg"
-        return None
+        return _MIME_TO_COMPRESSOR_TYPE.get(mime_type)
 
     def register_compressor(self, ConcreteCompressor):
         file_type = ConcreteCompressor.get_file_type()

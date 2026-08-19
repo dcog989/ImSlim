@@ -3,7 +3,7 @@
 ## Project
 
 - Name: ImSlim
-- Description: Desktop app to compress images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG formats, in lossless or lossy mode. Built on the external tools pngquant/oxipng, cjpegli/djpegli, mozjpeg jpegtran, cwebp, gifsicle, cjxl/djxl, avifdec/avifenc and svgo. Tools are bundled per-platform in `src/imslim/bin/` (built by `scripts/build_tools.sh`); `src/imslim/binary_resolver.py` resolves them.
+- Description: Desktop app to compress images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG formats, in lossless or lossy mode. BMP and TIFF sources are re-encoded to WebP. Built on the external tools pngquant/oxipng, cjpegli/djpegli, mozjpeg jpegtran, cwebp, gifsicle, cjxl/djxl, avifdec/avifenc and svgo. Tools are bundled per-platform in `src/imslim/bin/` (built by `scripts/build_tools.sh`); `src/imslim/binary_resolver.py` resolves them.
 - Tech: Python (>=3.13), PySide6 (Qt6). Setup and deps managed via `uv`. Lint/format via `ruff`.
 
 ## Key Files
@@ -14,6 +14,7 @@
 - `src/imslim/settings_manager.py` — persistent settings/state store
 - `src/imslim/compressor.py` — base compressor + run logic
 - `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools
+- `src/imslim/image_convert.py` — Qt-based decode-to-PNG helper (BMP/TIFF → cwebp input)
 - `src/imslim/compressors/` — per-format compressors (png, jpeg, webp, avif, jxl, svg)
 - `src/imslim/compression_manager.py` — thread-pool orchestration of compressors
 - `src/imslim/assets/imslim.svg` — main window logo

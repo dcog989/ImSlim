@@ -13,14 +13,16 @@ from .binary_resolver import resolve_tool
 
 def image_filter() -> str:
     return _(
-        "Images (*.png *.jpg *.jpeg *.gif *.webp *.avif *.jxl *.svg);;"
+        "Images (*.png *.jpg *.jpeg *.gif *.webp *.avif *.jxl *.svg *.bmp *.tiff *.tif);;"
         "PNG (*.png);;"
         "JPEG (*.jpg *.jpeg);;"
+        "BMP (*.bmp);;"
         "GIF (*.gif);;"
         "WebP (*.webp);;"
         "AVIF (*.avif);;"
         "JXL (*.jxl);;"
         "SVG (*.svg);;"
+        "TIFF (*.tiff *.tif);;"
         "All files (*)"
     )
 
@@ -100,7 +102,19 @@ def get_image_paths_from_folder(folder_path: str, recursive: bool = False) -> li
     return images
 
 
-_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".jxl", ".svg")
+_IMAGE_EXTENSIONS = (
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".avif",
+    ".jxl",
+    ".svg",
+    ".bmp",
+    ".tiff",
+    ".tif",
+)
 
 
 def _is_image_path(path: str) -> bool:
