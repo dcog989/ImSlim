@@ -91,16 +91,13 @@ class Compressor(ABC):
             )
             result_item.error = True
         except Exception as err:
-            result_item.error_message = _("An unknown error has occurred.")
             details = str(err)
             if isinstance(err, subprocess.CalledProcessError):
                 tool_output = err.stderr if err.stderr else err.stdout
                 if tool_output:
                     details += "\n" + tool_output.decode(errors="replace").strip()
-            result_item.error_details_message = html.escape(details)
+            result_item.set_error(_("An unknown error has occurred."), html.escape(details))
             logging.error(result_item.error_details_message)
-            result_item.error = True
-            result_item.error_details = True
 
         if result_item.error:
             self._cleanup_temp_files(result_item)
@@ -124,10 +121,9 @@ class Compressor(ABC):
                     try:
                         shutil.copy2(result_item.filename, result_item.backup_filename)
                     except OSError as err:
-                        result_item.error = True
-                        result_item.error_message = _("Can't backup the original file")
-                        result_item.error_details_message = html.escape(str(err))
-                        result_item.error_details = True
+                        result_item.set_error(
+                            _("Can't backup the original file"), html.escape(str(err))
+                        )
                         logging.error(result_item.error_details_message)
 
                 if not result_item.error:

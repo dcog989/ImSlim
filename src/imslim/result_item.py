@@ -24,9 +24,11 @@ class ResultItem(QObject):
         self.error_details = False
         self.error_details_message = ""
 
-    def set_error(self, error: str) -> None:
+    def set_error(self, error: str, details: str = "") -> None:
         self.error = True
         self.error_message = error
+        self.error_details = bool(details)
+        self.error_details_message = details
         self.running = False
         self.savings = ""
 
