@@ -1,7 +1,8 @@
 import os
 
-from PySide6.QtCore import QObject, QPointF, QRectF, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter, QPainterPath, QPixmap
+from PySide6.QtCore import QObject, QPoint, QRectF, Qt, Signal
+from PySide6.QtGui import QAction, QColor, QKeySequence, QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -53,7 +54,7 @@ class ModeToggle(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumSize(160, 56)
+        self.setMinimumSize(160, 32)
         self._lossy = False
         self._track = QRectF()
         self._thumb = QRectF()
@@ -61,7 +62,7 @@ class ModeToggle(QWidget):
 
     def _track_rect(self, w: float, h: float) -> QRectF:
         inset_x = 0
-        inset_y = h * 0.25
+        inset_y = h * 0.08
         track_h = h - 2 * inset_y
         return QRectF(inset_x, inset_y, w, track_h)
 
@@ -142,36 +143,14 @@ class ModeToggle(QWidget):
 
 
 def stylized_i_icon(size: int) -> QPixmap:
-    """Render a large stylised 'I' (slab-serif) onto a transparent pixmap."""
+    """Render the ImSlim logo SVG onto a transparent pixmap of the given size."""
+    svg_path = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "imslim.svg")
+    renderer = QSvgRenderer(svg_path)
     pm = QPixmap(size, size)
     pm.fill(Qt.transparent)
     p = QPainter(pm)
     p.setRenderHint(QPainter.Antialiasing)
-    color = QColor(Qt.white)
-    w = size
-    bar = max(2.5, w * 0.09)  # crossbar thickness
-    stem = max(3.0, w * 0.14)  # vertical stem thickness
-    gap = w * 0.16  # space between bars and stem
-    radius = bar / 2
-    cx = w / 2
-    top_y = w * 0.10
-    bottom_y = w * 0.90 - bar
-
-    p.setPen(Qt.NoPen)
-    p.setBrush(color)
-
-    # top bar
-    p.drawRoundedRect(QRectF(w * 0.10, top_y, w * 0.80, bar), radius, radius)
-    # bottom bar
-    p.drawRoundedRect(QRectF(w * 0.10, bottom_y, w * 0.80, bar), radius, radius)
-    # stem
-    path = QPainterPath()
-    path.moveTo(QPointF(cx - stem / 2, top_y + bar + gap))
-    path.lineTo(QPointF(cx + stem / 2, top_y + bar + gap))
-    path.lineTo(QPointF(cx + stem / 2, bottom_y - gap))
-    path.lineTo(QPointF(cx - stem / 2, bottom_y - gap))
-    path.closeSubpath()
-    p.drawPath(path)
+    renderer.render(p)
     p.end()
     return pm
 
@@ -234,9 +213,8 @@ class ImSlimWindow(QWidget):
         self.menu_button = QToolButton()
         self.menu_button.setText(_HAMBURGER)
         self.menu_button.setToolTip(_("Main Menu"))
-        self.menu_button.setPopupMode(QToolButton.InstantPopup)
-        self.menu_button.setMenu(self._build_main_menu())
-        self.menu_button.setFixedWidth(38)
+        self.menu_button.setFixedSize(32, 32)
+        self.menu_button.clicked.connect(self._open_main_menu)
         header_layout.addWidget(self.menu_button)
 
         self.subtitle_label = QLabel()
@@ -268,7 +246,7 @@ class ImSlimWindow(QWidget):
         layout.addStretch(1)
 
         icon = QLabel()
-        icon.setPixmap(stylized_i_icon(120))
+        icon.setPixmap(stylized_i_icon(180))
         icon.setAlignment(Qt.AlignCenter)
         layout.addWidget(icon)
 
@@ -367,7 +345,31 @@ class ImSlimWindow(QWidget):
         menu.addAction(self.act_settings)
         menu.addAction(self.act_whats_new)
         menu.addAction(self.act_about)
+        menu.setStyleSheet(
+            "QMenu {"
+            "  background-color: palette(base);"
+            "  border: 1px solid palette(mid);"
+            "  border-radius: 8px;"
+            "  padding: 6px;"
+            "}"
+            "QMenu::item {"
+            "  padding: 6px 16px;"
+            "  border-radius: 4px;"
+            "}"
+            "QMenu::item:selected {"
+            "  background-color: palette(highlight);"
+            "  color: palette(highlighted-text);"
+            "}"
+        )
         return menu
+
+    def _open_main_menu(self):
+        menu = self._build_main_menu()
+        button = self.menu_button
+        menu_width = menu.sizeHint().width()
+        x = button.mapToGlobal(QPoint(0, 0)).x() + button.width() - menu_width
+        y = button.mapToGlobal(QPoint(0, 0)).y() + button.height()
+        menu.popup(QPoint(x, y))
 
     # ----------------------------------------------------------------- actions
     def create_actions(self):
