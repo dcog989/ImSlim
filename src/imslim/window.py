@@ -503,10 +503,7 @@ class ImSlimWindow(QWidget):
         final_files = []
         for path in paths:
             if os.path.isdir(path):
-                if self.settings.recursive:
-                    final_files.extend(get_image_paths_from_folder(path, True))
-                else:
-                    final_files.extend(get_image_paths_from_folder(path, False))
+                final_files.extend(get_image_paths_from_folder(path, self.settings.recursive))
             else:
                 final_files.append(path)
         return final_files
