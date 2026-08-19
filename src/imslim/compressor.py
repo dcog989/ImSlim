@@ -32,6 +32,9 @@ class Compressor(ABC):
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         return []
 
+    def _png_intermediate_path(self, result_item: ResultItem) -> str:
+        return result_item.tmp_filename + ".png"
+
     def _cleanup_temp_files(self, result_item: ResultItem) -> None:
         for path in [result_item.tmp_filename, *self.get_intermediate_files(result_item)]:
             try:

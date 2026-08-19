@@ -8,7 +8,7 @@ class JPEGCompressor(Compressor):
         return "jpeg"
 
     def _intermediate_path(self, result_item) -> str:
-        return result_item.tmp_filename + ".png"
+        return self._png_intermediate_path(result_item)
 
     def _encoded_path(self, result_item) -> str:
         return result_item.tmp_filename + ".enc.jpg"

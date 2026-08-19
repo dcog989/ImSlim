@@ -9,7 +9,7 @@ class AVIFCompressor(Compressor):
         return "avif"
 
     def _intermediate_path(self, result_item: ResultItem) -> str:
-        return result_item.tmp_filename + ".png"
+        return self._png_intermediate_path(result_item)
 
     def build_command(self, result_item: ResultItem) -> list[tuple[list[str], str | None]]:
         intermediate = self._intermediate_path(result_item)

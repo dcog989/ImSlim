@@ -13,7 +13,7 @@ class JXLCompressor(Compressor):
         return "jxl"
 
     def _intermediate_path(self, result_item: ResultItem) -> str:
-        return result_item.tmp_filename + ".png"
+        return self._png_intermediate_path(result_item)
 
     def _sidecar_path(self, result_item: ResultItem, kind: str) -> str:
         return result_item.tmp_filename + "." + kind
