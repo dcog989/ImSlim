@@ -3,22 +3,10 @@ import time
 
 from PySide6.QtCore import QMimeDatabase
 
-from .compression_manager import OUTPUT_EXTENSIONS
+from .compression_manager import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE
 from .tools import sizeof_fmt
-
-ALLOWED_MIME_TYPES = {
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/avif",
-    "image/jxl",
-    "image/gif",
-    "image/svg+xml",
-    "image/bmp",
-    "image/tiff",
-}
 
 _mime_db = QMimeDatabase()
 
