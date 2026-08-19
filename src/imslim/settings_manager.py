@@ -1,14 +1,15 @@
 from PySide6.QtCore import QSettings
 
+SAVE_NEW_FILE = 0
+SAVE_BACKUP_OVERWRITE = 1
+
 DEFAULTS: dict[str, str | int | bool] = {
-    "new-file": True,
-    "backup": False,
-    "naming-mode": 0,
+    "save-method": SAVE_NEW_FILE,
+    "output-folder": "",
     "recursive": True,
     "metadata": True,
     "file-attributes": True,
     "lossy": False,
-    "suffix-prefix": "-min",
     "png-lossy-level": 90,
     "png-lossless-level": 2,
     "jpg-lossy-level": 90,
@@ -61,36 +62,20 @@ class SettingsManager:
 
     # Options
     @property
-    def new_file(self) -> bool:
-        return self._bool("new-file")
+    def save_method(self) -> int:
+        return self._int("save-method")
 
-    @new_file.setter
-    def new_file(self, value: bool) -> None:
-        self.set_boolean("new-file", value)
-
-    @property
-    def backup(self) -> bool:
-        return self._bool("backup")
-
-    @backup.setter
-    def backup(self, value: bool) -> None:
-        self.set_boolean("backup", value)
+    @save_method.setter
+    def save_method(self, value: int) -> None:
+        self.set_int("save-method", value)
 
     @property
-    def naming_mode(self) -> int:
-        return self._int("naming-mode")
+    def output_folder(self) -> str:
+        return self._str("output-folder")
 
-    @naming_mode.setter
-    def naming_mode(self, value: int) -> None:
-        self.set_int("naming-mode", value)
-
-    @property
-    def suffix_prefix(self) -> str:
-        return self._str("suffix-prefix")
-
-    @suffix_prefix.setter
-    def suffix_prefix(self, value: str) -> None:
-        self.set_string("suffix-prefix", value)
+    @output_folder.setter
+    def output_folder(self, value: str) -> None:
+        self.set_string("output-folder", value)
 
     @property
     def recursive(self) -> bool:

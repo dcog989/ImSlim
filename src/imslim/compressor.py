@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 
 from .result_item import ResultItem
+from .settings_manager import SAVE_BACKUP_OVERWRITE
 
 
 class Compressor(ABC):
@@ -65,12 +66,8 @@ class Compressor(ABC):
                 # Don't use compressed temp file
                 result_item.skipped = True
             else:
-                # Output is smaller than input
-                # Copy the compressed temp file
-                final_path = (
-                    result_item.new_filename if self.settings.new_file else result_item.filename
-                )
-                if self.settings.backup:
+                # Output is smaller than input; copy the compressed temp file
+                if self.settings.save_method == SAVE_BACKUP_OVERWRITE:
                     try:
                         shutil.copy2(result_item.filename, result_item.backup_filename)
                     except OSError as err:
@@ -81,6 +78,11 @@ class Compressor(ABC):
                         logging.error(result_item.error_details_message)
 
                 if not result_item.error:
+                    final_path = (
+                        result_item.filename
+                        if self.settings.save_method == SAVE_BACKUP_OVERWRITE
+                        else result_item.new_filename
+                    )
                     shutil.copy2(result_item.tmp_filename, final_path)
                     if self.settings.file_attributes and (
                         result_item.atime > 0 and result_item.mtime > 0

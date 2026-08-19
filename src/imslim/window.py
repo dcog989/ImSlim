@@ -30,7 +30,7 @@ from .preferences import PreferencesDialog
 from .result_item import ResultItem
 from .result_item_manager import ResultItemManager
 from .result_item_row import ResultItemRow
-from .settings_manager import SettingsManager
+from .settings_manager import SAVE_BACKUP_OVERWRITE, SAVE_NEW_FILE, SettingsManager
 from .tools import (
     debug_infos,
     get_image_paths_from_folder,
@@ -452,6 +452,8 @@ class ImSlimWindow(QWidget):
             QMessageBox.information(self, _("No files found"), _("No files found"))
             return
 
+        self.result_item_manager.begin_batch()
+
         result_items = []
         for path in paths:
             result_item = self.result_item_manager.build(path)
@@ -506,29 +508,28 @@ class ImSlimWindow(QWidget):
         self.compress_files([folder])
 
     def _confirm_directory_compression(self) -> bool:
-        if self.settings.new_file:
+        if self.settings.save_method == SAVE_NEW_FILE:
             message = _(
                 "All of the images in the directories selected and their "
-                "subdirectories will be compressed. The original images will not "
-                "be modified."
-            )
-        elif self.settings.backup:
-            message = _(
-                "All of the images in the directories selected and their "
-                "subdirectories will be compressed and overwritten. A backup of "
-                "the original images will be saved in .bak files."
+                "subdirectories will be compressed. The original images will "
+                "not be modified. New compressed files will be saved with a "
+                "“.imslim.[timestamp]” suffix."
             )
         else:
             message = _(
                 "All of the images in the directories selected and their "
-                "subdirectories will be compressed and overwritten!"
+                "subdirectories will be compressed and overwritten. A backup "
+                "of the original images will be saved with a "
+                "“.BAK.[timestamp]” suffix."
             )
+        if self.settings.output_folder:
+            message += "\n\n" + _(f"Output folder: {self.settings.output_folder}")
         box = QMessageBox(self)
         box.setWindowTitle(_("Are you sure you want to compress images in these directories?"))
         box.setText(message)
         box.setIcon(
             QMessageBox.Warning
-            if not (self.settings.new_file or self.settings.backup)
+            if self.settings.save_method == SAVE_BACKUP_OVERWRITE
             else QMessageBox.Question
         )
         box.addButton(QMessageBox.Cancel)
@@ -553,18 +554,14 @@ class ImSlimWindow(QWidget):
         self.show_view("loading")
         self.compress_files(paths)
 
-    # ------------------------------------------------------------- save mode
-    def set_saving_subtitle(self, new_file=None):
-        if new_file is None:
-            new_file = self.settings.new_file
-        if new_file:
-            suffix_prefix = self.settings.suffix_prefix
-            if self.settings.naming_mode == 0:
-                label = _(f"Safe mode with “{suffix_prefix}” suffix")
-            else:
-                label = _(f"Safe mode with “{suffix_prefix}” prefix")
+    # ------------------------------------------------------------- save method
+    def set_saving_subtitle(self):
+        if self.settings.save_method == SAVE_NEW_FILE:
+            label = _("Saving new compressed files with a “.imslim.[timestamp]” suffix")
         else:
-            label = ""
+            label = _("Backing up originals (“.BAK.[timestamp]”) and overwriting them")
+        if self.settings.output_folder:
+            label += " → " + self.settings.output_folder
         self.subtitle_label.setText(label)
 
     # ------------------------------------------------------------- dialogs
