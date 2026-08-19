@@ -60,8 +60,9 @@ class Compressor(ABC):
                     raise
         except subprocess.TimeoutExpired as err:
             logging.error(str(err))
-            result_item.error_message = _(
-                f"Compression has reached the configured timeout of {self.settings.compression_timeout} seconds."
+            result_item.error_message = (
+                _("Compression has reached the configured timeout of %s seconds.")
+                % self.settings.compression_timeout
             )
             result_item.error = True
         except Exception as err:
