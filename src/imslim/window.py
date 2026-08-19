@@ -365,12 +365,31 @@ class ImSlimWindow(QWidget):
         self.results_layout = QVBoxLayout(self.results_container)
         self.results_layout.setContentsMargins(12, 12, 12, 12)
         self.results_layout.setSpacing(2)
+        self.results_layout.addWidget(self._build_results_header())
         self.results_layout.addStretch(1)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.results_container)
         return scroll
+
+    def _build_results_header(self) -> QWidget:
+        header = QWidget()
+        layout = QHBoxLayout(header)
+        layout.setContentsMargins(12, 4, 12, 4)
+        layout.setSpacing(8)
+
+        image_label = QLabel(_("Image:"))
+        reduced_label = QLabel(_("Reduced by:"))
+        header_font = image_label.font()
+        header_font.setBold(True)
+        image_label.setFont(header_font)
+        reduced_label.setFont(header_font)
+
+        layout.addWidget(image_label)
+        layout.addStretch(1)
+        layout.addWidget(reduced_label)
+        return header
 
     def _build_main_menu(self) -> QMenu:
         menu = QMenu(self)
@@ -465,8 +484,8 @@ class ImSlimWindow(QWidget):
     def clear_results(self):
         self.show_view("home")
         self.rows.clear()
-        while self.results_layout.count() > 1:
-            item = self.results_layout.takeAt(0)
+        while self.results_layout.count() > 2:
+            item = self.results_layout.takeAt(1)
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
@@ -523,7 +542,7 @@ class ImSlimWindow(QWidget):
             result_item.savings = _("Skipped")
         else:
             result_item.savings = (
-                str(round(100 - (result_item.new_size * 100 / result_item.size), 2)) + "%"
+                str(round(100 - (result_item.new_size * 100 / result_item.size))) + "%"
             )
             result_item.subtitle_label += " → " + sizeof_fmt(result_item.new_size)
         result_item.updated.emit()
