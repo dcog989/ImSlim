@@ -27,8 +27,9 @@ On Debian/Ubuntu, the bundled binaries are used automatically; setting `IMSLIM_T
 ## Development
 
 ```sh
-uv sync          # install deps (PySide6)
-uv run imslim    # run the app
+uv sync            # install deps (PySide6)
+uv lock --upgrade  # upgrade deps
+uv run imslim      # run the app
 uv run python -m imslim
 ```
 
