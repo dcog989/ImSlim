@@ -6,18 +6,34 @@ import platform
 import re
 import subprocess
 
-logger = logging.getLogger(__name__)
-
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QLocale, QSize
 from PySide6.QtGui import QImage, QImageReader
 
 from ._i18n import _
 from .binary_resolver import KNOWN_TOOLS, resolve_tool
 
+logger = logging.getLogger(__name__)
+
+
+_IMAGE_EXTENSIONS = (
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".avif",
+    ".jxl",
+    ".svg",
+    ".bmp",
+    ".tiff",
+    ".tif",
+)
+
 
 def image_filter() -> str:
+    all_extensions = " ".join(f"*{ext}" for ext in _IMAGE_EXTENSIONS)
     return _(
-        "Images (*.png *.jpg *.jpeg *.gif *.webp *.avif *.jxl *.svg *.bmp *.tiff *.tif);;"
+        f"Images ({all_extensions});;"
         + "PNG (*.png);;"
         + "JPEG (*.jpg *.jpeg);;"
         + "BMP (*.bmp);;"
@@ -46,12 +62,12 @@ def sizeof_fmt(num: float | None) -> str:
 
 @functools.cache
 def _decimal_separator() -> str:
-    """Return the host locale's decimal separator (e.g. "." or ",")."""
-    try:
-        _res = locale.setlocale(locale.LC_NUMERIC, "")
-        return locale.localeconv()["decimal_point"]
-    except locale.Error, ValueError, AttributeError, KeyError:
-        return "."
+    """Return the host locale's decimal separator (e.g. "." or ",").
+
+    Read from Qt's system locale instead of mutating the process-wide locale
+    with locale.setlocale().
+    """
+    return QLocale().decimalPoint()
 
 
 def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> QImage | None:
@@ -93,21 +109,6 @@ def get_image_paths_from_folder(folder_path: str, recursive: bool = False) -> li
     except OSError as err:
         logger.warning("Could not read folder %s: %s", folder_path, err)
     return images
-
-
-_IMAGE_EXTENSIONS = (
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".webp",
-    ".avif",
-    ".jxl",
-    ".svg",
-    ".bmp",
-    ".tiff",
-    ".tif",
-)
 
 
 def _is_image_path(path: str) -> bool:
@@ -159,6 +160,8 @@ def tool_version_pairs() -> list[tuple[str, str]]:
 def system_info_pairs() -> list[tuple[str, str]]:
     """Collects system details useful for debugging bug reports."""
     distro, distro_version = _distro()
+    language, encoding = locale.getlocale()
+    locale_label = f"{language} ({encoding})" if language and encoding else language or _("Unknown")
     pairs: list[tuple[str, str]] = [
         ("OS", f"{distro} {distro_version}".strip()),
         ("Kernel", platform.release()),
@@ -166,7 +169,7 @@ def system_info_pairs() -> list[tuple[str, str]]:
         ("Processor", _cpu_model()),
         ("CPU Count", str(os.cpu_count() or _("Unknown"))),
         ("Memory", _total_memory()),
-        ("Locale", locale.getdefaultlocale()[0] or _("Unknown")),
+        ("Locale", locale_label),
     ]
     return pairs
 

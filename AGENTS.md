@@ -70,7 +70,7 @@
 ## Common Patterns
 
 - Add a setting: Add key + accessors in `src/imslim/settings_manager.py`, expose it in `src/imslim/settings.py`, and consume it in the relevant compressor under `src/imslim/compressors/`.
-- Add a format: Create a compressor subclass in `src/imslim/compressors/`, register it in `src/imslim/window.py` (`manager.register_compressor(...)`) and `compression_manager.py` (`mime_type_to_compressor_type`).
+- Add a format: Create a compressor subclass in `src/imslim/compressors/`, register it in `src/imslim/window.py` (`manager.register_compressor(...)`) and `compression_manager.py` (`mime_type_to_compressor_type`), and add its extensions to `_IMAGE_EXTENSIONS`/`image_filter()` in `src/imslim/tools.py`.
 - Compressor pipeline: override `build_command()` to return `list[tuple[list[str], str | None]]` (argv, optional stdout path); implement `get_intermediate_files()` and `get_file_type()` as needed.
 - State access: Read/write mode and settings through `SettingsManager` (exposed on the window as `self.settings`).
 
