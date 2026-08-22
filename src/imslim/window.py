@@ -59,7 +59,7 @@ from .result_item import ResultItem
 from .result_item_manager import ResultItemManager
 from .result_item_row import ResultItemRow
 from .settings import SettingsDialog
-from .settings_manager import SAVE_BACKUP_OVERWRITE, SAVE_NEW_FILE, SettingsManager
+from .settings_manager import SettingsManager
 from .tools import (
     get_image_paths_from_folder,
     image_filter,
@@ -723,39 +723,8 @@ class ImSlimWindow(QWidget):
         folder = QFileDialog.getExistingDirectory(self, _("Select Folder"))
         if not folder:
             return
-        if not self._confirm_directory_compression():
-            return
         self.show_view("loading")
         self.compress_files([folder])
-
-    def _confirm_directory_compression(self) -> bool:
-        if self.settings.save_method == SAVE_NEW_FILE:
-            message = _(
-                "All of the images in the directories selected and their "
-                + "subdirectories will be compressed. The original images will "
-                + "not be modified. New compressed files will be saved with a "
-                + "“.imslim.[timestamp]” suffix."
-            )
-        else:
-            message = _(
-                "All of the images in the directories selected and their "
-                + "subdirectories will be compressed and overwritten. A backup "
-                + "of the original images will be saved with a "
-                + "“.BAK.[timestamp]” suffix."
-            )
-        if self.settings.output_folder:
-            message += "\n\n" + _("Output folder: %s") % self.settings.output_folder
-        box = QMessageBox(self)
-        box.setWindowTitle(_("Are you sure you want to compress images in these directories?"))
-        box.setText(message)
-        box.setIcon(
-            QMessageBox.Icon.Warning
-            if self.settings.save_method == SAVE_BACKUP_OVERWRITE
-            else QMessageBox.Icon.Question
-        )
-        _res = box.addButton(QMessageBox.StandardButton.Cancel)
-        _res = box.addButton(QMessageBox.StandardButton.Ok)
-        return box.exec() == QMessageBox.StandardButton.Ok
 
     # ------------------------------------------------------------------ DnD
     @override
