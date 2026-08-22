@@ -1,12 +1,16 @@
 # ImSlim
 
-A Linux-first image compressor for PNG, JPEG, WebP, AVIF, JXL, GIF, SVG, BMP, and TIFF images. Built with Python / PySide6 with native rendering under KDE Plasma.
+A Linux-first image compressor. Built with Python / PySide6 with native rendering under KDE Plasma.
 
 Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
 ## Supported formats
 
-PNG, JPEG, GIF, WebP, AVIF, JXL, SVG — both lossless and lossy modes, with options to keep or strip metadata. BMP and TIFF are re-encoded to WebP (lossless or lossy per the mode) — the original files are always left untouched for these two, and the compressed result is written as a new `.webp` file. Animated GIFs are always compressed losslessly. JXL re-compression decodes via `djxl` and re-encodes via `cjxl`; EXIF/XMP/JUMBF metadata is preserved when the metadata option is enabled.
+PNG, JPEG, GIF, WebP, AVIF, JXL, SVG — lossless and lossy modes, with options to keep or strip metadata.
+
+BMP and TIFF are re-encoded to WebP (lossless or lossy per the mode) — the original files are always left untouched for these two, and the compressed result is written as a new `.webp` file.
+
+Animated GIFs are always compressed losslessly. JXL re-compression decodes via `djxl` and re-encodes via `cjxl`; EXIF/XMP/JUMBF metadata is preserved when the metadata option is enabled.
 
 ## Requirements
 
@@ -30,7 +34,6 @@ On Debian/Ubuntu, the bundled binaries are used automatically; setting `IMSLIM_T
 uv sync            # install deps (PySide6)
 uv lock --upgrade  # upgrade deps
 uv run imslim      # run the app
-uv run python -m imslim
 ```
 
 Lint / format:
