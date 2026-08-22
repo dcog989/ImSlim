@@ -197,8 +197,8 @@ class Compressor(ABC):
             )
         except subprocess.CalledProcessError as err:
             details = str(err)
-            err_stderr = cast("str | bytes | None", err.stderr)
-            err_stdout = cast("str | bytes | None", err.stdout)
+            err_stderr = cast(str | bytes | None, err.stderr)
+            err_stdout = cast(str | bytes | None, err.stdout)
             tool_output = err_stderr if err_stderr else err_stdout
             if tool_output:
                 if isinstance(tool_output, str):

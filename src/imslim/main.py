@@ -44,7 +44,7 @@ def _configure_platform_theme() -> None:
 
 def _system_plugin_roots() -> list[str]:
     """Common system Qt plugin roots across distro layouts."""
-    multiarch = cast("str | int | None", sysconfig.get_config_var("MULTIARCH"))
+    multiarch = cast(str | int | None, sysconfig.get_config_var("MULTIARCH"))
     roots = [
         "/usr/lib64/qt6/plugins",
         "/usr/lib/qt6/plugins",

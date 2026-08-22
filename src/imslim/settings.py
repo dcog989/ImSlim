@@ -364,7 +364,7 @@ class SettingsDialog(QDialog):
     def closeEvent(self, event: object) -> None:
         self._save_all()
         self.settings.sync()
-        super().closeEvent(cast("QCloseEvent", event))
+        super().closeEvent(cast(QCloseEvent, event))
 
     def _save_all(self) -> None:
         s = self.settings
