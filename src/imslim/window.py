@@ -53,7 +53,7 @@ from .tools import (
     system_info_pairs,
     tool_version_pairs,
 )
-from .widgets import gear_icon, imslim_icon, info_icon
+from .widgets import close_icon, gear_icon, imslim_icon, info_icon
 
 
 class _Bridge(QObject):
@@ -96,7 +96,6 @@ class _PasteFilter(QObject):
         return False
 
 
-_CLOSE = "\u2715"
 _V_SPACING = 16
 
 
@@ -172,7 +171,8 @@ class ImSlimWindow(QWidget):
         _res = self.about_button.clicked.connect(self.on_about)
 
         self.clear_button: QToolButton = QToolButton()
-        self.clear_button.setText(_CLOSE)
+        self.clear_button.setIcon(close_icon(icon_color))
+        self.clear_button.setIconSize(QSize(20, 20))
         self.clear_button.setToolTip(_("Clear results and return to the main window."))
         self.clear_button.setFixedSize(32, 32)
         self.clear_button.setStyleSheet("QToolButton { padding: 0; }")
@@ -187,7 +187,6 @@ class ImSlimWindow(QWidget):
         self.stop_button.hide()
 
         header_layout.addWidget(self.about_button)
-        header_layout.addWidget(self.clear_button)
         header_layout.addWidget(self.stop_button)
 
         header_layout.addStretch(1)
@@ -200,6 +199,7 @@ class ImSlimWindow(QWidget):
         self.results_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.results_title.hide()
         header_layout.addWidget(self.results_title, alignment=Qt.AlignmentFlag.AlignCenter)
+        header_layout.addWidget(self.clear_button)
 
         header_layout.addStretch(1)
 

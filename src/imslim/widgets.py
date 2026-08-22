@@ -52,6 +52,23 @@ def info_icon(color: QColor, size: int = 20) -> QIcon:
     return _painted_icon(size, draw)
 
 
+def close_icon(color: QColor, size: int = 20) -> QIcon:
+    """A circle with an X, matching info_icon()'s stroke weight."""
+
+    def draw(painter: QPainter, s: float) -> None:
+        pen = max(1.8, s * 0.09)
+        inset = pen
+        rect = QRectF(inset, inset, s - 2 * inset, s - 2 * inset)
+        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(rect)
+        pad = s * 0.30
+        painter.drawLine(QPointF(pad, pad), QPointF(s - pad, s - pad))
+        painter.drawLine(QPointF(s - pad, pad), QPointF(pad, s - pad))
+
+    return _painted_icon(size, draw)
+
+
 def gear_icon(color: QColor, size: int = 20) -> QIcon:
     """A simple gear: an outlined ring with eight teeth, matching info_icon()'s
     stroke weight so the header icons look consistent."""
