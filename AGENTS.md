@@ -32,6 +32,7 @@
 - Lint: `uv run ruff check`
 - Format: `uv run ruff format .`
 - Build: `uv build` / `uvx --from build python -m build` (build backend: uv_build)
+- Release changelog: `git-cliff -o CHANGELOG.md` (external tool, not a project dep; config in `cliff.toml`, filters out non-feat/fix/perf/refactor commits)
 
 ### Code Changes
 
