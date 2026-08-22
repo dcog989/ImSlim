@@ -128,22 +128,106 @@ def static_about_pairs() -> list[tuple[str, str]]:
     ]
 
 
+# cjpegli/djpegli ship as part of libjxl and expose no version flag; their
+# version matches the sibling cjxl/djxl build, so derive it from there.
+_JPEGLI_SIBLING = {"cjpegli": "cjxl", "djpegli": "djxl"}
+
+
 def tool_version_pairs() -> list[tuple[str, str]]:
-    pairs: list[tuple[str, str]] = []
+    resolved: dict[str, str | None] = {}
     for tool in KNOWN_TOOLS:
         try:
-            path = resolve_tool(tool)
+            resolved[tool] = resolve_tool(tool)
         except OSError:
-            path = None
+            resolved[tool] = None
+    pairs: list[tuple[str, str]] = []
+    for tool in KNOWN_TOOLS:
+        path = resolved[tool]
         if path is None:
             pairs.append((tool, _("Version not available")))
             continue
+        sibling = _JPEGLI_SIBLING.get(tool)
+        if sibling is not None:
+            sibling_path = resolved.get(sibling)
+            if sibling_path is not None:
+                pairs.append((tool, _tool_version(_version_flag(sibling_path, sibling))))
+                continue
         pairs.append((tool, _tool_version(_version_flag(path, tool))))
     return pairs
 
 
+def system_info_pairs() -> list[tuple[str, str]]:
+    """Collects system details useful for debugging bug reports."""
+    distro, distro_version = _distro()
+    pairs: list[tuple[str, str]] = [
+        ("OS", f"{distro} {distro_version}".strip()),
+        ("Kernel", platform.release()),
+        ("Architecture", platform.machine()),
+        ("Processor", _cpu_model()),
+        ("CPU Count", str(os.cpu_count() or _("Unknown"))),
+        ("Memory", _total_memory()),
+        ("Locale", locale.getdefaultlocale()[0] or _("Unknown")),
+    ]
+    return pairs
+
+
+def _distro() -> tuple[str, str]:
+    # platform.* reports the kernel, not the distribution; read os-release.
+    try:
+        with open("/etc/os-release") as fh:
+            data: dict[str, str] = {}
+            for line in fh:
+                line = line.strip()
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    data[key] = value.strip().strip('"')
+            name = data.get("NAME", "")
+            version = data.get("VERSION_ID", "")
+            if name:
+                return name, version
+    except OSError:
+        pass
+    return platform.system(), ""
+
+
+def _cpu_model() -> str:
+    # platform.processor() is empty on Linux; read the model name instead.
+    try:
+        with open("/proc/cpuinfo") as fh:
+            for line in fh:
+                if line.lower().startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return platform.processor() or _("Unknown")
+
+
+def _total_memory() -> str:
+    try:
+        if hasattr(os, "sysconf") and os.sysconf_names.get("SC_PAGE_SIZE") is not None:
+            page_size = os.sysconf("SC_PAGE_SIZE")
+            phys_pages = os.sysconf("SC_PHYS_PAGES")
+            if page_size and phys_pages:
+                return sizeof_fmt(page_size * phys_pages)
+    except ValueError, OSError:
+        pass
+    try:
+        with open("/proc/meminfo") as fh:
+            for line in fh:
+                if line.startswith("MemTotal:"):
+                    kb = int(line.split()[1])
+                    return sizeof_fmt(kb * 1024)
+    except OSError:
+        pass
+    return _("Unknown")
+
+
 def debug_pairs() -> list[tuple[str, str]]:
-    return [*static_about_pairs(), *tool_version_pairs()]
+    return [
+        *static_about_pairs(),
+        *system_info_pairs(),
+        *tool_version_pairs(),
+    ]
 
 
 def _version_flag(path: str, tool: str) -> list[str]:

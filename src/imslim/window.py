@@ -50,6 +50,7 @@ from .tools import (
     image_filter,
     sizeof_fmt,
     static_about_pairs,
+    system_info_pairs,
     tool_version_pairs,
 )
 from .widgets import ModeToggle, stylized_i_icon
@@ -114,6 +115,7 @@ class ImSlimWindow(QWidget):
         self.prefs_dialog: SettingsDialog | None = None
         self._about_dialog: QMessageBox | None = None
         self._about_static_pairs: list[tuple[str, str]] | None = None
+        self._about_tool_pairs: list[tuple[str, str]] | None = None
         self._about_worker: _VersionProbeWorker | None = None
 
         self.paste_filter: _PasteFilter = _PasteFilter()
@@ -636,11 +638,14 @@ class ImSlimWindow(QWidget):
         dialog = QMessageBox(
             QMessageBox.Icon.Information,
             _("About ImSlim"),
-            self._about_message(static_pairs, []),
+            self._about_message(),
             parent=self,
         )
+        copy_button = dialog.addButton(_("Copy Environment"), QMessageBox.ButtonRole.ActionRole)
         self._about_dialog = dialog
         self._about_static_pairs = static_pairs
+        self._about_tool_pairs = []
+        _res = copy_button.clicked.connect(self._on_copy_environment)
         worker = _VersionProbeWorker()
         self._about_worker = worker
         _res = worker.versions_ready.connect(self._on_about_versions)
@@ -649,15 +654,10 @@ class ImSlimWindow(QWidget):
         _res = dialog.exec()
         self._about_dialog = None
         self._about_static_pairs = None
+        self._about_tool_pairs = None
 
     @staticmethod
-    def _about_message(
-        static_pairs: list[tuple[str, str]], tool_pairs: list[tuple[str, str]]
-    ) -> str:
-        debug_lines = "".join(
-            f"<tr><td><b>{key}</b></td><td>{value}</td></tr>"
-            for key, value in (*static_pairs, *tool_pairs)
-        )
+    def _about_message() -> str:
         return _(
             "<div style='min-width: 360px;'>"
             + "<div style='font-size: 18pt; font-weight: bold;'>ImSlim</div>"
@@ -665,18 +665,24 @@ class ImSlimWindow(QWidget):
             + "Version {version}</div>"
             + "<div style='margin-top: 10px;'>"
             + "Compress common image formats, lossless or lossy.</div>"
-            + "<hr style='color: palette(mid); background-color: palette(mid); height: 1px; border: none; margin: 12px 0;'/>"
-            + "<div style='font-weight: bold;'>Environment</div>"
-            + "<table style='border-spacing: 6px 2px;'>"
-            + "{debug}"
-            + "</table>"
             + "</div>"
-        ).format(version=__version__, debug=debug_lines)
+        ).format(version=__version__)
+
+    def _on_copy_environment(self) -> None:
+        lines: list[str] = []
+        if self._about_static_pairs is not None:
+            lines += [f"{key}: {value}" for key, value in self._about_static_pairs]
+        lines += [f"{key}: {value}" for key, value in system_info_pairs()]
+        qt_platform = QApplication.platformName()
+        if qt_platform:
+            lines.append(f"Qt Platform: {qt_platform}")
+        if self._about_tool_pairs is not None:
+            lines += [f"{key}: {value}" for key, value in self._about_tool_pairs]
+        clipboard = QApplication.clipboard()
+        clipboard.setText("\n".join(lines))
 
     def _on_about_versions(self, tool_pairs: list[tuple[str, str]]) -> None:
-        if self._about_dialog is None or self._about_static_pairs is None:
-            return
-        self._about_dialog.setText(self._about_message(self._about_static_pairs, tool_pairs))
+        self._about_tool_pairs = tool_pairs
 
     def _on_about_worker_finished(self) -> None:
         if self._about_worker is None:
