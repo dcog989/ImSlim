@@ -2,6 +2,7 @@ import html
 import logging
 import os
 import shutil
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class OutputWriter:
         )
         if overwriting:
             try:
+                # Path.copy() drops metadata, so keep copy2 for a faithful backup.
                 _res = shutil.copy2(result_item.filename, result_item.backup_filename)
             except OSError as err:
                 result_item.set_error(_("Can't backup the original file"), html.escape(str(err)))
@@ -43,7 +45,7 @@ class OutputWriter:
 
         final_path = result_item.filename if overwriting else result_item.new_filename
         try:
-            _res = shutil.copy2(result_item.tmp_filename, final_path)
+            _res = Path(result_item.tmp_filename).copy(final_path)
         except OSError as err:
             result_item.set_error(_("Can't write the compressed file"), html.escape(str(err)))
             logger.error(result_item.error_details_message)
