@@ -27,7 +27,7 @@ def _coerce_int(raw: object, default: int) -> int:
         return raw
     try:
         return int(str(raw))
-    except ValueError, TypeError:
+    except ValueError:
         return default
 
 
