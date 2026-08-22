@@ -79,6 +79,7 @@ cp src/imslim/assets/imslim.svg ~/.local/share/icons/hicolor/scalable/apps/imsli
 kbuildsycoca6
 
 uv tool upgrade imslim
+uv tool install . --force  # force install even if version has not changed
 ```
 
 ## License
