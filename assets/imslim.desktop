@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ImSlim
+GenericName=Image Compressor
+Comment=Compress PNG, JPEG, GIF, WebP, AVIF, JXL and SVG images
+Exec=imslim %F
+Icon=imslim
+Terminal=false
+Categories=Graphics;Utility;
+Keywords=image;compress;optimize;png;jpeg;webp;avif;jxl;svg;
+MimeType=image/png;image/jpeg;image/gif;image/webp;image/avif;image/jxl;image/bmp;image/tiff;

@@ -47,6 +47,18 @@ make analyze
 make format
 ```
 
+Install (user-level):
+
+```sh
+uv tool install .
+mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/scalable/apps
+install -Dm644 assets/imslim.desktop ~/.local/share/applications/imslim.desktop
+install -Dm644 src/imslim/assets/imslim.svg ~/.local/share/icons/hicolor/scalable/apps/imslim.svg
+kbuildsycoca6   # refresh the KDE application cache
+```
+
+The desktop entry declares the app as a handler for PNG, JPEG, GIF, WebP, AVIF, JXL, BMP and TIFF; SVG is intentionally excluded so ImSlim is not offered as the default SVG opener.
+
 Full clean:
 
 ```sh
