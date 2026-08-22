@@ -1,6 +1,17 @@
+import os
 from typing import cast
 
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QStandardPaths
+
+_LOG_FILE_NAME = "imslim.log"
+
+
+def log_file_path() -> str:
+    """Absolute path of the app's rotating log file."""
+    base = QStandardPaths.writableLocation(
+        QStandardPaths.StandardLocation.AppDataLocation
+    ) or QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
+    return os.path.join(base, _LOG_FILE_NAME)
 
 
 def _coerce_bool(raw: object) -> bool:

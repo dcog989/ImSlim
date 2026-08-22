@@ -7,11 +7,11 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QStandardPaths, QUrl
+from PySide6.QtCore import QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
-from .settings_manager import SettingsManager
+from .settings_manager import SettingsManager, log_file_path
 from .window import ImSlimWindow
 
 # Native-desktop integration comes from a Qt platform theme plugin read during
@@ -23,7 +23,6 @@ from .window import ImSlimWindow
 _PLATFORM_THEME_ENV = "QT_QPA_PLATFORMTHEME"
 _PORTAL_THEME = "xdgdesktopportal"
 
-_LOG_FILE_NAME = "imslim.log"
 _LOG_LEVELS: dict[str, int] = {
     "DEBUG": logging.DEBUG,
     "INFO": logging.INFO,
@@ -40,16 +39,13 @@ def _configure_logging() -> None:
         return
     level = _LOG_LEVELS.get(settings.log_level, logging.INFO)
 
-    base_dir = QStandardPaths.writableLocation(
-        QStandardPaths.StandardLocation.AppDataLocation
-    ) or QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
-    log_dir = Path(base_dir)
-    log_dir.mkdir(parents=True, exist_ok=True)
+    log_path = log_file_path()
+    Path(log_path).parent.mkdir(parents=True, exist_ok=True)
 
     formatter = logging.Formatter(_LOG_FORMAT)
 
     file_handler = logging.handlers.RotatingFileHandler(
-        log_dir / _LOG_FILE_NAME,
+        log_path,
         maxBytes=settings.log_max_size * 1024 * 1024,
         backupCount=settings.log_backups,
         encoding="utf-8",

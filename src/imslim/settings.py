@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import cast, override
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QCloseEvent, QColor
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from ._i18n import _
-from .settings_manager import SettingsManager
+from .settings_manager import SettingsManager, log_file_path
 
 _LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
 _LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
@@ -190,6 +190,7 @@ class SettingsDialog(QDialog):
         form.addRow(_("Log Level"), self.combo_log_level)
         form.addRow(_("Log Max Size"), self.spin_log_max_size)
         form.addRow(_("Log Backups"), self.spin_log_backups)
+        form.addRow(self._build_log_link())
 
         _res = self.combo_save_method.currentIndexChanged.connect(self.on_save_method_changed)
         _res = self.entry_output_folder.textChanged.connect(self.on_output_folder_changed)
@@ -356,6 +357,14 @@ class SettingsDialog(QDialog):
             2,
         )
         return tab
+
+    def _build_log_link(self) -> QLabel:
+        label = QLabel()
+        label.setTextFormat(Qt.TextFormat.RichText)
+        label.setOpenExternalLinks(True)
+        url = QUrl.fromLocalFile(log_file_path()).toString()
+        label.setText('<a href="{}">{}</a>'.format(url, _("Open the latest log file")))
+        return label
 
     def _build_note_group(self, title: str, text: str) -> QWidget:
         group = QGroupBox(title)
