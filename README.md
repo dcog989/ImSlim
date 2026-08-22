@@ -36,6 +36,8 @@ On Debian/Ubuntu, the bundled binaries are used automatically; setting `IMSLIM_T
 uv sync            # install deps (PySide6)
 uv lock --upgrade  # upgrade deps
 uv run imslim      # run the app
+uv cache clean     # remove stale tool cache
+uv clean           # clear global download cache
 ```
 
 Lint / format:
@@ -43,6 +45,28 @@ Lint / format:
 ```sh
 make analyze
 make format
+```
+
+Full clean:
+
+```sh
+rm -rf .venv dist src/*.egg-info && find . -name __pycache__ -type d -exec rm -rf {} +
+```
+
+### Build + Install
+
+```sh
+uv tool install .
+
+mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/scalable/apps
+
+printf '[Desktop Entry]\nName=ImSlim\nExec=imslim\nIcon=imslim\nTerminal=false\nType=Application\nCategories=Graphics;\n' > ~/.local/share/applications/imslim.desktop
+
+cp src/imslim/assets/imslim.svg ~/.local/share/icons/hicolor/scalable/apps/imslim.svg
+
+kbuildsycoca6
+
+uv tool upgrade imslim
 ```
 
 ## License
