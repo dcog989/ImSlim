@@ -3,7 +3,18 @@ import tempfile
 import time
 from typing import ClassVar, cast, override
 
-from PySide6.QtCore import QEvent, QMimeData, QObject, QPoint, QSize, Qt, QThread, Signal
+from PySide6.QtCore import (
+    QEvent,
+    QMimeData,
+    QObject,
+    QPoint,
+    QRectF,
+    QSize,
+    Qt,
+    QThread,
+    QTimer,
+    Signal,
+)
 from PySide6.QtGui import (
     QAction,
     QClipboard,
@@ -13,6 +24,10 @@ from PySide6.QtGui import (
     QDropEvent,
     QImage,
     QKeySequence,
+    QPainter,
+    QPaintEvent,
+    QPen,
+    QResizeEvent,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -99,6 +114,83 @@ class _PasteFilter(QObject):
 _V_SPACING = 16
 
 
+class _Spinner(QWidget):
+    """A rotating arc used as a busy indicator."""
+
+    def __init__(self, size: int = 120, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setFixedSize(size, size)
+        self._angle: int = 0
+        self._timer: QTimer = QTimer(self)
+        self._timer.setInterval(16)
+        self._timer.timeout.connect(self._advance)
+
+    def start(self) -> None:
+        self._timer.start()
+
+    def stop(self) -> None:
+        self._timer.stop()
+
+    def _advance(self) -> None:
+        self._angle = (self._angle + 6) % 360
+        self.update()
+
+    @override
+    def paintEvent(self, event: QPaintEvent) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        color = self.palette().color(self.palette().ColorRole.Text)
+        pen = QPen(
+            color,
+            6,
+            Qt.PenStyle.SolidLine,
+            Qt.PenCapStyle.RoundCap,
+            Qt.PenJoinStyle.RoundJoin,
+        )
+        painter.setPen(pen)
+        painter.drawArc(
+            QRectF(6, 6, self.width() - 12, self.height() - 12),
+            -self._angle * 16,
+            100 * 16,
+        )
+        painter.end()
+
+
+class _ResultsPage(QWidget):
+    """Results list covered by a spinner overlay while compressing."""
+
+    def __init__(self, stop_button: QToolButton) -> None:
+        super().__init__()
+        self.overlay: QWidget = QWidget(self)
+        self.overlay.setObjectName("processingOverlay")
+        self.overlay.setStyleSheet(
+            "QWidget#processingOverlay { background-color: rgba(128, 128, 128, 150); }"
+        )
+        layout = QVBoxLayout(self.overlay)
+        layout.addStretch(1)
+        self.spinner: _Spinner = _Spinner(120)
+        layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(stop_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addStretch(1)
+        self.overlay.hide()
+
+    def show_overlay(self) -> None:
+        self.overlay.setGeometry(self.rect())
+        self.overlay.raise_()
+        self.overlay.show()
+        self.spinner.start()
+
+    def hide_overlay(self) -> None:
+        self.overlay.hide()
+        self.spinner.stop()
+
+    @override
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        if self.overlay.isVisible():
+            self.overlay.setGeometry(self.rect())
+        super().resizeEvent(event)
+
+
 class ImSlimWindow(QWidget):
     def __init__(self, app: QApplication) -> None:
         super().__init__()
@@ -147,6 +239,10 @@ class ImSlimWindow(QWidget):
         self._batch_skipped: int = 0
         self._batch_failed: int = 0
         self._batch_saved_bytes: int = 0
+        self._overlay_timer: QTimer = QTimer(self)
+        self._overlay_timer.setSingleShot(True)
+        self._overlay_timer.setInterval(1000)
+        self._overlay_timer.timeout.connect(self._show_processing_overlay)
 
     # ------------------------------------------------------------------ UI
     def build_ui(self) -> None:
@@ -184,10 +280,8 @@ class ImSlimWindow(QWidget):
         self.stop_button.setFixedHeight(32)
         self.stop_button.setStyleSheet("QToolButton { padding: 0 12px; }")
         _res = self.stop_button.clicked.connect(self.stop_compression)
-        self.stop_button.hide()
 
         header_layout.addWidget(self.about_button)
-        header_layout.addWidget(self.stop_button)
 
         header_layout.addStretch(1)
 
@@ -327,7 +421,7 @@ class ImSlimWindow(QWidget):
         layout.addStretch(1)
         return page
 
-    def _build_results_page(self) -> QScrollArea:
+    def _build_results_page(self) -> _ResultsPage:
         self.results_container = QWidget()
         self.results_layout = QVBoxLayout(self.results_container)
         self.results_layout.setContentsMargins(12, 12, 12, 12)
@@ -340,7 +434,12 @@ class ImSlimWindow(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.results_container)
-        return scroll
+
+        page = _ResultsPage(self.stop_button)
+        page_layout = QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.addWidget(scroll)
+        return page
 
     def _build_results_header(self) -> QWidget:
         header = QWidget()
@@ -412,7 +511,15 @@ class ImSlimWindow(QWidget):
     # ----------------------------------------------------------------- helpers
     def enable_compression(self, enable: bool) -> None:
         self.clear_button.setEnabled(enable)
-        self.stop_button.setVisible(not enable)
+        if enable:
+            self._overlay_timer.stop()
+            self.results_page.hide_overlay()
+            self.stop_button.setEnabled(True)
+        else:
+            self._overlay_timer.start()
+
+    def _show_processing_overlay(self) -> None:
+        self.results_page.show_overlay()
 
     def stop_compression(self) -> None:
         self.manager.cancel()
@@ -432,7 +539,6 @@ class ImSlimWindow(QWidget):
 
     def clear_results(self) -> None:
         self.show_view("home")
-        self.stop_button.hide()
         while self.results_layout.count() > 3:
             item = self.results_layout.takeAt(1)
             if item is None:
