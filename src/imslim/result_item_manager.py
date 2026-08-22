@@ -34,10 +34,6 @@ class ResultItemManager:
     def build(self, path: str) -> ResultItem:
         result_item = ResultItem()
 
-        if not os.path.exists(path):
-            result_item.set_error(_("This file doesn't exist."))
-            return result_item
-
         try:
             stat = os.stat(path)
         except OSError:
@@ -58,7 +54,11 @@ class ResultItemManager:
         result_item.subtitle_label = sizeof_fmt(result_item.size)
 
         result_item.new_filename = self.create_new_filename(result_item.filename, mime)
-        result_item.backup_filename = self.create_backup_filename(result_item.filename, mime)
+        result_item.backup_filename = (
+            self.create_backup_filename(result_item.filename, mime)
+            if self.settings.save_method == SAVE_BACKUP_OVERWRITE
+            else ""
+        )
 
         output_dir = os.path.dirname(result_item.new_filename)
         result_item.tmp_filename = os.path.join(
