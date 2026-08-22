@@ -3,7 +3,7 @@ import tempfile
 import time
 from typing import ClassVar
 
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QThread, Signal
 from PySide6.QtGui import QAction, QIcon, QImage, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
@@ -36,10 +36,11 @@ from .result_item_manager import ResultItemManager
 from .result_item_row import ResultItemRow
 from .settings_manager import SAVE_BACKUP_OVERWRITE, SAVE_NEW_FILE, SettingsManager
 from .tools import (
-    debug_pairs,
     get_image_paths_from_folder,
     image_filter,
     sizeof_fmt,
+    static_about_pairs,
+    tool_version_pairs,
 )
 from .widgets import ModeToggle, stylized_i_icon
 
@@ -47,6 +48,15 @@ from .widgets import ModeToggle, stylized_i_icon
 class _Bridge(QObject):
     result_updated = Signal(object)
     compression_enabled = Signal(bool)
+
+
+class _VersionProbeWorker(QThread):
+    """Queries bundled compression tool versions off the UI thread."""
+
+    versions_ready = Signal(object)  # list[tuple[tool, version]]
+
+    def run(self) -> None:
+        self.versions_ready.emit(tool_version_pairs())
 
 
 class _PasteFilter(QObject):
@@ -89,6 +99,9 @@ class ImSlimWindow(QWidget):
         self.bridge.result_updated.connect(self.update_result_item)
         self.bridge.compression_enabled.connect(self.enable_compression)
         self.prefs_dialog = None
+        self._about_dialog = None
+        self._about_static_pairs = None
+        self._about_worker = None
 
         self.paste_filter = _PasteFilter()
         self.paste_filter.context_menu_requested.connect(self.on_context_menu)
@@ -597,25 +610,53 @@ class ImSlimWindow(QWidget):
         self.prefs_dialog.show()
 
     def on_about(self):
-        debug_lines = "".join(
-            f"<tr><td><b>{key}</b></td><td>{value}</td></tr>" for key, value in debug_pairs()
-        )
-        QMessageBox.about(
-            self,
+        static_pairs = static_about_pairs()
+        dialog = QMessageBox(
+            QMessageBox.Icon.Information,
             _("About ImSlim"),
-            _(
-                "<div style='min-width: 360px;'>"
-                "<div style='font-size: 18pt; font-weight: bold;'>ImSlim</div>"
-                "<div style='font-size: 9pt; color: #808080;'>"
-                "Version {version}</div>"
-                "<div style='margin-top: 10px;'>"
-                "Compress your images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG, "
-                "in both lossless and lossy modes.</div>"
-                "<hr style='color: palette(mid); background-color: palette(mid); height: 1px; border: none; margin: 12px 0;'/>"
-                "<div style='font-weight: bold;'>Environment</div>"
-                "<table style='border-spacing: 6px 2px;'>"
-                "{debug}"
-                "</table>"
-                "</div>"
-            ).format(version=__version__, debug=debug_lines),
+            self._about_message(static_pairs, []),
+            parent=self,
         )
+        self._about_dialog = dialog
+        self._about_static_pairs = static_pairs
+        worker = _VersionProbeWorker()
+        self._about_worker = worker
+        worker.versions_ready.connect(self._on_about_versions)
+        worker.finished.connect(self._on_about_worker_finished)
+        worker.start()
+        dialog.exec()
+        self._about_dialog = None
+        self._about_static_pairs = None
+
+    @staticmethod
+    def _about_message(static_pairs, tool_pairs) -> str:
+        debug_lines = "".join(
+            f"<tr><td><b>{key}</b></td><td>{value}</td></tr>"
+            for key, value in (*static_pairs, *tool_pairs)
+        )
+        return _(
+            "<div style='min-width: 360px;'>"
+            "<div style='font-size: 18pt; font-weight: bold;'>ImSlim</div>"
+            "<div style='font-size: 9pt; color: #808080;'>"
+            "Version {version}</div>"
+            "<div style='margin-top: 10px;'>"
+            "Compress your images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG, "
+            "in both lossless and lossy modes.</div>"
+            "<hr style='color: palette(mid); background-color: palette(mid); height: 1px; border: none; margin: 12px 0;'/>"
+            "<div style='font-weight: bold;'>Environment</div>"
+            "<table style='border-spacing: 6px 2px;'>"
+            "{debug}"
+            "</table>"
+            "</div>"
+        ).format(version=__version__, debug=debug_lines)
+
+    def _on_about_versions(self, tool_pairs) -> None:
+        if self._about_dialog is None or self._about_static_pairs is None:
+            return
+        self._about_dialog.setText(self._about_message(self._about_static_pairs, tool_pairs))
+
+    def _on_about_worker_finished(self) -> None:
+        if self._about_worker is None:
+            return
+        self._about_worker.deleteLater()
+        self._about_worker = None

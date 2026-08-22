@@ -114,7 +114,7 @@ def _is_image_path(path: str) -> bool:
     return path.lower().endswith(_IMAGE_EXTENSIONS)
 
 
-def debug_pairs() -> list[tuple[str, str]]:
+def static_about_pairs() -> list[tuple[str, str]]:
     python_version = platform.python_version()
     try:
         import PySide6
@@ -122,22 +122,28 @@ def debug_pairs() -> list[tuple[str, str]]:
         qt_version = PySide6.__version__
     except Exception:
         qt_version = _("Version not available")
-
-    sections = [
+    return [
         ("Python", python_version),
         ("PySide6/Qt", qt_version),
     ]
+
+
+def tool_version_pairs() -> list[tuple[str, str]]:
+    pairs = []
     for tool in KNOWN_TOOLS:
         try:
             path = resolve_tool(tool)
         except OSError:
             path = None
         if path is None:
-            sections.append((tool, _("Version not available")))
+            pairs.append((tool, _("Version not available")))
             continue
-        sections.append((tool, _tool_version(_version_flag(path, tool))))
+        pairs.append((tool, _tool_version(_version_flag(path, tool))))
+    return pairs
 
-    return sections
+
+def debug_pairs() -> list[tuple[str, str]]:
+    return [*static_about_pairs(), *tool_version_pairs()]
 
 
 def _version_flag(path: str, tool: str) -> list[str]:
