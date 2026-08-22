@@ -10,7 +10,7 @@
 
 - `src/imslim/main.py` — entry point / application bootstrap
 - `src/imslim/window.py` — main window UI, mode toggle, home/results views
-- `src/imslim/preferences.py` — preferences dialog
+- `src/imslim/settings.py` — settings dialog
 - `src/imslim/settings_manager.py` — persistent settings/state store
 - `src/imslim/compressor.py` — base compressor + run logic
 - `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools
@@ -68,10 +68,10 @@
 
 ## Common Patterns
 
-- Add a setting: Add key + accessors in `src/imslim/settings_manager.py`, expose it in `src/imslim/preferences.py`, and consume it in the relevant compressor under `src/imslim/compressors/`.
+- Add a setting: Add key + accessors in `src/imslim/settings_manager.py`, expose it in `src/imslim/settings.py`, and consume it in the relevant compressor under `src/imslim/compressors/`.
 - Add a format: Create a compressor subclass in `src/imslim/compressors/`, register it in `src/imslim/window.py` (`manager.register_compressor(...)`) and `compression_manager.py` (`mime_type_to_compressor_type`).
 - Compressor pipeline: override `build_command()` to return `list[tuple[list[str], str | None]]` (argv, optional stdout path); implement `get_intermediate_files()` and `get_file_type()` as needed.
-- State access: Read/write mode and preferences through `SettingsManager` (exposed on the window as `self.settings`).
+- State access: Read/write mode and settings through `SettingsManager` (exposed on the window as `self.settings`).
 
 ## Communication Style
 

@@ -21,12 +21,12 @@ from PySide6.QtWidgets import (
 )
 
 
-class PreferencesDialog(QDialog):
+class SettingsDialog(QDialog):
     settings_changed = Signal()
 
     def __init__(self, settings, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(_("Preferences"))
+        self.setWindowTitle(_("Settings"))
         self.settings = settings
         self._format_spins: list[tuple[QSpinBox, str]] = []
         self._format_checks: list[tuple[QCheckBox, str]] = []

@@ -30,10 +30,10 @@ from .compressors.jxl_compressor import JXLCompressor
 from .compressors.png_compressor import PNGCompressor
 from .compressors.svg_compressor import SVGCompressor
 from .compressors.webp_compressor import WEBPCompressor
-from .preferences import PreferencesDialog
 from .result_item import ResultItem
 from .result_item_manager import ResultItemManager
 from .result_item_row import ResultItemRow
+from .settings import SettingsDialog
 from .settings_manager import SAVE_BACKUP_OVERWRITE, SAVE_NEW_FILE, SettingsManager
 from .tools import (
     get_image_paths_from_folder,
@@ -358,7 +358,7 @@ class ImSlimWindow(QWidget):
 
         self.act_settings = QAction(_("Settings"), self)
         self.act_settings.setShortcut(QKeySequence("Ctrl+,"))
-        self.act_settings.triggered.connect(self.on_preferences)
+        self.act_settings.triggered.connect(self.on_settings)
 
         self.act_about = QAction(_("About ImSlim"), self)
         self.act_about.triggered.connect(self.on_about)
@@ -602,10 +602,10 @@ class ImSlimWindow(QWidget):
         self.subtitle_label.setText(label)
 
     # ------------------------------------------------------------- dialogs
-    def on_preferences(self):
+    def on_settings(self):
         if self.prefs_dialog is not None:
             self.prefs_dialog.close()
-        self.prefs_dialog = PreferencesDialog(self.settings, self)
+        self.prefs_dialog = SettingsDialog(self.settings, self)
         self.prefs_dialog.settings_changed.connect(self.set_saving_subtitle)
         self.prefs_dialog.show()
 
