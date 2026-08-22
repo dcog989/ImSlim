@@ -565,13 +565,13 @@ class ImSlimWindow(QWidget):
         return final_files
 
     def start_compression(self, paths: list[str]) -> None:
-        """Switch to the loading view and begin compressing the given paths."""
+        """Begin compressing the given paths, switching to the loading view only
+        once at least one file has been collected."""
         if self._batch_active:
             _res = QMessageBox.information(
                 self, _("Compression in progress"), _("Wait for the current compression to finish.")
             )
             return
-        self.show_view("loading")
         self.compress_files(paths)
 
     def compress_files(self, paths: list[str]) -> None:
@@ -589,6 +589,8 @@ class ImSlimWindow(QWidget):
         if not self.result_item_manager.begin_batch():
             _res = QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
             return
+
+        self.show_view("loading")
 
         result_items: list[ResultItem] = []
         for path in paths:
