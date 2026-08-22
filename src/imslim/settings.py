@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 
 from ._i18n import _
 from .settings_manager import SettingsManager, log_file_path
-from .widgets import muted_color
+from .widgets import apply_muted_palette
 
 _LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
 _LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
@@ -40,18 +40,15 @@ def _separator() -> QFrame:
     dark themes is near-white, so the line is recolored to a subtle muted tone
     instead.
     """
-    palette = QApplication.palette()
-    line_color = muted_color(
-        palette.color(QPalette.ColorRole.WindowText),
-        palette.color(QPalette.ColorRole.Window),
-        0.6,
-    )
     separator = QFrame()
     separator.setFrameShape(QFrame.Shape.HLine)
     separator.setFixedHeight(28)
-    separator_palette = separator.palette()
-    separator_palette.setColor(QPalette.ColorRole.WindowText, line_color)
-    separator.setPalette(separator_palette)
+    apply_muted_palette(
+        separator,
+        factor=0.6,
+        fg_role=QPalette.ColorRole.WindowText,
+        bg_role=QPalette.ColorRole.Window,
+    )
     return separator
 
 
@@ -437,13 +434,7 @@ class SettingsDialog(QDialog):
 
         # Muted but readable on both light and dark themes: blend the text
         # color toward the background instead of a hardcoded gray.
-        palette = hint_label.palette()
-        fg = palette.color(palette.ColorRole.Text)
-        bg = palette.color(palette.ColorRole.Base)
-        muted = muted_color(fg, bg)
-        palette.setColor(palette.ColorRole.Text, muted)
-        palette.setColor(palette.ColorRole.WindowText, muted)
-        hint_label.setPalette(palette)
+        apply_muted_palette(hint_label)
 
         hint_font = hint_label.font()
         hint_font.setPointSizeF(hint_font.pointSizeF() * 0.9)

@@ -3,7 +3,8 @@ import os
 from collections.abc import Callable
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
+from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPalette, QPen, QPixmap, QPolygonF
+from PySide6.QtWidgets import QWidget
 
 IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
 
@@ -20,6 +21,26 @@ def muted_color(fg: QColor, bg: QColor, factor: float = 0.5) -> QColor:
         round(fg.green() * (1.0 - factor) + bg.green() * factor),
         round(fg.blue() * (1.0 - factor) + bg.blue() * factor),
     )
+
+
+def apply_muted_palette(
+    widget: QWidget,
+    factor: float = 0.5,
+    *,
+    fg_role: QPalette.ColorRole = QPalette.ColorRole.Text,
+    bg_role: QPalette.ColorRole = QPalette.ColorRole.Base,
+) -> None:
+    """Recolor a widget's text roles to a muted blend of its own palette.
+
+    Muted but readable on both light and dark themes instead of a hardcoded
+    gray. Blends `fg_role` toward `bg_role` and applies the result to the
+    Text and WindowText roles.
+    """
+    palette = widget.palette()
+    muted = muted_color(palette.color(fg_role), palette.color(bg_role), factor)
+    palette.setColor(QPalette.ColorRole.Text, muted)
+    palette.setColor(QPalette.ColorRole.WindowText, muted)
+    widget.setPalette(palette)
 
 
 def imslim_icon() -> QIcon:

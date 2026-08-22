@@ -72,7 +72,7 @@ from .tools import (
     system_info_pairs,
     tool_version_pairs,
 )
-from .widgets import close_icon, gear_icon, imslim_icon, info_icon, muted_color
+from .widgets import apply_muted_palette, close_icon, gear_icon, imslim_icon, info_icon
 
 
 class _Bridge(QObject):
@@ -508,14 +508,7 @@ class ImSlimWindow(QWidget):
         label = QLabel()
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.setContentsMargins(0, 8, 0, 0)
-
-        palette = label.palette()
-        fg = palette.color(palette.ColorRole.Text)
-        bg = palette.color(palette.ColorRole.Base)
-        muted = muted_color(fg, bg)
-        palette.setColor(palette.ColorRole.Text, muted)
-        palette.setColor(palette.ColorRole.WindowText, muted)
-        label.setPalette(palette)
+        apply_muted_palette(label)
         return label
 
     # ----------------------------------------------------------------- actions
