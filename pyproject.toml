@@ -30,6 +30,7 @@ message_length_limit = 100
 [tool.ruff]
 builtins = ["_"]
 line-length = 100
+target-version = "py314"
 
 [tool.ruff.lint]
 ignore = [

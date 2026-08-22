@@ -66,7 +66,7 @@ class CompressionContext:
             try:
                 remaining = max(0.0, deadline - time.monotonic())
                 process.wait(timeout=remaining)
-            except (subprocess.TimeoutExpired, OSError):
+            except subprocess.TimeoutExpired, OSError:
                 try:
                     process.kill()
                 except OSError:

@@ -34,7 +34,7 @@ jobs:
       - name: Install Python + uv
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Build wheel
         run: uv build

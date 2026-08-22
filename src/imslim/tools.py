@@ -48,7 +48,7 @@ def _decimal_separator() -> str:
     try:
         locale.setlocale(locale.LC_NUMERIC, "")
         separator = locale.localeconv()["decimal_point"]
-    except (locale.Error, ValueError, AttributeError, KeyError):
+    except locale.Error, ValueError, AttributeError, KeyError:
         separator = "."
     _decimal_separator._cached = separator
     return separator

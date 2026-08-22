@@ -4,7 +4,7 @@
 
 - Name: ImSlim
 - Description: Desktop app to compress images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG formats, in lossless or lossy mode. BMP and TIFF sources are re-encoded to WebP. Built on the external tools pngquant/oxipng, cjpegli/djpegli, mozjpeg jpegtran, cwebp, gifsicle, cjxl/djxl, avifdec/avifenc and svgo. Tools are bundled per-platform in `src/imslim/bin/` (built by `scripts/build_tools.sh`); `src/imslim/binary_resolver.py` resolves them.
-- Tech: Python (>=3.13), PySide6 (Qt6). Setup and deps managed via `uv`. Lint/format via `ruff`.
+- Tech: Python (>=3.14), PySide6 (Qt6). Setup and deps managed via `uv`. Lint/format via `ruff`.
 
 ## Key Files
 
