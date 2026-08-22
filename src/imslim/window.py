@@ -19,7 +19,6 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QAction,
     QClipboard,
-    QColor,
     QContextMenuEvent,
     QDragEnterEvent,
     QDropEvent,
@@ -69,7 +68,7 @@ from .tools import (
     system_info_pairs,
     tool_version_pairs,
 )
-from .widgets import close_icon, gear_icon, imslim_icon, info_icon
+from .widgets import close_icon, gear_icon, imslim_icon, info_icon, muted_color
 
 
 class _Bridge(QObject):
@@ -469,11 +468,7 @@ class ImSlimWindow(QWidget):
         palette = label.palette()
         fg = palette.color(palette.ColorRole.Text)
         bg = palette.color(palette.ColorRole.Base)
-        muted = QColor(
-            round(fg.red() * 0.5 + bg.red()),
-            round(fg.green() * 0.5 + bg.green()),
-            round(fg.blue() * 0.5 + bg.blue()),
-        )
+        muted = muted_color(fg, bg)
         palette.setColor(palette.ColorRole.Text, muted)
         palette.setColor(palette.ColorRole.WindowText, muted)
         label.setPalette(palette)

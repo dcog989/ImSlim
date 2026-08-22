@@ -8,6 +8,20 @@ from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, 
 IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
 
 
+def muted_color(fg: QColor, bg: QColor, factor: float = 0.5) -> QColor:
+    """Blend the foreground color `factor` toward `bg`.
+
+    Used for muted but readable text on both light and dark themes instead of
+    a hardcoded gray. `factor` is the weight given to `bg`; 0.0 keeps `fg`
+    unchanged, 1.0 yields `bg` exactly.
+    """
+    return QColor(
+        round(fg.red() * (1.0 - factor) + bg.red() * factor),
+        round(fg.green() * (1.0 - factor) + bg.green() * factor),
+        round(fg.blue() * (1.0 - factor) + bg.blue() * factor),
+    )
+
+
 def imslim_icon() -> QIcon:
     """The application icon, loaded from the bundled SVG asset.
 

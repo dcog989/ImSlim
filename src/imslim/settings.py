@@ -2,7 +2,7 @@ from collections.abc import Callable
 from typing import cast, override
 
 from PySide6.QtCore import Qt, QUrl, Signal
-from PySide6.QtGui import QCloseEvent, QColor
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 
 from ._i18n import _
 from .settings_manager import SettingsManager, log_file_path
+from .widgets import muted_color
 
 _LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
 _LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
@@ -410,11 +411,7 @@ class SettingsDialog(QDialog):
         palette = hint_label.palette()
         fg = palette.color(palette.ColorRole.Text)
         bg = palette.color(palette.ColorRole.Base)
-        muted = QColor(
-            round(fg.red() * 0.5 + bg.red()),
-            round(fg.green() * 0.5 + bg.green()),
-            round(fg.blue() * 0.5 + bg.blue()),
-        )
+        muted = muted_color(fg, bg)
         palette.setColor(palette.ColorRole.Text, muted)
         palette.setColor(palette.ColorRole.WindowText, muted)
         hint_label.setPalette(palette)
