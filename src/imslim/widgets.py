@@ -111,5 +111,9 @@ IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg
 
 
 def imslim_icon() -> QIcon:
-    """The application icon, loaded directly from the bundled SVG asset."""
-    return QIcon(IMSLIM_ICON_PATH)
+    """The application icon, loaded from the bundled SVG asset.
+
+    Wrapped in a concrete high-resolution raster so window managers (e.g. KDE's
+    alt-tab switcher) receive a crisp icon instead of upscaling a small one.
+    """
+    return QIcon(QIcon(IMSLIM_ICON_PATH).pixmap(1024))
