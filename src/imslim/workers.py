@@ -54,6 +54,11 @@ class AnalyzeWorker(QThread):
         self._paths: list[str] = paths
         self._recursive: bool = recursive
         self._settings: BuildSettingsSnapshot = settings
+        # The ResultItems are parentless QObjects built on this thread; the
+        # queued items_ready delivery runs on the UI thread *after* run()
+        # returns, so keep them referenced here until the consumer has them,
+        # otherwise Python GC destroys the C++ objects and delivery segfaults.
+        self._result_items: list[ResultItem] = []
 
     @override
     def run(self) -> None:
@@ -73,5 +78,5 @@ class AnalyzeWorker(QThread):
             self.output_folder_error.emit()
             return
 
-        result_items: list[ResultItem] = [manager.build(path) for path in final_files]
-        self.items_ready.emit(result_items)
+        self._result_items = [manager.build(path) for path in final_files]
+        self.items_ready.emit(self._result_items)
