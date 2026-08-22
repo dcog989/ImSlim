@@ -233,8 +233,8 @@ class ImSlimApp(QApplication):
 
 
 def main():
-    _configure_logging()
     app = ImSlimApp(sys.argv)
+    _configure_logging()
     sys.exit(app.run())
 
 
