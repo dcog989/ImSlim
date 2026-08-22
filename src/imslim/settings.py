@@ -28,8 +28,8 @@ from PySide6.QtWidgets import (
 from ._i18n import _
 from .settings_manager import SettingsManager
 
-_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
-_LOG_LEVEL_LABELS = ("Debug", "Info", "Warning", "Error")
+_LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
+_LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
 
 _FORM_STYLESHEET = (
     "QPushButton { padding: 6px 16px; }"
@@ -453,6 +453,7 @@ class SettingsDialog(QDialog):
         self.entry_default_directory.setText(s.default_open_dialog_directory)
         self.spin_timeout.setValue(s.compression_timeout)
         self.combo_log_level.setCurrentIndex(_LOG_LEVELS.index(s.log_level))
+        self._set_log_controls_state(s.log_level)
         self.spin_log_max_size.setValue(s.log_max_size)
         self.spin_log_backups.setValue(s.log_backups)
 
@@ -541,4 +542,10 @@ class SettingsDialog(QDialog):
 
     def on_log_level_changed(self, index: int) -> None:
         self.settings.log_level = _LOG_LEVELS[index]
+        self._set_log_controls_state(_LOG_LEVELS[index])
         self.settings_changed.emit()
+
+    def _set_log_controls_state(self, level: str) -> None:
+        enabled = level != "NONE"
+        self.spin_log_max_size.setEnabled(enabled)
+        self.spin_log_backups.setEnabled(enabled)

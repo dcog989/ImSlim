@@ -36,6 +36,8 @@ _LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
 def _configure_logging() -> None:
     """Install console and rotating-file handlers from the log settings."""
     settings = SettingsManager()
+    if settings.log_level == "NONE":
+        return
     level = _LOG_LEVELS.get(settings.log_level, logging.INFO)
 
     base_dir = QStandardPaths.writableLocation(
