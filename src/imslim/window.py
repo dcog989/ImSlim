@@ -176,6 +176,15 @@ class ImSlimWindow(QWidget):
         self.mode_toggle.setMaximumWidth(240)
         header_layout.addWidget(self.mode_toggle, alignment=Qt.AlignmentFlag.AlignCenter)
 
+        self.results_title: QLabel = QLabel(_("Compression Results"))
+        title_font = self.results_title.font()
+        title_font.setPointSize(15)
+        title_font.setBold(True)
+        self.results_title.setFont(title_font)
+        self.results_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.results_title.hide()
+        header_layout.addWidget(self.results_title, alignment=Qt.AlignmentFlag.AlignCenter)
+
         header_layout.addStretch(1)
 
         self.menu_button: QToolButton = QToolButton()
@@ -411,6 +420,7 @@ class ImSlimWindow(QWidget):
         self.stack.setCurrentIndex(index)
         self.clear_button.setVisible(show_clear)
         self.mode_toggle.setVisible(show_mode)
+        self.results_title.setVisible(view == "results")
 
     def _apply_mode_state(self) -> None:
         self.mode_toggle.setLossy(self.settings.lossy)
