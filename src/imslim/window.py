@@ -210,7 +210,6 @@ class ImSlimWindow(QWidget):
         self._about_dialog: QMessageBox | None = None
         self._about_static_pairs: list[tuple[str, str]] | None = None
         self._about_tool_pairs: list[tuple[str, str]] | None = None
-        self._about_worker: _VersionProbeWorker | None = None
 
         self.paste_filter: _PasteFilter = _PasteFilter()
         _res = self.paste_filter.context_menu_requested.connect(self.on_context_menu)
@@ -805,9 +804,10 @@ class ImSlimWindow(QWidget):
         self._about_tool_pairs = []
         _res = copy_button.clicked.connect(self._on_copy_environment)
         worker = _VersionProbeWorker()
-        self._about_worker = worker
         _res = worker.versions_ready.connect(self._on_about_versions)
-        _res = worker.finished.connect(self._on_about_worker_finished)
+        # Each probe deletes itself when done, so reopening the dialog while a
+        # previous probe is still running can't delete the newer worker.
+        _res = worker.finished.connect(lambda: worker.deleteLater())
         worker.start()
         _res = dialog.exec()
         self._about_dialog = None
@@ -841,9 +841,3 @@ class ImSlimWindow(QWidget):
 
     def _on_about_versions(self, tool_pairs: list[tuple[str, str]]) -> None:
         self._about_tool_pairs = tool_pairs
-
-    def _on_about_worker_finished(self) -> None:
-        if self._about_worker is None:
-            return
-        self._about_worker.deleteLater()
-        self._about_worker = None
