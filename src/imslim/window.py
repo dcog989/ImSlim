@@ -88,6 +88,57 @@ class _VersionProbeWorker(QThread):
         self.versions_ready.emit(tool_version_pairs())
 
 
+class _BuildSettingsSnapshot:
+    """Plain values ResultItemManager needs, captured on the UI thread.
+
+    QSettings isn't thread-safe, so the snapshot replaces the live
+    SettingsManager inside the analyze worker.
+    """
+
+    def __init__(self, save_method: int, output_folder: str) -> None:
+        self.save_method: int = save_method
+        self.output_folder: str = output_folder
+
+
+class _AnalyzeWorker(QThread):
+    """Collects files and builds ResultItems off the UI thread.
+
+    Building each item stats the file and sniffs its MIME type, which for a
+    large directory would otherwise freeze the UI during "Analyzing Images".
+    """
+
+    items_ready: Signal = Signal(list)
+    no_files: Signal = Signal()
+    output_folder_error: Signal = Signal()
+
+    def __init__(self, paths: list[str], recursive: bool, settings: _BuildSettingsSnapshot) -> None:
+        super().__init__()
+        self._paths: list[str] = paths
+        self._recursive: bool = recursive
+        self._settings: _BuildSettingsSnapshot = settings
+
+    @override
+    def run(self) -> None:
+        final_files: list[str] = []
+        for path in self._paths:
+            if os.path.isdir(path):
+                final_files.extend(get_image_paths_from_folder(path, self._recursive))
+            else:
+                final_files.append(path)
+
+        if not final_files:
+            self.no_files.emit()
+            return
+
+        manager = ResultItemManager(self._settings)
+        if not manager.begin_batch():
+            self.output_folder_error.emit()
+            return
+
+        result_items: list[ResultItem] = [manager.build(path) for path in final_files]
+        self.items_ready.emit(result_items)
+
+
 class _PasteFilter(QObject):
     """Shows the paste context menu for widgets without their own handler."""
 
@@ -233,7 +284,7 @@ class ImSlimWindow(QWidget):
         self.manager.register_compressor(SVGCompressor)
         self.manager.validate_configured_compressors()
 
-        self.result_item_manager: ResultItemManager = ResultItemManager(self.settings)
+        self._analyze_worker: _AnalyzeWorker | None = None
         self.rows: list[ResultItemRow] = []
         self._batch_total: int = 0
         self._batch_done: int = 0
@@ -554,15 +605,6 @@ class ImSlimWindow(QWidget):
         self._update_summary()
 
     # ------------------------------------------------------- compression flow
-    def handle_files(self, paths: list[str]) -> list[str]:
-        final_files: list[str] = []
-        for path in paths:
-            if os.path.isdir(path):
-                final_files.extend(get_image_paths_from_folder(path, self.settings.recursive))
-            else:
-                final_files.append(path)
-        return final_files
-
     def start_compression(self, paths: list[str]) -> None:
         """Begin compressing the given paths, switching to the loading view only
         once at least one file has been collected."""
@@ -580,25 +622,27 @@ class ImSlimWindow(QWidget):
             )
             return
 
-        paths = self.handle_files(paths)
-        if not paths:
-            _res = QMessageBox.information(self, _("No files found"), _("No files found"))
-            return
-
-        if not self.result_item_manager.begin_batch():
-            _res = QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
-            return
-
+        self._batch_active = True
+        snapshot = _BuildSettingsSnapshot(
+            self.settings.save_method,
+            self.settings.output_folder,
+        )
+        worker = _AnalyzeWorker(paths, self.settings.recursive, snapshot)
+        self._analyze_worker = worker
+        _res = worker.items_ready.connect(self._on_items_ready)
+        _res = worker.no_files.connect(self._on_analyze_no_files)
+        _res = worker.output_folder_error.connect(self._on_analyze_output_error)
+        _res = worker.finished.connect(self._on_analyze_finished)
         self.show_view("loading")
+        worker.start()
 
-        result_items: list[ResultItem] = []
-        for path in paths:
-            result_item = self.result_item_manager.build(path)
+    def _on_items_ready(self, result_items: list[ResultItem]) -> None:
+        for result_item in result_items:
             self.add_row(result_item)
             if result_item.error:
                 self.update_result_item(result_item)
-            else:
-                result_items.append(result_item)
+
+        result_items = [item for item in result_items if not item.error]
 
         self.show_view("results")
         self.enable_compression(False)
@@ -612,6 +656,22 @@ class ImSlimWindow(QWidget):
             self.bridge.result_updated.emit,
             self.bridge.compression_enabled.emit,
         )
+
+    def _on_analyze_no_files(self) -> None:
+        self._batch_active = False
+        self.show_view("home")
+        _res = QMessageBox.information(self, _("No files found"), _("No files found"))
+
+    def _on_analyze_output_error(self) -> None:
+        self._batch_active = False
+        self.show_view("home")
+        _res = QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
+
+    def _on_analyze_finished(self) -> None:
+        worker = self._analyze_worker
+        self._analyze_worker = None
+        if worker is not None:
+            worker.deleteLater()
 
     def add_row(self, result_item: ResultItem) -> None:
         row = ResultItemRow(result_item)

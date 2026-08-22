@@ -1,20 +1,33 @@
 import os
 import time
+from typing import Protocol
 
 from PySide6.QtCore import QMimeDatabase
 
 from ._i18n import _
 from .compression_manager import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS
 from .result_item import ResultItem
-from .settings_manager import SAVE_BACKUP_OVERWRITE, SettingsManager
+from .settings_manager import SAVE_BACKUP_OVERWRITE
 from .tools import sizeof_fmt
 
 _mime_db = QMimeDatabase()
 
 
+class BuildSettings(Protocol):
+    """Settings surface ResultItemManager reads while building items.
+
+    Satisfied by SettingsManager on the main thread and by the lightweight
+    snapshot passed to a background worker, so QSettings is never touched
+    from a non-UI thread.
+    """
+
+    save_method: int
+    output_folder: str
+
+
 class ResultItemManager:
-    def __init__(self, settings_manager: SettingsManager) -> None:
-        self.settings: SettingsManager = settings_manager
+    def __init__(self, settings_manager: BuildSettings) -> None:
+        self.settings: BuildSettings = settings_manager
         self._used_names: set[str] = set()
 
     def begin_batch(self) -> bool:
