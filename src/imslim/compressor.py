@@ -15,6 +15,7 @@ from ._i18n import _
 from .output_writer import OutputWriter
 from .result_item import ResultItem
 from .settings_manager import SettingsManager
+from .tools import savings_percent
 
 
 class CancelledError(Exception):
@@ -241,7 +242,7 @@ class Compressor(ABC):
         if result_item.skipped:
             logger.info("Skipped %s: output not smaller than input", result_item.filename)
         elif result_item.size > 0:
-            savings = round(100 - (result_item.new_size * 100 / result_item.size))
+            savings = savings_percent(result_item.size, result_item.new_size)
             logger.info(
                 "Compressed %s: %d -> %d bytes (%d%% saved)",
                 result_item.filename,

@@ -63,6 +63,7 @@ from .settings_manager import SettingsManager
 from .tools import (
     get_image_paths_from_folder,
     image_filter,
+    savings_percent,
     sizeof_fmt,
     static_about_pairs,
     system_info_pairs,
@@ -559,6 +560,11 @@ class ImSlimWindow(QWidget):
                 final_files.append(path)
         return final_files
 
+    def start_compression(self, paths: list[str]) -> None:
+        """Switch to the loading view and begin compressing the given paths."""
+        self.show_view("loading")
+        self.compress_files(paths)
+
     def compress_files(self, paths: list[str]) -> None:
         paths = self.handle_files(paths)
         if not paths:
@@ -615,7 +621,7 @@ class ImSlimWindow(QWidget):
             self._batch_skipped += 1
         else:
             if result_item.size > 0:
-                savings = round(100 - (result_item.new_size * 100 / result_item.size))
+                savings = savings_percent(result_item.size, result_item.new_size)
             else:
                 savings = 0
             result_item.savings = str(savings) + "%"
@@ -666,8 +672,7 @@ class ImSlimWindow(QWidget):
         paths = self._urls_to_paths(clipboard.mimeData())
 
         if paths:
-            self.show_view("loading")
-            self.compress_files(paths)
+            self.start_compression(paths)
             return
 
         image = self._read_clipboard_image(clipboard)
@@ -675,8 +680,7 @@ class ImSlimWindow(QWidget):
             return
         path = self._save_clipboard_image(image)
         if path:
-            self.show_view("loading")
-            self.compress_files([path])
+            self.start_compression([path])
 
     @staticmethod
     def _urls_to_paths(mime: QMimeData) -> list[str]:
@@ -715,8 +719,7 @@ class ImSlimWindow(QWidget):
         )
         if not files:
             return
-        self.show_view("loading")
-        self.compress_files(files)
+        self.start_compression(files)
 
     def on_select_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
@@ -724,8 +727,7 @@ class ImSlimWindow(QWidget):
         )
         if not folder:
             return
-        self.show_view("loading")
-        self.compress_files([folder])
+        self.start_compression([folder])
 
     def _dialog_start_dir(self) -> str:
         start = self.settings.default_open_dialog_directory
@@ -745,8 +747,7 @@ class ImSlimWindow(QWidget):
         paths = self._urls_to_paths(event.mimeData())
         if not paths:
             return
-        self.show_view("loading")
-        self.compress_files(paths)
+        self.start_compression(paths)
 
     # ------------------------------------------------------------- active settings
     def set_active_settings(self) -> None:

@@ -60,6 +60,13 @@ def sizeof_fmt(num: float | None) -> str:
     return ""
 
 
+def savings_percent(size: int, new_size: int) -> int:
+    """Percentage of the original size saved, 0 when size is not positive."""
+    if size <= 0:
+        return 0
+    return round(100 - (new_size * 100 / size))
+
+
 @functools.cache
 def _decimal_separator() -> str:
     """Return the host locale's decimal separator (e.g. "." or ",").
