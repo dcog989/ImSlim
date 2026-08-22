@@ -10,5 +10,5 @@ def to_png(filename: str, output: str) -> None:
     image = QImage(filename)
     if image.isNull():
         raise RuntimeError(f"Failed to load image: {filename}")
-    if not image.save(output, b"PNG"):
+    if not image.save(output, "PNG"):
         raise RuntimeError(f"Failed to write PNG: {output}")
