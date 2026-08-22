@@ -1,8 +1,8 @@
 from collections.abc import Callable
-from typing import cast
+from typing import cast, override
 
 from PySide6.QtCore import Signal
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QCloseEvent, QColor
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -352,6 +352,26 @@ class SettingsDialog(QDialog):
             spin.setValue(cast(int, getattr(s, key.replace("-", "_"))))
         for check, key in self._format_checks:
             check.setChecked(cast(bool, getattr(s, key.replace("-", "_"))))
+
+    @override
+    def closeEvent(self, event: object) -> None:
+        self._save_all()
+        self.settings.sync()
+        super().closeEvent(cast("QCloseEvent", event))
+
+    def _save_all(self) -> None:
+        s = self.settings
+        s.save_method = self.combo_save_method.currentIndex()
+        s.output_folder = self.entry_output_folder.text().strip()
+        s.recursive = self.toggle_recursive.isChecked()
+        s.metadata = self.toggle_metadata.isChecked()
+        s.file_attributes = self.toggle_file_attributes.isChecked()
+        s.compression_timeout = self.spin_timeout.value()
+
+        for spin, key in self._format_spins:
+            setattr(s, key.replace("-", "_"), spin.value())
+        for check, key in self._format_checks:
+            setattr(s, key.replace("-", "_"), check.isChecked())
 
     def on_save_method_changed(self, index: int) -> None:
         self.settings.save_method = index

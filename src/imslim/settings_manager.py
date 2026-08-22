@@ -2,6 +2,22 @@ from typing import cast
 
 from PySide6.QtCore import QSettings
 
+
+def _coerce_bool(raw: object) -> bool:
+    if isinstance(raw, bool):
+        return raw
+    return str(raw).strip().lower() in ("true", "1", "yes", "on")
+
+
+def _coerce_int(raw: object, default: int) -> int:
+    if isinstance(raw, int) and not isinstance(raw, bool):
+        return raw
+    try:
+        return int(str(raw))
+    except ValueError, TypeError:
+        return default
+
+
 SAVE_NEW_FILE = 0
 SAVE_BACKUP_OVERWRITE = 1
 
@@ -42,16 +58,17 @@ class SettingsManager:
     def set_string(self, key: str, value: str) -> None:
         self._settings.setValue(key, str(value))
 
+    def sync(self) -> None:
+        self._settings.sync()
+
     def _get(self, key: str) -> str | int | bool:
         default = DEFAULTS[key]
+        raw = self._settings.value(key, default)
         if isinstance(default, bool):
-            return bool(self._settings.value(key, default, type=bool))
+            return _coerce_bool(raw)
         if isinstance(default, int):
-            value = self._settings.value(key, default)
-            if isinstance(value, int) and not isinstance(value, bool):
-                return value
-            return default
-        return str(self._settings.value(key, default, type=str))
+            return _coerce_int(raw, default)
+        return str(raw)
 
     def _set(self, key: str, value: str | int | bool) -> None:
         default = DEFAULTS[key]
