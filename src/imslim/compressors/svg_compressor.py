@@ -9,9 +9,23 @@ from ..settings_manager import SettingsManager
 
 _SVGO_CONFIG_HEADER = "module.exports = "
 _SVGO_CONFIG_FILENAME = ".imslim.svgo.config.cjs"
+# csso (svgo's style minifier) crashes on malformed CSS declarations (e.g.
+# the broken `enable-;` seen in some generated SVGs), so minifyStyles is
+# always disabled; the rest of preset-default still runs.
 _SVGO_CONFIG = {
     "plugins": [
-        {"name": "preset-default"},
+        {
+            "name": "preset-default",
+            "params": {"overrides": {"minifyStyles": False}},
+        },
+    ]
+}
+_SVGO_CONFIG_MAXIMUM = {
+    "plugins": [
+        {
+            "name": "preset-default",
+            "params": {"overrides": {"minifyStyles": False}},
+        },
         {"name": "removeDimensions"},
     ]
 }
@@ -30,8 +44,6 @@ class SVGCompressor(Compressor):
     @override
     def prepare_batch(self, result_items: list[ResultItem]) -> None:
         """Write the svgo config once per batch instead of once per file."""
-        if not self.settings.svg_maximum_level:
-            return
         for result_item in result_items:
             if result_item.mime_type != "image/svg+xml":
                 continue
@@ -52,7 +64,8 @@ class SVGCompressor(Compressor):
         with open(path, "w") as fp:
             # svgo configs must be CommonJS regardless of the project
             # package.json type, so inline the JSON as module.exports.
-            _res = fp.write(_SVGO_CONFIG_HEADER + json.dumps(_SVGO_CONFIG))
+            config = _SVGO_CONFIG_MAXIMUM if self.settings.svg_maximum_level else _SVGO_CONFIG
+            _res = fp.write(_SVGO_CONFIG_HEADER + json.dumps(config))
 
     def _config_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".config.cjs"
@@ -60,11 +73,7 @@ class SVGCompressor(Compressor):
     @override
     def build_command(self, result_item: ResultItem) -> list[Command]:
         svgo = [resolve_tool("svgo")]
-        if self.settings.svg_maximum_level:
-            # svgo 3 dropped --enable; extra plugins are enabled via a config
-            # file. sortAttrs already runs in preset-default, so only
-            # removeDimensions is added here.
-            svgo += tokens(t"--config {self._config_path_for(result_item)}")
+        svgo += tokens(t"--config {self._config_path_for(result_item)}")
         svgo += tokens(t"-i {result_item.filename} -o {result_item.tmp_filename}")
 
         return [Command(svgo)]
@@ -83,6 +92,6 @@ class SVGCompressor(Compressor):
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         # Per-file configs from the fallback need per-item cleanup; the shared
         # per-batch config is removed by finish_batch().
-        if self.settings.svg_maximum_level and self._shared_config_path is None:
+        if self._shared_config_path is None:
             return [self._config_path(result_item)]
         return []
