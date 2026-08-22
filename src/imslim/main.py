@@ -128,6 +128,8 @@ class SingleInstance:
         socket.disconnectFromServer()
 
     def _on_new_connection(self) -> None:
+        if self._server is None:
+            return
         conn = self._server.nextPendingConnection()
         if conn is None:
             return

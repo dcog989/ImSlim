@@ -407,6 +407,8 @@ class ImSlimWindow(QWidget):
         self.stop_button.hide()
         while self.results_layout.count() > 2:
             item = self.results_layout.takeAt(1)
+            if item is None:
+                continue
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()

@@ -1,3 +1,4 @@
+import functools
 import locale
 import logging
 import os
@@ -40,18 +41,14 @@ def sizeof_fmt(num: float | None) -> str:
     return ""
 
 
+@functools.cache
 def _decimal_separator() -> str:
     """Return the host locale's decimal separator (e.g. "." or ",")."""
-    separator = getattr(_decimal_separator, "_cached", None)
-    if separator is not None:
-        return separator
     try:
         locale.setlocale(locale.LC_NUMERIC, "")
-        separator = locale.localeconv()["decimal_point"]
+        return locale.localeconv()["decimal_point"]
     except locale.Error, ValueError, AttributeError, KeyError:
-        separator = "."
-    _decimal_separator._cached = separator
-    return separator
+        return "."
 
 
 def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> QImage | None:

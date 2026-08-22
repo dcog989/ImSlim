@@ -81,7 +81,8 @@ class ResultItemRow(QWidget):
         self.refresh()
 
     def _set_thumbnail(self, image: QImage | None):
-        self._thumbnail_loader.deleteLater()
+        if self._thumbnail_loader is not None:
+            self._thumbnail_loader.deleteLater()
         self._thumbnail_loader = None
         if image is None:
             return

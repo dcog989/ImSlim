@@ -1,3 +1,5 @@
+from typing import cast
+
 from PySide6.QtCore import QSettings
 
 SAVE_NEW_FILE = 0
@@ -54,11 +56,11 @@ class SettingsManager:
     def _set(self, key: str, value: str | int | bool) -> None:
         default = DEFAULTS[key]
         if isinstance(default, bool):
-            self.set_boolean(key, value)
+            self.set_boolean(key, cast(bool, value))
         elif isinstance(default, int):
-            self.set_int(key, value)
+            self.set_int(key, cast(int, value))
         else:
-            self.set_string(key, value)
+            self.set_string(key, cast(str, value))
 
 
 # One typed property per DEFAULTS entry, named after the key with dashes
