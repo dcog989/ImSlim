@@ -45,7 +45,9 @@ class OutputWriter:
 
         final_path = result_item.filename if overwriting else result_item.new_filename
         try:
-            _res = Path(result_item.tmp_filename).copy(final_path)
+            # The temp file shares the destination's directory, so this is a
+            # same-filesystem rename instead of a copy+delete (double disk IO).
+            _res = Path(result_item.tmp_filename).move(final_path)
         except OSError as err:
             result_item.set_error(_("Can't write the compressed file"), html.escape(str(err)))
             logger.error(result_item.error_details_message)
