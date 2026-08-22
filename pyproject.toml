@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "imslim"
-version = "0.1.0"
+version = "0.2.0"
 description = "Compress PNG, JPEG, WebP, AVIF, GIF, and SVG images."
 readme = "README.md"
 requires-python = ">=3.14"
@@ -26,6 +26,7 @@ dev = [
 name = "cz_conventional_commits"
 version_provider = "pep621"
 version_files = ["src/imslim/__init__.py:__version__"]
+major_version_zero = true
 max_header_length = 100
 message_length_limit = 100
 
