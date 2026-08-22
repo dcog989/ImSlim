@@ -242,6 +242,7 @@ class ImSlimWindow(QWidget):
         self._batch_skipped: int = 0
         self._batch_failed: int = 0
         self._batch_saved_bytes: int = 0
+        self._batch_active: bool = False
         self._overlay_timer: QTimer = QTimer(self)
         self._overlay_timer.setSingleShot(True)
         self._overlay_timer.setInterval(1000)
@@ -511,10 +512,12 @@ class ImSlimWindow(QWidget):
     def enable_compression(self, enable: bool) -> None:
         self.clear_button.setEnabled(enable)
         if enable:
+            self._batch_active = False
             self._overlay_timer.stop()
             self.results_page.hide_overlay()
             self.stop_button.setEnabled(True)
         else:
+            self._batch_active = True
             self._overlay_timer.start()
 
     def _show_processing_overlay(self) -> None:
@@ -563,10 +566,21 @@ class ImSlimWindow(QWidget):
 
     def start_compression(self, paths: list[str]) -> None:
         """Switch to the loading view and begin compressing the given paths."""
+        if self._batch_active:
+            _res = QMessageBox.information(
+                self, _("Compression in progress"), _("Wait for the current compression to finish.")
+            )
+            return
         self.show_view("loading")
         self.compress_files(paths)
 
     def compress_files(self, paths: list[str]) -> None:
+        if self._batch_active:
+            _res = QMessageBox.information(
+                self, _("Compression in progress"), _("Wait for the current compression to finish.")
+            )
+            return
+
         paths = self.handle_files(paths)
         if not paths:
             _res = QMessageBox.information(self, _("No files found"), _("No files found"))
