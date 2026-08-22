@@ -231,6 +231,7 @@ class ImSlimWindow(QWidget):
         self.manager.register_compressor(JXLCompressor)
         self.manager.register_compressor(GIFCompressor)
         self.manager.register_compressor(SVGCompressor)
+        self.manager.validate_configured_compressors()
 
         self.result_item_manager: ResultItemManager = ResultItemManager(self.settings)
         self.rows: list[ResultItemRow] = []

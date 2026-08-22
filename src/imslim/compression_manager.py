@@ -33,6 +33,12 @@ OUTPUT_EXTENSIONS = {
     mime: extension for mime, (_compress_type, extension) in MIME_TO_COMPRESSOR.items() if extension
 }
 
+# Compressor types referenced by MIME_TO_COMPRESSOR; used to validate that every
+# configured type is covered by a registered compressor.
+_CONFIGURED_COMPRESSOR_TYPES = frozenset(
+    compress_type for compress_type, _extension in MIME_TO_COMPRESSOR.values()
+)
+
 
 class CompressionManager:
     def __init__(self, settings_manager: SettingsManager) -> None:
@@ -41,12 +47,21 @@ class CompressionManager:
         self._context: CompressionContext | None = None
 
     def mime_type_to_compressor_type(self, mime_type: str) -> str | None:
-        return MIME_TO_COMPRESSOR.get(mime_type, (None,))[0]
+        return MIME_TO_COMPRESSOR.get(mime_type, (None, None))[0]
 
     def register_compressor(self, ConcreteCompressor: type[Compressor]) -> None:
         file_type = ConcreteCompressor.get_file_type()
+        assert file_type in _CONFIGURED_COMPRESSOR_TYPES, (
+            f"Compressor '{file_type}' is not referenced in MIME_TO_COMPRESSOR"
+        )
         if file_type not in self.compressors:
             self.compressors[file_type] = ConcreteCompressor(self.settings)
+
+    def validate_configured_compressors(self) -> None:
+        unregistered = sorted(_CONFIGURED_COMPRESSOR_TYPES - set(self.compressors))
+        assert not unregistered, (
+            f"No compressor registered for configured types: {', '.join(unregistered)}"
+        )
 
     def _collect_used_compressors(self, result_items: list[ResultItem]) -> set[Compressor]:
         used: set[Compressor] = set()
@@ -84,6 +99,7 @@ class CompressionManager:
         c_enable_compression: Callable[[bool], None],
         context: CompressionContext,
     ) -> None:
+        # Avoid oversubscribing: encode tools (e.g. cwebp -mt) already thread internally.
         max_workers = max(1, (os.cpu_count() or 1) // 2)
         used_compressors = self._collect_used_compressors(result_items)
         for compressor in used_compressors:
