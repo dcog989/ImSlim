@@ -48,6 +48,16 @@ class CompressionManager:
         if file_type not in self.compressors:
             self.compressors[file_type] = ConcreteCompressor(self.settings)
 
+    def _collect_used_compressors(self, result_items: list[ResultItem]) -> set[Compressor]:
+        used: set[Compressor] = set()
+        for result_item in result_items:
+            compressor = self.compressors.get(
+                self.mime_type_to_compressor_type(result_item.mime_type) or ""
+            )
+            if compressor is not None:
+                used.add(compressor)
+        return used
+
     def compress(
         self,
         result_items: list[ResultItem],
@@ -75,30 +85,40 @@ class CompressionManager:
         context: CompressionContext,
     ) -> None:
         max_workers = max(1, (os.cpu_count() or 1) // 2)
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures: list[Future[None]] = []
-            break_index = len(result_items)
-            for index, result_item in enumerate(result_items):
+        used_compressors = self._collect_used_compressors(result_items)
+        for compressor in used_compressors:
+            try:
+                compressor.prepare_batch(result_items)
+            except OSError as err:
+                logger.warning("Failed to prepare batch resources: %s", err)
+        try:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures: list[Future[None]] = []
+                break_index = len(result_items)
+                for index, result_item in enumerate(result_items):
+                    if context.cancelled:
+                        break_index = index
+                        break
+                    compressor_type = self.mime_type_to_compressor_type(result_item.mime_type)
+                    compressor = self.compressors.get(compressor_type or "")
+                    if compressor is None:
+                        result_item.set_error(_("Format of this file is not supported."))
+                        c_update_result_item(result_item)
+                        continue
+                    futures.append(
+                        executor.submit(compressor.run, result_item, c_update_result_item, context)
+                    )
+
+                for future in futures:
+                    future.result()
+
                 if context.cancelled:
-                    break_index = index
-                    break
-                compressor_type = self.mime_type_to_compressor_type(result_item.mime_type)
-                compressor = self.compressors.get(compressor_type or "")
-                if compressor is None:
-                    result_item.set_error(_("Format of this file is not supported."))
-                    c_update_result_item(result_item)
-                    continue
-                futures.append(
-                    executor.submit(compressor.run, result_item, c_update_result_item, context)
-                )
-
-            for future in futures:
-                future.result()
-
-            if context.cancelled:
-                for result_item in result_items[break_index:]:
-                    result_item.cancelled = True
-                    result_item.running = False
-                    c_update_result_item(result_item)
+                    for result_item in result_items[break_index:]:
+                        result_item.cancelled = True
+                        result_item.running = False
+                        c_update_result_item(result_item)
+        finally:
+            for compressor in used_compressors:
+                compressor.finish_batch()
         logger.info("Compression batch finished")
         c_enable_compression(True)

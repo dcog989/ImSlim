@@ -109,6 +109,12 @@ class Compressor(ABC):
     def get_intermediate_files(self, _result_item: ResultItem) -> list[str]:
         return []
 
+    def prepare_batch(self, result_items: list[ResultItem]) -> None:
+        """Hook invoked once per batch before any item is compressed."""
+
+    def finish_batch(self) -> None:
+        """Hook invoked once per batch after all items have finished."""
+
     def _png_intermediate_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".png"
 
