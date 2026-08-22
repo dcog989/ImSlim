@@ -225,20 +225,14 @@ class ImSlimWindow(QWidget):
         layout.setContentsMargins(40, _V_SPACING, 40, _V_SPACING)
         layout.setSpacing(_V_SPACING)
 
-        layout.addStretch(1)
-
         icon = QLabel()
         icon.setPixmap(imslim_icon().pixmap(240))
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
 
-        layout.addStretch(1)
-
         self.subtitle_label = QLabel()
         self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.subtitle_label)
-
-        layout.addStretch(1)
 
         drop_label = QLabel(_("Drop or paste files or directory here to compress."))
         drop_font = drop_label.font()
@@ -247,8 +241,6 @@ class ImSlimWindow(QWidget):
         drop_label.setFont(drop_font)
         drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(drop_label)
-
-        layout.addStretch(1)
 
         # Bottom buttons
         buttons = QHBoxLayout()
