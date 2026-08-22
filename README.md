@@ -1,6 +1,6 @@
 # ImSlim
 
-A Linux-first image compressor. Built with Python / PySide6 with native rendering under KDE Plasma.
+A Linux-first image compressor. Compress all common image formats lossy or lossless, strip metadata, retain file attributes.
 
 Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
@@ -12,7 +12,9 @@ BMP and TIFF are re-encoded to WebP (lossless or lossy per the mode) — the ori
 
 Animated GIFs are always compressed losslessly. JXL re-compression decodes via `djxl` and re-encodes via `cjxl`; EXIF/XMP/JUMBF metadata is preserved when the metadata option is enabled.
 
-## Requirements
+## Tech Stack
+
+Built with Python / PySide6 with native rendering under KDE Plasma.
 
 The compression backends are bundled with the app (no system packages needed). They are built from the latest stable releases by `./scripts/build_tools.sh` (see `.github/workflows/build-binaries.yml`), which rebuilds each tool only when a newer version is available, then shipped inside the wheel under `src/imslim/bin/linux-x86_64`, along with their licenses:
 
