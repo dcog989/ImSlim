@@ -42,6 +42,9 @@ DEFAULTS: dict[str, str | int | bool] = {
     "gif-lossless-level": 3,
     "svg-maximum-level": False,
     "compression-timeout": 15,
+    "log-level": "INFO",
+    "log-max-size": 2,
+    "log-backups": 3,
 }
 
 
@@ -238,3 +241,27 @@ class SettingsManager:
     @compression_timeout.setter
     def compression_timeout(self, value: int) -> None:
         self._set("compression-timeout", value)
+
+    @property
+    def log_level(self) -> str:
+        return cast(str, self._get("log-level"))
+
+    @log_level.setter
+    def log_level(self, value: str) -> None:
+        self._set("log-level", value)
+
+    @property
+    def log_max_size(self) -> int:
+        return cast(int, self._get("log-max-size"))
+
+    @log_max_size.setter
+    def log_max_size(self, value: int) -> None:
+        self._set("log-max-size", value)
+
+    @property
+    def log_backups(self) -> int:
+        return cast(int, self._get("log-backups"))
+
+    @log_backups.setter
+    def log_backups(self, value: int) -> None:
+        self._set("log-backups", value)

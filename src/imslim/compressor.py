@@ -170,6 +170,7 @@ class Compressor(ABC):
             for command in commands:
                 argv = self.adapt_command(command.argv, result_item)
                 last_argv = argv
+                logger.debug("Running %s for %s", argv, result_item.filename)
                 try:
                     if command.stdout_path is not None:
                         # Stream stdout straight to the sidecar file instead of
@@ -226,6 +227,22 @@ class Compressor(ABC):
         except FileNotFoundError:
             logger.error("Command produced no output file: %s", last_argv)
             result_item.set_error(_("Can't find the compressed file"))
+
+        if result_item.error:
+            self._cleanup_temp_files(result_item)
+            c_update_result_item(result_item)
+            return
+        if result_item.skipped:
+            logger.info("Skipped %s: output not smaller than input", result_item.filename)
+        elif result_item.size > 0:
+            savings = round(100 - (result_item.new_size * 100 / result_item.size))
+            logger.info(
+                "Compressed %s: %d -> %d bytes (%d%% saved)",
+                result_item.filename,
+                result_item.size,
+                result_item.new_size,
+                savings,
+            )
 
         self._cleanup_temp_files(result_item)
 

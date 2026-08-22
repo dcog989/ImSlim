@@ -28,6 +28,9 @@ from PySide6.QtWidgets import (
 from ._i18n import _
 from .settings_manager import SettingsManager
 
+_LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
+_LOG_LEVEL_LABELS = ("Debug", "Info", "Warning", "Error")
+
 _FORM_STYLESHEET = (
     "QPushButton { padding: 6px 16px; }"
     "QComboBox { padding: 5px 12px; }"
@@ -56,6 +59,9 @@ class SettingsDialog(QDialog):
         self.radio_metadata: QWidget = QWidget()
         self.radio_file_attributes: QWidget = QWidget()
         self.spin_timeout: QSpinBox = QSpinBox()
+        self.combo_log_level: QComboBox = QComboBox()
+        self.spin_log_max_size: QSpinBox = QSpinBox()
+        self.spin_log_backups: QSpinBox = QSpinBox()
         self.build_ui()
 
     def build_ui(self) -> None:
@@ -123,6 +129,7 @@ class SettingsDialog(QDialog):
 
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFixedHeight(28)
         form.addRow(separator)
 
         self.radio_compression_method = self._radio_row(
@@ -137,9 +144,38 @@ class SettingsDialog(QDialog):
         form.addRow(_("Metadata Retention"), self.radio_metadata)
         form.addRow(_("File Attributes"), self.radio_file_attributes)
 
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setFixedHeight(28)
+        form.addRow(separator)
+
+        self.combo_log_level = QComboBox()
+        self.combo_log_level.addItems([_(label) for label in _LOG_LEVEL_LABELS])
+        self.combo_log_level.setToolTip(
+            _("Verbosity of the log file. Debug includes the exact commands run.")
+        )
+
+        self.spin_log_max_size = QSpinBox()
+        self.spin_log_max_size.setRange(1, 100)
+        self.spin_log_max_size.setSuffix(" MB")
+        self.spin_log_max_size.setToolTip(_("Maximum size of the log file before it is rotated."))
+
+        self.spin_log_backups = QSpinBox()
+        self.spin_log_backups.setRange(1, 20)
+        self.spin_log_backups.setToolTip(
+            _("Number of rotated log files to keep alongside the current one.")
+        )
+
+        form.addRow(_("Log Level"), self.combo_log_level)
+        form.addRow(_("Log Max Size"), self.spin_log_max_size)
+        form.addRow(_("Log Backups"), self.spin_log_backups)
+
         _res = self.combo_save_method.currentIndexChanged.connect(self.on_save_method_changed)
         _res = self.entry_output_folder.textChanged.connect(self.on_output_folder_changed)
         _res = self.spin_timeout.valueChanged.connect(self.on_int_changed("compression-timeout"))
+        _res = self.combo_log_level.currentIndexChanged.connect(self.on_log_level_changed)
+        _res = self.spin_log_max_size.valueChanged.connect(self.on_int_changed("log-max-size"))
+        _res = self.spin_log_backups.valueChanged.connect(self.on_int_changed("log-backups"))
 
         return tab
 
@@ -393,6 +429,9 @@ class SettingsDialog(QDialog):
         self.combo_save_method.setCurrentIndex(s.save_method)
         self.entry_output_folder.setText(s.output_folder)
         self.spin_timeout.setValue(s.compression_timeout)
+        self.combo_log_level.setCurrentIndex(_LOG_LEVELS.index(s.log_level))
+        self.spin_log_max_size.setValue(s.log_max_size)
+        self.spin_log_backups.setValue(s.log_backups)
 
         for true_radio, false_radio, key in self._radio_pairs:
             value = cast(bool, getattr(s, key.replace("-", "_")))
@@ -414,6 +453,9 @@ class SettingsDialog(QDialog):
         s.save_method = self.combo_save_method.currentIndex()
         s.output_folder = self.entry_output_folder.text().strip()
         s.compression_timeout = self.spin_timeout.value()
+        s.log_level = _LOG_LEVELS[self.combo_log_level.currentIndex()]
+        s.log_max_size = self.spin_log_max_size.value()
+        s.log_backups = self.spin_log_backups.value()
 
         for true_radio, _false_radio, key in self._radio_pairs:
             setattr(s, key.replace("-", "_"), true_radio.isChecked())
@@ -456,3 +498,7 @@ class SettingsDialog(QDialog):
             self.settings_changed.emit()
 
         return handler
+
+    def on_log_level_changed(self, index: int) -> None:
+        self.settings.log_level = _LOG_LEVELS[index]
+        self.settings_changed.emit()

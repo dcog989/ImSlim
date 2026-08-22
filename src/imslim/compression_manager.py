@@ -1,3 +1,4 @@
+import logging
 import os
 import threading
 from collections.abc import Callable
@@ -7,6 +8,8 @@ from ._i18n import _
 from .compressor import CompressionContext, Compressor
 from .result_item import ResultItem
 from .settings_manager import SettingsManager
+
+logger = logging.getLogger(__name__)
 
 # MIME type -> (compressor type, output extension). Formats that are re-encoded
 # to a different format on output (BMP/TIFF -> WebP) carry a different extension
@@ -53,6 +56,7 @@ class CompressionManager:
     ) -> None:
         context = CompressionContext()
         self._context = context
+        logger.info("Starting compression batch of %d images", len(result_items))
         threading.Thread(
             target=self._compress,
             args=(result_items, c_update_result_item, c_enable_compression, context),
@@ -96,4 +100,5 @@ class CompressionManager:
                     result_item.cancelled = True
                     result_item.running = False
                     c_update_result_item(result_item)
+        logger.info("Compression batch finished")
         c_enable_compression(True)

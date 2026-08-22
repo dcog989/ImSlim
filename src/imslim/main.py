@@ -1,13 +1,17 @@
+import logging
+import logging.handlers
 import os
 import sys
 import sysconfig
 from collections.abc import Callable
+from pathlib import Path
 from typing import cast
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QStandardPaths, QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
+from .settings_manager import SettingsManager
 from .window import ImSlimWindow
 
 # Native-desktop integration comes from a Qt platform theme plugin read during
@@ -18,6 +22,47 @@ from .window import ImSlimWindow
 # picker via xdg-desktop-portal. An explicit QT_QPA_PLATFORMTHEME always wins.
 _PLATFORM_THEME_ENV = "QT_QPA_PLATFORMTHEME"
 _PORTAL_THEME = "xdgdesktopportal"
+
+_LOG_FILE_NAME = "imslim.log"
+_LOG_LEVELS: dict[str, int] = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+}
+_LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
+
+
+def _configure_logging() -> None:
+    """Install console and rotating-file handlers from the log settings."""
+    settings = SettingsManager()
+    level = _LOG_LEVELS.get(settings.log_level, logging.INFO)
+
+    base_dir = QStandardPaths.writableLocation(
+        QStandardPaths.StandardLocation.AppDataLocation
+    ) or QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
+    log_dir = Path(base_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    formatter = logging.Formatter(_LOG_FORMAT)
+
+    file_handler = logging.handlers.RotatingFileHandler(
+        log_dir / _LOG_FILE_NAME,
+        maxBytes=settings.log_max_size * 1024 * 1024,
+        backupCount=settings.log_backups,
+        encoding="utf-8",
+    )
+    file_handler.setLevel(level)
+    file_handler.setFormatter(formatter)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    console_handler.setFormatter(formatter)
+
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.addHandler(file_handler)
+    root.addHandler(console_handler)
 
 
 def _configure_platform_theme() -> None:
@@ -186,6 +231,7 @@ class ImSlimApp(QApplication):
 
 
 def main():
+    _configure_logging()
     app = ImSlimApp(sys.argv)
     sys.exit(app.run())
 
