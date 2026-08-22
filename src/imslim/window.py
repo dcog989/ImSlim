@@ -63,7 +63,7 @@ class _Bridge(QObject):
 class _VersionProbeWorker(QThread):
     """Queries bundled compression tool versions off the UI thread."""
 
-    versions_ready: Signal = Signal(list[tuple[str, str]])
+    versions_ready: Signal = Signal(list)
 
     @override
     def run(self) -> None:
