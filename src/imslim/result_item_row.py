@@ -3,7 +3,14 @@ from collections.abc import Callable
 from typing import override
 
 from PySide6.QtCore import Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QAction, QContextMenuEvent, QDesktopServices, QImage, QPixmap
+from PySide6.QtGui import (
+    QAction,
+    QContextMenuEvent,
+    QDesktopServices,
+    QImage,
+    QMouseEvent,
+    QPixmap,
+)
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -35,12 +42,26 @@ class _ThumbnailLoader(QThread):
         self.loaded.emit(create_thumbnail_qimage(self._filename, self._size, self._size))
 
 
+class _ClickableThumbnail(QLabel):
+    """Thumbnail label that emits a click signal."""
+
+    clicked: Signal = Signal()
+
+    @override
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
+
+
 class ResultItemRow(QWidget):
     def __init__(self, result_item: ResultItem, parent: QWidget | None = None):
         super().__init__(parent)
         self.result_item: ResultItem = result_item
 
-        self.thumbnail: QLabel = QLabel()
+        self.thumbnail: _ClickableThumbnail = _ClickableThumbnail()
+        self.thumbnail.setCursor(Qt.CursorShape.PointingHandCursor)
+        _res = self.thumbnail.clicked.connect(self._open_compressed)
         self.title_label: QLabel = QLabel(result_item.filename)
         title_font = self.title_label.font()
         title_font.setBold(True)
@@ -141,20 +162,29 @@ class ResultItemRow(QWidget):
 
     @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
-        filename = self.result_item.new_filename
-        if not filename or not os.path.exists(filename):
+        if not self._compressed_exists():
             event.ignore()
             return
 
         menu = QMenu(self)
         open_image = QAction(_("Open Image"), menu)
-        _res = open_image.triggered.connect(
-            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(filename))
-        )
+        _res = open_image.triggered.connect(self._open_compressed)
         show_in_folder = QAction(_("Show in Folder"), menu)
-        _res = show_in_folder.triggered.connect(
-            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(filename)))
-        )
+        _res = show_in_folder.triggered.connect(self._show_in_folder)
         menu.addAction(open_image)
         menu.addAction(show_in_folder)
         _res = menu.exec(event.globalPos())
+
+    def _compressed_exists(self) -> bool:
+        return bool(self.result_item.new_filename) and os.path.exists(self.result_item.new_filename)
+
+    def _open_compressed(self) -> None:
+        if not self._compressed_exists():
+            return
+        _res = QDesktopServices.openUrl(QUrl.fromLocalFile(self.result_item.new_filename))
+
+    def _show_in_folder(self) -> None:
+        if not self._compressed_exists():
+            return
+        folder = os.path.dirname(self.result_item.new_filename)
+        _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
