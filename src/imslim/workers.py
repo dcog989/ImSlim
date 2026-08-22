@@ -3,9 +3,10 @@ from typing import override
 
 from PySide6.QtCore import QObject, QThread, Signal
 
+from .image_utils import get_image_paths_from_folder
 from .result_item import ResultItem
 from .result_item_manager import ResultItemManager
-from .tools import get_image_paths_from_folder, tool_version_pairs
+from .system_info import tool_version_pairs
 
 
 class Bridge(QObject):

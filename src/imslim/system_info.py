@@ -1,4 +1,3 @@
-import functools
 import locale
 import logging
 import os
@@ -6,120 +5,11 @@ import platform
 import re
 import subprocess
 
-from PySide6.QtCore import QLocale, QSize
-from PySide6.QtGui import QImage, QImageReader
-
 from ._i18n import _
 from .binary_resolver import KNOWN_TOOLS, resolve_tool
+from .format import sizeof_fmt
 
 logger = logging.getLogger(__name__)
-
-
-_IMAGE_EXTENSIONS = (
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".webp",
-    ".avif",
-    ".jxl",
-    ".svg",
-    ".bmp",
-    ".tiff",
-    ".tif",
-)
-
-
-def image_filter() -> str:
-    all_extensions = " ".join(f"*{ext}" for ext in _IMAGE_EXTENSIONS)
-    return _(
-        f"Images ({all_extensions});;"
-        + "PNG (*.png);;"
-        + "JPEG (*.jpg *.jpeg);;"
-        + "BMP (*.bmp);;"
-        + "GIF (*.gif);;"
-        + "WebP (*.webp);;"
-        + "AVIF (*.avif);;"
-        + "JXL (*.jxl);;"
-        + "SVG (*.svg);;"
-        + "TIFF (*.tiff *.tif);;"
-        + "All files (*)"
-    )
-
-
-def sizeof_fmt(num: float | None) -> str:
-    if num is None or num < 0:
-        return ""
-    value = float(num)
-    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
-        if value < 1024.0 or unit == "TiB":
-            if unit == "B":
-                return f"{int(value)} {unit}"
-            return f"{value:.1f}".replace(".", _decimal_separator()) + f" {unit}"
-        value /= 1024.0
-    return ""
-
-
-def savings_percent(size: int, new_size: int) -> int:
-    """Percentage of the original size saved, 0 when size is not positive."""
-    if size <= 0:
-        return 0
-    return round(100 - (new_size * 100 / size))
-
-
-@functools.cache
-def _decimal_separator() -> str:
-    """Return the host locale's decimal separator (e.g. "." or ",").
-
-    Read from Qt's system locale instead of mutating the process-wide locale
-    with locale.setlocale().
-    """
-    return QLocale().decimalPoint()
-
-
-def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> QImage | None:
-    """Decode and scale an image for use as a thumbnail, returning a value QImage.
-
-    Safe to call from a non-GUI thread; the caller converts the result to a
-    QPixmap on the main thread.
-    """
-    try:
-        reader = QImageReader(filename)
-        reader.setAutoTransform(True)
-        size = reader.size()
-        width = size.width()
-        height = size.height()
-        if width <= 0 or height <= 0:
-            return None
-        ratio = min(max_width / width, max_height / height, 1.0)
-        reader.setScaledSize(QSize(max(1, int(width * ratio)), max(1, int(height * ratio))))
-        image = reader.read()
-    except Exception as err:
-        logger.error(str(err))
-        return None
-    if image.isNull():
-        return None
-    return image
-
-
-def get_image_paths_from_folder(folder_path: str, recursive: bool = False) -> list[str]:
-    images: list[str] = []
-    try:
-        with os.scandir(folder_path) as it:
-            for entry in sorted(it, key=lambda e: e.name):
-                if entry.is_dir(follow_symlinks=False):
-                    if recursive:
-                        images.extend(get_image_paths_from_folder(entry.path, True))
-                    continue
-                if entry.is_file(follow_symlinks=False) and _is_image_path(entry.name):
-                    images.append(entry.path)
-    except OSError as err:
-        logger.warning("Could not read folder %s: %s", folder_path, err)
-    return images
-
-
-def _is_image_path(path: str) -> bool:
-    return path.lower().endswith(_IMAGE_EXTENSIONS)
 
 
 def static_about_pairs() -> list[tuple[str, str]]:
@@ -181,6 +71,14 @@ def system_info_pairs() -> list[tuple[str, str]]:
     return pairs
 
 
+def debug_pairs() -> list[tuple[str, str]]:
+    return [
+        *static_about_pairs(),
+        *system_info_pairs(),
+        *tool_version_pairs(),
+    ]
+
+
 def _distro() -> tuple[str, str]:
     # platform.* reports the kernel, not the distribution; read os-release.
     try:
@@ -230,14 +128,6 @@ def _total_memory() -> str:
     except OSError:
         pass
     return _("Unknown")
-
-
-def debug_pairs() -> list[tuple[str, str]]:
-    return [
-        *static_about_pairs(),
-        *system_info_pairs(),
-        *tool_version_pairs(),
-    ]
 
 
 def _version_flag(path: str, tool: str) -> list[str]:

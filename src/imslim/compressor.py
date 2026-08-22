@@ -12,10 +12,10 @@ from string.templatelib import Interpolation, Template
 from typing import IO, NamedTuple
 
 from ._i18n import _
+from .format import savings_percent
 from .output_writer import OutputWriter
 from .result_item import ResultItem
 from .settings_manager import SettingsManager
-from .tools import savings_percent
 
 
 class CancelledError(Exception):

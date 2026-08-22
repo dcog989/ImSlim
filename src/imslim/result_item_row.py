@@ -24,8 +24,8 @@ from PySide6.QtWidgets import (
 )
 
 from ._i18n import _
+from .image_utils import create_thumbnail_qimage
 from .result_item import ResultItem
-from .tools import create_thumbnail_qimage
 from .widgets import circle_off_icon, shield_alert_icon
 
 # Shared, bounded pool: a batch of hundreds of rows must not spawn a thread per

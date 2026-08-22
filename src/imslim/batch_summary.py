@@ -1,5 +1,5 @@
 from ._i18n import _
-from .tools import sizeof_fmt
+from .format import sizeof_fmt
 
 
 class BatchSummary:

@@ -53,11 +53,13 @@ from .compressors.jxl_compressor import JXLCompressor
 from .compressors.png_compressor import PNGCompressor
 from .compressors.svg_compressor import SVGCompressor
 from .compressors.webp_compressor import WEBPCompressor
+from .format import savings_percent, sizeof_fmt
+from .image_utils import image_filter
 from .result_item import ResultItem
 from .result_item_row import ResultItemRow
 from .settings import SettingsDialog
 from .settings_manager import SettingsManager
-from .tools import image_filter, savings_percent, sizeof_fmt, static_about_pairs, system_info_pairs
+from .system_info import static_about_pairs, system_info_pairs
 from .widgets import (
     ResultsPage,
     apply_muted_palette,

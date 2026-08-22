@@ -6,9 +6,9 @@ from PySide6.QtCore import QMimeDatabase
 
 from ._i18n import _
 from .compression_manager import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS
+from .format import sizeof_fmt
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE
-from .tools import sizeof_fmt
 
 _mime_db = QMimeDatabase()
 
