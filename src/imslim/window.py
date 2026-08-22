@@ -3,7 +3,7 @@ import tempfile
 import time
 from typing import ClassVar, cast, override
 
-from PySide6.QtCore import QEvent, QMimeData, QObject, QPoint, Qt, QThread, Signal
+from PySide6.QtCore import QEvent, QMimeData, QObject, QPoint, QSize, Qt, QThread, Signal
 from PySide6.QtGui import (
     QAction,
     QClipboard,
@@ -52,7 +52,7 @@ from .tools import (
     system_info_pairs,
     tool_version_pairs,
 )
-from .widgets import ModeToggle, imslim_icon
+from .widgets import gear_icon, imslim_icon, info_icon
 
 
 class _Bridge(QObject):
@@ -95,7 +95,6 @@ class _PasteFilter(QObject):
         return False
 
 
-_HAMBURGER = "\u2630"
 _CLOSE = "\u2715"
 
 
@@ -152,6 +151,16 @@ class ImSlimWindow(QWidget):
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(8, 6, 8, 6)
 
+        icon_color = self.palette().color(self.palette().ColorRole.WindowText)
+
+        self.about_button: QToolButton = QToolButton()
+        self.about_button.setIcon(info_icon(icon_color))
+        self.about_button.setIconSize(QSize(20, 20))
+        self.about_button.setToolTip(_("About ImSlim"))
+        self.about_button.setFixedSize(32, 32)
+        self.about_button.setStyleSheet("QToolButton { padding: 0; }")
+        _res = self.about_button.clicked.connect(self.on_about)
+
         self.clear_button: QToolButton = QToolButton()
         self.clear_button.setText(_CLOSE)
         self.clear_button.setToolTip(_("Clear results and return to the main window."))
@@ -167,14 +176,10 @@ class ImSlimWindow(QWidget):
         _res = self.stop_button.clicked.connect(self.stop_compression)
         self.stop_button.hide()
 
+        header_layout.addWidget(self.about_button)
         header_layout.addWidget(self.clear_button)
         header_layout.addWidget(self.stop_button)
         header_layout.addStretch(1)
-
-        self.mode_toggle: ModeToggle = ModeToggle()
-        self.mode_toggle.setMinimumWidth(240)
-        self.mode_toggle.setMaximumWidth(240)
-        header_layout.addWidget(self.mode_toggle, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.results_title: QLabel = QLabel(_("Compression Results"))
         title_font = self.results_title.font()
@@ -187,12 +192,14 @@ class ImSlimWindow(QWidget):
 
         header_layout.addStretch(1)
 
-        self.menu_button: QToolButton = QToolButton()
-        self.menu_button.setText(_HAMBURGER)
-        self.menu_button.setToolTip(_("Main Menu"))
-        self.menu_button.setFixedSize(32, 32)
-        _res = self.menu_button.clicked.connect(self._open_main_menu)
-        header_layout.addWidget(self.menu_button)
+        self.settings_button: QToolButton = QToolButton()
+        self.settings_button.setIcon(gear_icon(icon_color))
+        self.settings_button.setIconSize(QSize(20, 20))
+        self.settings_button.setToolTip(_("Settings"))
+        self.settings_button.setFixedSize(32, 32)
+        self.settings_button.setStyleSheet("QToolButton { padding: 0; }")
+        _res = self.settings_button.clicked.connect(self.on_settings)
+        header_layout.addWidget(self.settings_button)
 
         self.subtitle_label: QLabel = QLabel()
         self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -213,7 +220,6 @@ class ImSlimWindow(QWidget):
 
         root.addWidget(self.stack, 1)
 
-        self._apply_mode_state()
         self.set_saving_subtitle()
 
     def _build_home_page(self) -> QWidget:
@@ -336,36 +342,6 @@ class ImSlimWindow(QWidget):
         layout.addWidget(reduced_label)
         return header
 
-    def _build_main_menu(self) -> QMenu:
-        menu = QMenu(self)
-        menu.addAction(self.act_settings)
-        menu.addAction(self.act_about)
-        menu.setStyleSheet(
-            "QMenu {"
-            + "  background-color: palette(base);"
-            + "  border: 1px solid palette(mid);"
-            + "  border-radius: 8px;"
-            + "  padding: 6px;"
-            + "}"
-            + "QMenu::item {"
-            + "  padding: 6px 16px;"
-            + "  border-radius: 4px;"
-            + "}"
-            + "QMenu::item:selected {"
-            + "  background-color: palette(highlight);"
-            + "  color: palette(highlighted-text);"
-            + "}"
-        )
-        return menu
-
-    def _open_main_menu(self):
-        menu = self._build_main_menu()
-        button = self.menu_button
-        menu_width = menu.sizeHint().width()
-        x = button.mapToGlobal(QPoint(0, 0)).x() + button.width() - menu_width
-        y = button.mapToGlobal(QPoint(0, 0)).y() + button.height()
-        menu.popup(QPoint(x, y))
-
     # ----------------------------------------------------------------- actions
     def create_actions(self) -> None:
         self.act_select: QAction = QAction(_("Browse Files"), self)
@@ -387,9 +363,6 @@ class ImSlimWindow(QWidget):
         self.act_settings.setShortcut(QKeySequence("Ctrl+,"))
         _res = self.act_settings.triggered.connect(self.on_settings)
 
-        self.act_about: QAction = QAction(_("About ImSlim"), self)
-        _res = self.act_about.triggered.connect(self.on_about)
-
         self.act_quit: QAction = QAction(_("Quit"), self)
         self.act_quit.setShortcut(QKeySequence("Ctrl+Q"))
         _res = self.act_quit.triggered.connect(self.app.quit)
@@ -409,25 +382,17 @@ class ImSlimWindow(QWidget):
         self.manager.cancel()
         self.stop_button.setEnabled(False)
 
-    _VIEWS: ClassVar[dict[str, tuple[int, bool, bool]]] = {
-        "home": (0, False, True),
-        "loading": (1, False, True),
-        "results": (2, True, False),
+    _VIEWS: ClassVar[dict[str, tuple[int, bool]]] = {
+        "home": (0, False),
+        "loading": (1, False),
+        "results": (2, True),
     }
 
     def show_view(self, view: str) -> None:
-        index, show_clear, show_mode = self._VIEWS[view]
+        index, show_clear = self._VIEWS[view]
         self.stack.setCurrentIndex(index)
         self.clear_button.setVisible(show_clear)
-        self.mode_toggle.setVisible(show_mode)
         self.results_title.setVisible(view == "results")
-
-    def _apply_mode_state(self) -> None:
-        self.mode_toggle.setLossy(self.settings.lossy)
-        _res = self.mode_toggle.modeChanged.connect(self.on_mode_selected)
-
-    def on_mode_selected(self, lossy: bool) -> None:
-        self.settings.lossy = lossy
 
     def clear_results(self) -> None:
         self.show_view("home")

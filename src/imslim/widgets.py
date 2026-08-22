@@ -1,111 +1,9 @@
+import math
 import os
-from typing import override
+from collections.abc import Callable
 
-from PySide6.QtCore import QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QIcon, QMouseEvent, QPainter, QPaintEvent, QResizeEvent
-from PySide6.QtWidgets import QWidget
-
-from ._i18n import _
-
-
-class ModeToggle(QWidget):
-    """Lossless / Lossy rocker switch."""
-
-    modeChanged: Signal = Signal(bool)  # True -> lossy
-
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-        self.setMinimumSize(160, 32)
-        self._lossy: bool = False
-        self._track: QRectF = QRectF()
-        self._thumb: QRectF = QRectF()
-        self._update_geometry(self.width(), self.height())
-
-    def _track_rect(self, w: float, h: float) -> QRectF:
-        inset_x = 0
-        inset_y = h * 0.08
-        track_h = h - 2 * inset_y
-        return QRectF(inset_x, inset_y, w, track_h)
-
-    def _thumb_rect(self) -> QRectF:
-        margin = 3
-        half = (self._track.width() - 2 * margin) / 2
-        left = self._track.left() + margin
-        if self._lossy:
-            left += half
-        return QRectF(left, self._track.top() + margin, half, self._track.height() - 2 * margin)
-
-    def _update_geometry(self, w: float, h: float) -> None:
-        self._track = self._track_rect(w, h)
-        self._refresh_thumb()
-
-    @override
-    def resizeEvent(self, event: QResizeEvent) -> None:
-        super().resizeEvent(event)
-        self._update_geometry(self.width(), self.height())
-
-    def _refresh_thumb(self):
-        self._thumb = self._thumb_rect()
-        self.update()
-
-    def setLossy(self, lossy: bool) -> None:
-        if self._lossy == lossy:
-            return
-        self._lossy = lossy
-        self._refresh_thumb()
-
-    def isLossy(self) -> bool:
-        return self._lossy
-
-    @override
-    def sizeHint(self) -> QSize:
-        return self.minimumSize()
-
-    @override
-    def paintEvent(self, event: QPaintEvent) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        acc = self.palette().color(self.palette().ColorRole.Highlight)
-        base = self.palette().color(self.palette().ColorRole.Mid)
-        text = self.palette().color(self.palette().ColorRole.WindowText)
-        on_text = self.palette().color(self.palette().ColorRole.HighlightedText)
-
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(base))
-        painter.drawRoundedRect(self._track, 7, 7)
-
-        painter.setBrush(QColor(acc))
-        painter.drawRoundedRect(self._thumb, 7, 7)
-
-        font = painter.font()
-        font.setBold(True)
-        font.setPointSize(10)
-        painter.setFont(font)
-
-        half = (self._track.width() - 6) / 2
-        inactive = QColor(text)
-        inactive.setAlphaF(0.5)
-        painter.setPen(QColor(on_text) if not self._lossy else QColor(inactive))
-        _res = painter.drawText(
-            QRectF(self._track.left(), self._track.top(), half, self._track.height()),
-            Qt.AlignmentFlag.AlignCenter,
-            _("Lossless"),
-        )
-        painter.setPen(QColor(inactive) if not self._lossy else QColor(on_text))
-        _res = painter.drawText(
-            QRectF(self._track.left() + half, self._track.top(), half, self._track.height()),
-            Qt.AlignmentFlag.AlignCenter,
-            _("Lossy"),
-        )
-        _res = painter.end()
-
-    @override
-    def mousePressEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.setLossy(not self._lossy)
-            self.modeChanged.emit(self._lossy)
-
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap, QPolygonF
 
 IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
 
@@ -117,3 +15,70 @@ def imslim_icon() -> QIcon:
     alt-tab switcher) receive a crisp icon instead of upscaling a small one.
     """
     return QIcon(QIcon(IMSLIM_ICON_PATH).pixmap(1024))
+
+
+def _painted_icon(size: int, draw: Callable[[QPainter, float], None]) -> QIcon:
+    """Render a monochrome icon with QPainter on a transparent, HiDPI-safe pixmap."""
+    scale = 2.0
+    pixmap = QPixmap(int(size * scale), int(size * scale))
+    pixmap.setDevicePixelRatio(scale)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    draw(painter, float(size))
+    _res = painter.end()
+    return QIcon(pixmap)
+
+
+def info_icon(color: QColor, size: int = 20) -> QIcon:
+    """An 'i' inside a circle, sharing gear_icon()'s stroke weight."""
+
+    def draw(painter: QPainter, s: float) -> None:
+        pen = max(1.8, s * 0.09)
+        cx, cy = s / 2, s / 2
+        inset = pen
+        rect = QRectF(inset, inset, s - 2 * inset, s - 2 * inset)
+        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(rect)
+        r = (s - 2 * inset) / 2
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(color)
+        painter.drawEllipse(QPointF(cx, cy - r * 0.48), pen * 0.8, pen * 0.8)
+        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawLine(QPointF(cx, cy - r * 0.18), QPointF(cx, cy + r * 0.45))
+
+    return _painted_icon(size, draw)
+
+
+def gear_icon(color: QColor, size: int = 20) -> QIcon:
+    """A simple gear: an outlined ring with eight teeth, matching info_icon()'s
+    stroke weight so the header icons look consistent."""
+
+    def draw(painter: QPainter, s: float) -> None:
+        pen = max(1.8, s * 0.09)
+        cx, cy = s / 2, s / 2
+        tip_r = s * 0.47
+        root_r = s * 0.36
+        hub_r = s * 0.15
+        teeth = 8
+        points = []
+        for i in range(2 * teeth):
+            angle = math.pi * i / teeth
+            radius = tip_r if i % 2 == 0 else root_r
+            points.append(QPointF(cx + radius * math.cos(angle), cy + radius * math.sin(angle)))
+        painter.setPen(
+            QPen(
+                color,
+                pen,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
+            )
+        )
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPolygon(QPolygonF(points))
+        painter.drawEllipse(QPointF(cx, cy), hub_r, hub_r)
+
+    return _painted_icon(size, draw)
