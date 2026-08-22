@@ -1,7 +1,8 @@
 import os
+from typing import override
 
-from PySide6.QtCore import QRectF, Qt, Signal
-from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtCore import QRectF, QSize, Qt, Signal
+from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPaintEvent, QPixmap, QResizeEvent
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QWidget
 
@@ -11,14 +12,14 @@ from ._i18n import _
 class ModeToggle(QWidget):
     """Lossless / Lossy rocker switch."""
 
-    modeChanged = Signal(bool)  # True -> lossy
+    modeChanged: Signal = Signal(bool)  # True -> lossy
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setMinimumSize(160, 32)
-        self._lossy = False
-        self._track = QRectF()
-        self._thumb = QRectF()
+        self._lossy: bool = False
+        self._track: QRectF = QRectF()
+        self._thumb: QRectF = QRectF()
         self._update_geometry(self.width(), self.height())
 
     def _track_rect(self, w: float, h: float) -> QRectF:
@@ -35,11 +36,12 @@ class ModeToggle(QWidget):
             left += half
         return QRectF(left, self._track.top() + margin, half, self._track.height() - 2 * margin)
 
-    def _update_geometry(self, w: float, h: float):
+    def _update_geometry(self, w: float, h: float) -> None:
         self._track = self._track_rect(w, h)
         self._refresh_thumb()
 
-    def resizeEvent(self, event):
+    @override
+    def resizeEvent(self, event: QResizeEvent) -> None:
         super().resizeEvent(event)
         self._update_geometry(self.width(), self.height())
 
@@ -47,7 +49,7 @@ class ModeToggle(QWidget):
         self._thumb = self._thumb_rect()
         self.update()
 
-    def setLossy(self, lossy: bool):
+    def setLossy(self, lossy: bool) -> None:
         if self._lossy == lossy:
             return
         self._lossy = lossy
@@ -56,10 +58,12 @@ class ModeToggle(QWidget):
     def isLossy(self) -> bool:
         return self._lossy
 
-    def sizeHint(self):
+    @override
+    def sizeHint(self) -> QSize:
         return self.minimumSize()
 
-    def paintEvent(self, event):
+    @override
+    def paintEvent(self, event: QPaintEvent) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
@@ -84,20 +88,21 @@ class ModeToggle(QWidget):
         inactive = QColor(text)
         inactive.setAlphaF(0.5)
         painter.setPen(QColor(on_text) if not self._lossy else QColor(inactive))
-        painter.drawText(
+        _res = painter.drawText(
             QRectF(self._track.left(), self._track.top(), half, self._track.height()),
             Qt.AlignmentFlag.AlignCenter,
             _("Lossless"),
         )
         painter.setPen(QColor(inactive) if not self._lossy else QColor(on_text))
-        painter.drawText(
+        _res = painter.drawText(
             QRectF(self._track.left() + half, self._track.top(), half, self._track.height()),
             Qt.AlignmentFlag.AlignCenter,
             _("Lossy"),
         )
-        painter.end()
+        _res = painter.end()
 
-    def mousePressEvent(self, event):
+    @override
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self.setLossy(not self._lossy)
             self.modeChanged.emit(self._lossy)
@@ -112,5 +117,5 @@ def stylized_i_icon(size: int) -> QPixmap:
     p = QPainter(pm)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     renderer.render(p)
-    p.end()
+    _res = p.end()
     return pm

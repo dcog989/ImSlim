@@ -31,7 +31,7 @@ DEFAULTS: dict[str, str | int | bool] = {
 
 class SettingsManager:
     def __init__(self) -> None:
-        self._settings = QSettings("ImSlim", "ImSlim")
+        self._settings: QSettings = QSettings("ImSlim", "ImSlim")
 
     def set_boolean(self, key: str, value: bool) -> None:
         self._settings.setValue(key, bool(value))
@@ -94,17 +94,130 @@ class SettingsManager:
     def recursive(self, value: bool) -> None:
         self._set("recursive", value)
 
+    @property
+    def metadata(self) -> bool:
+        return cast(bool, self._get("metadata"))
 
-# The remaining properties are generated from DEFAULTS in one place; the four
-# settings declared explicitly above are skipped here.
-for _key in DEFAULTS:
-    if _key in {"save-method", "output-folder", "lossy", "recursive"}:
-        continue
-    setattr(
-        SettingsManager,
-        _key.replace("-", "_"),
-        property(
-            lambda self, key=_key: self._get(key),
-            lambda self, value, key=_key: self._set(key, value),
-        ),
-    )
+    @metadata.setter
+    def metadata(self, value: bool) -> None:
+        self._set("metadata", value)
+
+    @property
+    def file_attributes(self) -> bool:
+        return cast(bool, self._get("file-attributes"))
+
+    @file_attributes.setter
+    def file_attributes(self, value: bool) -> None:
+        self._set("file-attributes", value)
+
+    @property
+    def png_lossy_level(self) -> int:
+        return cast(int, self._get("png-lossy-level"))
+
+    @png_lossy_level.setter
+    def png_lossy_level(self, value: int) -> None:
+        self._set("png-lossy-level", value)
+
+    @property
+    def png_lossless_level(self) -> int:
+        return cast(int, self._get("png-lossless-level"))
+
+    @png_lossless_level.setter
+    def png_lossless_level(self, value: int) -> None:
+        self._set("png-lossless-level", value)
+
+    @property
+    def jpg_lossy_level(self) -> int:
+        return cast(int, self._get("jpg-lossy-level"))
+
+    @jpg_lossy_level.setter
+    def jpg_lossy_level(self, value: int) -> None:
+        self._set("jpg-lossy-level", value)
+
+    @property
+    def jpg_progressive(self) -> bool:
+        return cast(bool, self._get("jpg-progressive"))
+
+    @jpg_progressive.setter
+    def jpg_progressive(self, value: bool) -> None:
+        self._set("jpg-progressive", value)
+
+    @property
+    def webp_lossy_level(self) -> int:
+        return cast(int, self._get("webp-lossy-level"))
+
+    @webp_lossy_level.setter
+    def webp_lossy_level(self, value: int) -> None:
+        self._set("webp-lossy-level", value)
+
+    @property
+    def webp_lossless_level(self) -> int:
+        return cast(int, self._get("webp-lossless-level"))
+
+    @webp_lossless_level.setter
+    def webp_lossless_level(self, value: int) -> None:
+        self._set("webp-lossless-level", value)
+
+    @property
+    def avif_lossy_level(self) -> int:
+        return cast(int, self._get("avif-lossy-level"))
+
+    @avif_lossy_level.setter
+    def avif_lossy_level(self, value: int) -> None:
+        self._set("avif-lossy-level", value)
+
+    @property
+    def avif_lossless_level(self) -> int:
+        return cast(int, self._get("avif-lossless-level"))
+
+    @avif_lossless_level.setter
+    def avif_lossless_level(self, value: int) -> None:
+        self._set("avif-lossless-level", value)
+
+    @property
+    def jxl_lossy_level(self) -> int:
+        return cast(int, self._get("jxl-lossy-level"))
+
+    @jxl_lossy_level.setter
+    def jxl_lossy_level(self, value: int) -> None:
+        self._set("jxl-lossy-level", value)
+
+    @property
+    def jxl_lossless_level(self) -> int:
+        return cast(int, self._get("jxl-lossless-level"))
+
+    @jxl_lossless_level.setter
+    def jxl_lossless_level(self, value: int) -> None:
+        self._set("jxl-lossless-level", value)
+
+    @property
+    def gif_lossy_level(self) -> int:
+        return cast(int, self._get("gif-lossy-level"))
+
+    @gif_lossy_level.setter
+    def gif_lossy_level(self, value: int) -> None:
+        self._set("gif-lossy-level", value)
+
+    @property
+    def gif_lossless_level(self) -> int:
+        return cast(int, self._get("gif-lossless-level"))
+
+    @gif_lossless_level.setter
+    def gif_lossless_level(self, value: int) -> None:
+        self._set("gif-lossless-level", value)
+
+    @property
+    def svg_maximum_level(self) -> bool:
+        return cast(bool, self._get("svg-maximum-level"))
+
+    @svg_maximum_level.setter
+    def svg_maximum_level(self, value: bool) -> None:
+        self._set("svg-maximum-level", value)
+
+    @property
+    def compression_timeout(self) -> int:
+        return cast(int, self._get("compression-timeout"))
+
+    @compression_timeout.setter
+    def compression_timeout(self, value: int) -> None:
+        self._set("compression-timeout", value)

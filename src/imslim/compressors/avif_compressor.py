@@ -1,9 +1,12 @@
+from typing import override
+
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor
 from ..result_item import ResultItem
 
 
 class AVIFCompressor(Compressor):
+    @override
     @classmethod
     def get_file_type(cls) -> str:
         return "avif"
@@ -11,6 +14,7 @@ class AVIFCompressor(Compressor):
     def _intermediate_path(self, result_item: ResultItem) -> str:
         return self._png_intermediate_path(result_item)
 
+    @override
     def build_command(self, result_item: ResultItem) -> list[Command]:
         intermediate = self._intermediate_path(result_item)
 
@@ -44,5 +48,6 @@ class AVIFCompressor(Compressor):
 
         return [Command(avifdec), Command(avifenc)]
 
+    @override
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         return [self._intermediate_path(result_item)]

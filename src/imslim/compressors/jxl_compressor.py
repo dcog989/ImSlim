@@ -1,4 +1,5 @@
 import os
+from typing import override
 
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor
@@ -8,6 +9,7 @@ _JXL_METADATA = ("exif", "xmp", "jumbf")
 
 
 class JXLCompressor(Compressor):
+    @override
     @classmethod
     def get_file_type(cls) -> str:
         return "jxl"
@@ -18,6 +20,7 @@ class JXLCompressor(Compressor):
     def _sidecar_path(self, result_item: ResultItem, kind: str) -> str:
         return result_item.tmp_filename + "." + kind
 
+    @override
     def build_command(self, result_item: ResultItem) -> list[Command]:
         intermediate = self._intermediate_path(result_item)
 
@@ -60,6 +63,7 @@ class JXLCompressor(Compressor):
 
         return commands
 
+    @override
     def adapt_command(self, argv: list[str], result_item: ResultItem) -> list[str]:
         if not argv or argv[0] != resolve_tool("cjxl"):
             return argv
@@ -78,6 +82,7 @@ class JXLCompressor(Compressor):
             i += 1
         return pruned
 
+    @override
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         paths = [self._intermediate_path(result_item)]
         if self.settings.metadata:

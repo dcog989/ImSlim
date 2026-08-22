@@ -5,14 +5,14 @@ import shutil
 
 from ._i18n import _
 from .result_item import ResultItem
-from .settings_manager import SAVE_BACKUP_OVERWRITE
+from .settings_manager import SAVE_BACKUP_OVERWRITE, SettingsManager
 
 
 class OutputWriter:
     """Move a compressed temp file into place, handling backups and attributes."""
 
-    def __init__(self, settings) -> None:
-        self.settings = settings
+    def __init__(self, settings: SettingsManager) -> None:
+        self.settings: SettingsManager = settings
 
     def finalize(self, result_item: ResultItem) -> None:
         """Copy the compressed temp file to its destination and restore file
@@ -33,7 +33,7 @@ class OutputWriter:
         )
         if overwriting:
             try:
-                shutil.copy2(result_item.filename, result_item.backup_filename)
+                _res = shutil.copy2(result_item.filename, result_item.backup_filename)
             except OSError as err:
                 result_item.set_error(_("Can't backup the original file"), html.escape(str(err)))
                 logging.error(result_item.error_details_message)
@@ -41,7 +41,7 @@ class OutputWriter:
 
         final_path = result_item.filename if overwriting else result_item.new_filename
         try:
-            shutil.copy2(result_item.tmp_filename, final_path)
+            _res = shutil.copy2(result_item.tmp_filename, final_path)
         except OSError as err:
             result_item.set_error(_("Can't write the compressed file"), html.escape(str(err)))
             logging.error(result_item.error_details_message)

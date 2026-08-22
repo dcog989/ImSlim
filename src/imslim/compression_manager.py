@@ -1,10 +1,12 @@
 import os
-import subprocess
 import threading
-import time
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 
 from ._i18n import _
+from .compressor import CompressionContext, Compressor
+from .result_item import ResultItem
+from .settings_manager import SettingsManager
 
 # MIME type -> (compressor type, output extension). Formats that are re-encoded
 # to a different format on output (BMP/TIFF -> WebP) carry a different extension
@@ -28,68 +30,27 @@ OUTPUT_EXTENSIONS = {
     mime: extension for mime, (_compress_type, extension) in MIME_TO_COMPRESSOR.items() if extension
 }
 
-_KILL_GRACE_SECONDS = 0.5
-
-
-class CompressionContext:
-    """Shared cancellation state for one compression batch."""
-
-    def __init__(self) -> None:
-        self._cancel_event = threading.Event()
-        self._processes: list[subprocess.Popen] = []
-        self._lock = threading.Lock()
-
-    @property
-    def cancelled(self) -> bool:
-        return self._cancel_event.is_set()
-
-    def register_process(self, process: subprocess.Popen) -> None:
-        with self._lock:
-            self._processes.append(process)
-
-    def unregister_process(self, process: subprocess.Popen) -> None:
-        with self._lock:
-            if process in self._processes:
-                self._processes.remove(process)
-
-    def cancel(self) -> None:
-        if self._cancel_event.is_set():
-            return
-        self._cancel_event.set()
-        with self._lock:
-            processes = list(self._processes)
-        deadline = time.monotonic() + _KILL_GRACE_SECONDS
-        for process in processes:
-            try:
-                process.terminate()
-            except OSError:
-                pass
-        for process in processes:
-            try:
-                remaining = max(0.0, deadline - time.monotonic())
-                process.wait(timeout=remaining)
-            except subprocess.TimeoutExpired, OSError:
-                try:
-                    process.kill()
-                except OSError:
-                    pass
-
 
 class CompressionManager:
-    def __init__(self, settings_manager):
-        self.settings = settings_manager
-        self.compressors = {}
+    def __init__(self, settings_manager: SettingsManager) -> None:
+        self.settings: SettingsManager = settings_manager
+        self.compressors: dict[str, Compressor] = {}
         self._context: CompressionContext | None = None
 
     def mime_type_to_compressor_type(self, mime_type: str) -> str | None:
         return MIME_TO_COMPRESSOR.get(mime_type, (None,))[0]
 
-    def register_compressor(self, ConcreteCompressor):
+    def register_compressor(self, ConcreteCompressor: type[Compressor]) -> None:
         file_type = ConcreteCompressor.get_file_type()
         if file_type not in self.compressors:
             self.compressors[file_type] = ConcreteCompressor(self.settings)
 
-    def compress(self, result_items, c_update_result_item, c_enable_compression):
+    def compress(
+        self,
+        result_items: list[ResultItem],
+        c_update_result_item: Callable[[ResultItem], None],
+        c_enable_compression: Callable[[bool], None],
+    ) -> None:
         context = CompressionContext()
         self._context = context
         threading.Thread(
@@ -98,21 +59,27 @@ class CompressionManager:
             daemon=True,
         ).start()
 
-    def cancel(self):
+    def cancel(self) -> None:
         if self._context is not None:
             self._context.cancel()
 
-    def _compress(self, result_items, c_update_result_item, c_enable_compression, context):
+    def _compress(
+        self,
+        result_items: list[ResultItem],
+        c_update_result_item: Callable[[ResultItem], None],
+        c_enable_compression: Callable[[bool], None],
+        context: CompressionContext,
+    ) -> None:
         max_workers = max(1, (os.cpu_count() or 1) // 2)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = []
+            futures: list[Future[None]] = []
             break_index = len(result_items)
             for index, result_item in enumerate(result_items):
                 if context.cancelled:
                     break_index = index
                     break
                 compressor_type = self.mime_type_to_compressor_type(result_item.mime_type)
-                compressor = self.compressors.get(compressor_type)
+                compressor = self.compressors.get(compressor_type or "")
                 if compressor is None:
                     result_item.set_error(_("Format of this file is not supported."))
                     c_update_result_item(result_item)

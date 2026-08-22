@@ -2,6 +2,7 @@ import os
 import sys
 import sysconfig
 from collections.abc import Callable
+from typing import cast
 
 from PySide6.QtCore import QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
@@ -43,7 +44,7 @@ def _configure_platform_theme() -> None:
 
 def _system_plugin_roots() -> list[str]:
     """Common system Qt plugin roots across distro layouts."""
-    multiarch = sysconfig.get_config_var("MULTIARCH")
+    multiarch = cast("str | int | None", sysconfig.get_config_var("MULTIARCH"))
     roots = [
         "/usr/lib64/qt6/plugins",
         "/usr/lib/qt6/plugins",
@@ -80,7 +81,7 @@ _WRITE_TIMEOUT_MS = 500
 
 
 def _local_paths() -> list[str]:
-    paths = []
+    paths: list[str] = []
     for arg in sys.argv[1:]:
         url = QUrl.fromUserInput(arg)
         path = url.toLocalFile() or arg
@@ -98,51 +99,51 @@ class SingleInstance:
     """
 
     def __init__(self, name: str, on_paths: Callable[[list[str]], None]) -> None:
-        self._name = name
-        self._on_paths = on_paths
+        self._name: str = name
+        self._on_paths: Callable[[list[str]], None] = on_paths
         self._server: QLocalServer | None = None
         self._conn_buffer: dict[QLocalSocket, bytearray] = {}
-        self.is_primary = False
+        self.is_primary: bool = False
 
     def become_primary(self) -> None:
         self._server = QLocalServer()
-        self._server.removeServer(self._name)
+        _res = self._server.removeServer(self._name)
         self.is_primary = self._server.listen(self._name)
         if self.is_primary:
-            self._server.newConnection.connect(self._on_new_connection)
+            _res = self._server.newConnection.connect(self._on_new_connection)
 
     def send_paths(self, paths: list[str]) -> None:
         socket = QLocalSocket()
         socket.connectToServer(self._name)
         if not socket.waitForConnected(_CONNECT_TIMEOUT_MS):
             return
-        socket.write("\0".join(paths).encode("utf-8"))
-        socket.waitForBytesWritten(_WRITE_TIMEOUT_MS)
+        _res = socket.write("\0".join(paths).encode("utf-8"))
+        _res = socket.waitForBytesWritten(_WRITE_TIMEOUT_MS)
         socket.disconnectFromServer()
 
     def _on_new_connection(self) -> None:
         if self._server is None:
             return
-        conn = self._server.nextPendingConnection()
+        conn = cast(QLocalSocket | None, self._server.nextPendingConnection())
         if conn is None:
             return
         self._conn_buffer[conn] = bytearray()
-        conn.readyRead.connect(lambda: self._read_more(conn))
-        conn.readChannelFinished.connect(lambda: self._finish(conn))
+        _res = conn.readyRead.connect(lambda: self._read_more(conn))
+        _res = conn.readChannelFinished.connect(lambda: self._finish(conn))
         self._read_more(conn)
 
-    def _read_more(self, conn) -> None:
+    def _read_more(self, conn: QLocalSocket) -> None:
         buffer = self._conn_buffer.get(conn)
         if buffer is None:
             return
-        buffer.extend(bytes(conn.readAll()))
+        buffer.extend(conn.readAll().data())
 
-    def _finish(self, conn) -> None:
+    def _finish(self, conn: QLocalSocket) -> None:
         buffer = self._conn_buffer.get(conn)
         if buffer is None:
             return
-        buffer.extend(bytes(conn.readAll()))
-        self._conn_buffer.pop(conn, None)
+        buffer.extend(conn.readAll().data())
+        _res = self._conn_buffer.pop(conn, None)
         conn.disconnectFromServer()
         data = bytes(buffer)
         if data:
@@ -150,7 +151,7 @@ class SingleInstance:
 
 
 class ImSlimApp(QApplication):
-    def __init__(self, argv):
+    def __init__(self, argv: list[str]) -> None:
         _configure_platform_theme()
         super().__init__(argv)
         _extend_plugin_paths()
@@ -159,7 +160,7 @@ class ImSlimApp(QApplication):
         self.setApplicationDisplayName(_APP_NAME)
         self.win: ImSlimWindow | None = None
 
-    def run(self):
+    def run(self) -> int:
         paths = _local_paths()
         single = SingleInstance(SOCKET_NAME, self._on_foreign_paths)
         single.become_primary()

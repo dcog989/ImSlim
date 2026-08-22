@@ -6,15 +6,15 @@ from PySide6.QtCore import QMimeDatabase
 from ._i18n import _
 from .compression_manager import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS
 from .result_item import ResultItem
-from .settings_manager import SAVE_BACKUP_OVERWRITE
+from .settings_manager import SAVE_BACKUP_OVERWRITE, SettingsManager
 from .tools import sizeof_fmt
 
 _mime_db = QMimeDatabase()
 
 
 class ResultItemManager:
-    def __init__(self, settings_manager):
-        self.settings = settings_manager
+    def __init__(self, settings_manager: SettingsManager) -> None:
+        self.settings: SettingsManager = settings_manager
         self._used_names: set[str] = set()
 
     def begin_batch(self) -> bool:

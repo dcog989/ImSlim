@@ -1,24 +1,29 @@
+from typing import override
+
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor
+from ..result_item import ResultItem
 
 
 class JPEGCompressor(Compressor):
+    @override
     @classmethod
     def get_file_type(cls) -> str:
         return "jpeg"
 
-    def _intermediate_path(self, result_item) -> str:
+    def _intermediate_path(self, result_item: ResultItem) -> str:
         return self._png_intermediate_path(result_item)
 
-    def _encoded_path(self, result_item) -> str:
+    def _encoded_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".enc.jpg"
 
-    def build_command(self, result_item) -> list[Command]:
+    @override
+    def build_command(self, result_item: ResultItem) -> list[Command]:
         if self.settings.lossy:
             return self._build_lossy_command(result_item)
         return self._build_lossless_command(result_item)
 
-    def _build_lossless_command(self, result_item) -> list[Command]:
+    def _build_lossless_command(self, result_item: ResultItem) -> list[Command]:
         jpegtran = [resolve_tool("jpegtran"), "-optimize"]
 
         if self.settings.jpg_progressive:
@@ -31,7 +36,7 @@ class JPEGCompressor(Compressor):
 
         return [Command(jpegtran)]
 
-    def _build_lossy_command(self, result_item) -> list[Command]:
+    def _build_lossy_command(self, result_item: ResultItem) -> list[Command]:
         intermediate = self._intermediate_path(result_item)
 
         # jpegli can't read JPEG input, so decode to a temporary PNG first
@@ -68,7 +73,8 @@ class JPEGCompressor(Compressor):
 
         return commands
 
-    def get_intermediate_files(self, result_item) -> list[str]:
+    @override
+    def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         files = [self._intermediate_path(result_item)]
         if not self.settings.metadata:
             files.append(self._encoded_path(result_item))

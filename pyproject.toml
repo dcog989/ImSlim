@@ -40,15 +40,3 @@ ignore = [
     "S110",    # try/except/pass when gettext is unavailable
     "INT001",  # f-string inside _() is intentional (matches source)
 ]
-
-[tool.basedpyright]
-include = ["src/imslim"]
-pythonVersion = "3.14"
-typeCheckingMode = "standard"
-# PySide6's bundled stubs don't expose legacy enum/flag constants
-# (e.g. Qt.AlignCenter, QMessageBox.Warning) as class attributes, even
-# though they are valid at runtime; keep them as warnings, not errors.
-reportAttributeAccessIssue = "warning"
-# gettext installs "_" into builtins at runtime; ruff's F821 already
-# covers genuinely undefined names, so pyright doesn't need to.
-reportUndefinedVariable = "warning"

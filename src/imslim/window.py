@@ -1,10 +1,19 @@
 import os
 import tempfile
 import time
-from typing import ClassVar
+from typing import ClassVar, cast, override
 
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QThread, Signal
-from PySide6.QtGui import QAction, QIcon, QImage, QKeySequence
+from PySide6.QtCore import QEvent, QMimeData, QObject, QPoint, Qt, QThread, Signal
+from PySide6.QtGui import (
+    QAction,
+    QClipboard,
+    QContextMenuEvent,
+    QDragEnterEvent,
+    QDropEvent,
+    QIcon,
+    QImage,
+    QKeySequence,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -47,15 +56,16 @@ from .widgets import ModeToggle, stylized_i_icon
 
 
 class _Bridge(QObject):
-    result_updated = Signal(object)
-    compression_enabled = Signal(bool)
+    result_updated: Signal = Signal(ResultItem)
+    compression_enabled: Signal = Signal(bool)
 
 
 class _VersionProbeWorker(QThread):
     """Queries bundled compression tool versions off the UI thread."""
 
-    versions_ready = Signal(object)  # list[tuple[tool, version]]
+    versions_ready: Signal = Signal(list[tuple[str, str]])
 
+    @override
     def run(self) -> None:
         self.versions_ready.emit(tool_version_pairs())
 
@@ -63,18 +73,20 @@ class _VersionProbeWorker(QThread):
 class _PasteFilter(QObject):
     """Shows the paste context menu for widgets without their own handler."""
 
-    context_menu_requested = Signal(QPoint)
+    context_menu_requested: Signal = Signal(QPoint)
 
-    def eventFilter(self, obj, event) -> bool:
+    @override
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if event.type() == QEvent.Type.ContextMenu:
-            target = QApplication.widgetAt(event.globalPos())
+            context_event = cast(QContextMenuEvent, event)
+            target = QApplication.widgetAt(context_event.globalPos())
             if target is None or not self._is_result_row(target):
-                self.context_menu_requested.emit(event.globalPos())
+                self.context_menu_requested.emit(context_event.globalPos())
                 return True
         return super().eventFilter(obj, event)
 
     @staticmethod
-    def _is_result_row(widget) -> bool:
+    def _is_result_row(widget: QWidget | None) -> bool:
         current = widget
         while current is not None:
             if isinstance(current, ResultItemRow):
@@ -87,32 +99,35 @@ _HAMBURGER = "\u2630"
 
 
 class ImSlimWindow(QWidget):
-    def __init__(self, app, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.app = app
+    def __init__(self, app: QApplication) -> None:
+        super().__init__()
+        self.app: QApplication = app
         self.setWindowTitle("ImSlim")
         self.setWindowIcon(QIcon(stylized_i_icon(128)))
         self.resize(650, 500)
         self.setAcceptDrops(True)
 
-        self.settings = SettingsManager()
-        self.bridge = _Bridge()
-        self.bridge.result_updated.connect(self.update_result_item)
-        self.bridge.compression_enabled.connect(self.enable_compression)
-        self.prefs_dialog = None
-        self._about_dialog = None
-        self._about_static_pairs = None
-        self._about_worker = None
+        self.settings: SettingsManager = SettingsManager()
+        self.bridge: _Bridge = _Bridge()
+        _res = self.bridge.result_updated.connect(self.update_result_item)
+        _res = self.bridge.compression_enabled.connect(self.enable_compression)
+        self.prefs_dialog: SettingsDialog | None = None
+        self._about_dialog: QMessageBox | None = None
+        self._about_static_pairs: list[tuple[str, str]] | None = None
+        self._about_worker: _VersionProbeWorker | None = None
 
-        self.paste_filter = _PasteFilter()
-        self.paste_filter.context_menu_requested.connect(self.on_context_menu)
+        self.paste_filter: _PasteFilter = _PasteFilter()
+        _res = self.paste_filter.context_menu_requested.connect(self.on_context_menu)
         self.installEventFilter(self.paste_filter)
 
         self.create_actions()
+        self.loading_spinner: QProgressBar = QProgressBar()
+        self.results_container: QWidget = QWidget()
+        self.results_layout: QVBoxLayout = QVBoxLayout()
         self.build_ui()
         self.show_view("home")
 
-        self.manager = CompressionManager(self.settings)
+        self.manager: CompressionManager = CompressionManager(self.settings)
         self.manager.register_compressor(PNGCompressor)
         self.manager.register_compressor(JPEGCompressor)
         self.manager.register_compressor(WEBPCompressor)
@@ -121,11 +136,11 @@ class ImSlimWindow(QWidget):
         self.manager.register_compressor(GIFCompressor)
         self.manager.register_compressor(SVGCompressor)
 
-        self.result_item_manager = ResultItemManager(self.settings)
+        self.result_item_manager: ResultItemManager = ResultItemManager(self.settings)
         self.rows: list[ResultItemRow] = []
 
     # ------------------------------------------------------------------ UI
-    def build_ui(self):
+    def build_ui(self) -> None:
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
@@ -135,62 +150,62 @@ class ImSlimWindow(QWidget):
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(8, 6, 8, 6)
 
-        self.clear_button = QToolButton()
+        self.clear_button: QToolButton = QToolButton()
         self.clear_button.setText(_("Clear"))
         self.clear_button.setToolTip(_("Clear results and return to the main window."))
         self.clear_button.setFixedHeight(32)
         self.clear_button.setStyleSheet("QToolButton { padding: 0 12px; }")
-        self.clear_button.clicked.connect(self.clear_results)
+        _res = self.clear_button.clicked.connect(self.clear_results)
 
-        self.stop_button = QToolButton()
+        self.stop_button: QToolButton = QToolButton()
         self.stop_button.setText(_("Stop"))
         self.stop_button.setToolTip(_("Stop the current compression."))
         self.stop_button.setFixedHeight(32)
         self.stop_button.setStyleSheet("QToolButton { padding: 0 12px; }")
-        self.stop_button.clicked.connect(self.stop_compression)
+        _res = self.stop_button.clicked.connect(self.stop_compression)
         self.stop_button.hide()
 
         header_layout.addWidget(self.clear_button)
         header_layout.addWidget(self.stop_button)
         header_layout.addStretch(1)
 
-        self.mode_toggle = ModeToggle()
+        self.mode_toggle: ModeToggle = ModeToggle()
         self.mode_toggle.setMinimumWidth(240)
         self.mode_toggle.setMaximumWidth(240)
         header_layout.addWidget(self.mode_toggle, alignment=Qt.AlignmentFlag.AlignCenter)
 
         header_layout.addStretch(1)
 
-        self.menu_button = QToolButton()
+        self.menu_button: QToolButton = QToolButton()
         self.menu_button.setText(_HAMBURGER)
         self.menu_button.setToolTip(_("Main Menu"))
         self.menu_button.setFixedSize(32, 32)
-        self.menu_button.clicked.connect(self._open_main_menu)
+        _res = self.menu_button.clicked.connect(self._open_main_menu)
         header_layout.addWidget(self.menu_button)
 
-        self.subtitle_label = QLabel()
+        self.subtitle_label: QLabel = QLabel()
         self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.subtitle_label.hide()
 
         root.addWidget(header)
 
         # Content stack
-        self.stack = QStackedWidget()
+        self.stack: QStackedWidget = QStackedWidget()
 
-        self.home_page = self._build_home_page()
-        self.loading_page = self._build_loading_page()
-        self.results_page = self._build_results_page()
+        self.home_page: QWidget = self._build_home_page()
+        self.loading_page: QWidget = self._build_loading_page()
+        self.results_page: QWidget = self._build_results_page()
 
-        self.stack.addWidget(self.home_page)  # index 0
-        self.stack.addWidget(self.loading_page)  # index 1
-        self.stack.addWidget(self.results_page)  # index 2
+        _res = self.stack.addWidget(self.home_page)  # index 0
+        _res = self.stack.addWidget(self.loading_page)  # index 1
+        _res = self.stack.addWidget(self.results_page)  # index 2
 
         root.addWidget(self.stack, 1)
 
         self._apply_mode_state()
         self.set_saving_subtitle()
 
-    def _build_home_page(self):
+    def _build_home_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.setContentsMargins(40, 24, 40, 32)
@@ -237,7 +252,7 @@ class ImSlimWindow(QWidget):
         select_files.setMinimumHeight(36)
         select_files.setFixedWidth(200)
         select_files.setCursor(Qt.CursorShape.PointingHandCursor)
-        select_files.clicked.connect(self.on_select)
+        _res = select_files.clicked.connect(self.on_select)
         select_files.setStyleSheet(lozenge)
         buttons.addWidget(select_files, 0, Qt.AlignmentFlag.AlignCenter)
 
@@ -245,14 +260,14 @@ class ImSlimWindow(QWidget):
         select_dir.setMinimumHeight(36)
         select_dir.setFixedWidth(200)
         select_dir.setCursor(Qt.CursorShape.PointingHandCursor)
-        select_dir.clicked.connect(self.on_select_folder)
+        _res = select_dir.clicked.connect(self.on_select_folder)
         select_dir.setStyleSheet(lozenge)
         buttons.addWidget(select_dir, 0, Qt.AlignmentFlag.AlignCenter)
 
         layout.addLayout(buttons)
         return page
 
-    def _build_loading_page(self):
+    def _build_loading_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.addStretch(1)
@@ -279,7 +294,7 @@ class ImSlimWindow(QWidget):
         layout.addStretch(1)
         return page
 
-    def _build_results_page(self):
+    def _build_results_page(self) -> QScrollArea:
         self.results_container = QWidget()
         self.results_layout = QVBoxLayout(self.results_container)
         self.results_layout.setContentsMargins(12, 12, 12, 12)
@@ -316,19 +331,19 @@ class ImSlimWindow(QWidget):
         menu.addAction(self.act_about)
         menu.setStyleSheet(
             "QMenu {"
-            "  background-color: palette(base);"
-            "  border: 1px solid palette(mid);"
-            "  border-radius: 8px;"
-            "  padding: 6px;"
-            "}"
-            "QMenu::item {"
-            "  padding: 6px 16px;"
-            "  border-radius: 4px;"
-            "}"
-            "QMenu::item:selected {"
-            "  background-color: palette(highlight);"
-            "  color: palette(highlighted-text);"
-            "}"
+            + "  background-color: palette(base);"
+            + "  border: 1px solid palette(mid);"
+            + "  border-radius: 8px;"
+            + "  padding: 6px;"
+            + "}"
+            + "QMenu::item {"
+            + "  padding: 6px 16px;"
+            + "  border-radius: 4px;"
+            + "}"
+            + "QMenu::item:selected {"
+            + "  background-color: palette(highlight);"
+            + "  color: palette(highlighted-text);"
+            + "}"
         )
         return menu
 
@@ -341,32 +356,32 @@ class ImSlimWindow(QWidget):
         menu.popup(QPoint(x, y))
 
     # ----------------------------------------------------------------- actions
-    def create_actions(self):
-        self.act_select = QAction(_("Browse Files"), self)
+    def create_actions(self) -> None:
+        self.act_select: QAction = QAction(_("Browse Files"), self)
         self.act_select.setShortcut(QKeySequence("Ctrl+O"))
-        self.act_select.triggered.connect(self.on_select)
+        _res = self.act_select.triggered.connect(self.on_select)
 
-        self.act_paste = QAction(_("Paste from Clipboard"), self)
+        self.act_paste: QAction = QAction(_("Paste from Clipboard"), self)
         self.act_paste.setShortcut(QKeySequence.StandardKey.Paste)
-        self.act_paste.triggered.connect(self.on_paste)
+        _res = self.act_paste.triggered.connect(self.on_paste)
 
-        self.act_select_folder = QAction(_("Browse Directory"), self)
-        self.act_select_folder.triggered.connect(self.on_select_folder)
+        self.act_select_folder: QAction = QAction(_("Browse Directory"), self)
+        _res = self.act_select_folder.triggered.connect(self.on_select_folder)
 
-        self.act_clear = QAction(_("Clear Results"), self)
+        self.act_clear: QAction = QAction(_("Clear Results"), self)
         self.act_clear.setShortcut(QKeySequence("Ctrl+Shift+C"))
-        self.act_clear.triggered.connect(self.clear_results)
+        _res = self.act_clear.triggered.connect(self.clear_results)
 
-        self.act_settings = QAction(_("Settings"), self)
+        self.act_settings: QAction = QAction(_("Settings"), self)
         self.act_settings.setShortcut(QKeySequence("Ctrl+,"))
-        self.act_settings.triggered.connect(self.on_settings)
+        _res = self.act_settings.triggered.connect(self.on_settings)
 
-        self.act_about = QAction(_("About ImSlim"), self)
-        self.act_about.triggered.connect(self.on_about)
+        self.act_about: QAction = QAction(_("About ImSlim"), self)
+        _res = self.act_about.triggered.connect(self.on_about)
 
-        self.act_quit = QAction(_("Quit"), self)
+        self.act_quit: QAction = QAction(_("Quit"), self)
         self.act_quit.setShortcut(QKeySequence("Ctrl+Q"))
-        self.act_quit.triggered.connect(self.app.quit)
+        _res = self.act_quit.triggered.connect(self.app.quit)
 
         self.addAction(self.act_select)
         self.addAction(self.act_paste)
@@ -375,11 +390,11 @@ class ImSlimWindow(QWidget):
         self.addAction(self.act_quit)
 
     # ----------------------------------------------------------------- helpers
-    def enable_compression(self, enable):
+    def enable_compression(self, enable: bool) -> None:
         self.clear_button.setEnabled(enable)
         self.stop_button.setVisible(not enable)
 
-    def stop_compression(self):
+    def stop_compression(self) -> None:
         self.manager.cancel()
         self.stop_button.setEnabled(False)
 
@@ -389,20 +404,20 @@ class ImSlimWindow(QWidget):
         "results": (2, True, False),
     }
 
-    def show_view(self, view):
+    def show_view(self, view: str) -> None:
         index, show_clear, show_mode = self._VIEWS[view]
         self.stack.setCurrentIndex(index)
         self.clear_button.setVisible(show_clear)
         self.mode_toggle.setVisible(show_mode)
 
-    def _apply_mode_state(self):
+    def _apply_mode_state(self) -> None:
         self.mode_toggle.setLossy(self.settings.lossy)
-        self.mode_toggle.modeChanged.connect(self.on_mode_selected)
+        _res = self.mode_toggle.modeChanged.connect(self.on_mode_selected)
 
-    def on_mode_selected(self, lossy):
+    def on_mode_selected(self, lossy: bool) -> None:
         self.settings.lossy = lossy
 
-    def clear_results(self):
+    def clear_results(self) -> None:
         self.show_view("home")
         self.rows.clear()
         self.stop_button.hide()
@@ -415,8 +430,8 @@ class ImSlimWindow(QWidget):
                 widget.deleteLater()
 
     # ------------------------------------------------------- compression flow
-    def handle_files(self, paths):
-        final_files = []
+    def handle_files(self, paths: list[str]) -> list[str]:
+        final_files: list[str] = []
         for path in paths:
             if os.path.isdir(path):
                 final_files.extend(get_image_paths_from_folder(path, self.settings.recursive))
@@ -424,17 +439,17 @@ class ImSlimWindow(QWidget):
                 final_files.append(path)
         return final_files
 
-    def compress_files(self, paths):
+    def compress_files(self, paths: list[str]) -> None:
         paths = self.handle_files(paths)
         if not paths:
-            QMessageBox.information(self, _("No files found"), _("No files found"))
+            _res = QMessageBox.information(self, _("No files found"), _("No files found"))
             return
 
         if not self.result_item_manager.begin_batch():
-            QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
+            _res = QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
             return
 
-        result_items = []
+        result_items: list[ResultItem] = []
         for path in paths:
             result_item = self.result_item_manager.build(path)
             self.add_row(result_item)
@@ -456,7 +471,7 @@ class ImSlimWindow(QWidget):
             self.bridge.compression_enabled.emit,
         )
 
-    def add_row(self, result_item):
+    def add_row(self, result_item: ResultItem) -> None:
         row = ResultItemRow(result_item)
         self.results_layout.insertWidget(self.results_layout.count() - 1, row)
         self.rows.append(row)
@@ -482,15 +497,15 @@ class ImSlimWindow(QWidget):
         result_item.updated.emit()
 
     # ----------------------------------------------------------------- file IO
-    def on_context_menu(self, pos: QPoint):
+    def on_context_menu(self, pos: QPoint) -> None:
         menu = QMenu(self)
         menu.addAction(self.act_paste)
-        menu.addSeparator()
+        _res = menu.addSeparator()
         menu.addAction(self.act_select)
         menu.addAction(self.act_select_folder)
-        menu.exec(pos)
+        _res = menu.exec(pos)
 
-    def on_paste(self):
+    def on_paste(self) -> None:
         clipboard = self.app.clipboard()
         paths = self._urls_to_paths(clipboard.mimeData())
 
@@ -508,8 +523,8 @@ class ImSlimWindow(QWidget):
             self.compress_files([path])
 
     @staticmethod
-    def _urls_to_paths(mime) -> list[str]:
-        paths = []
+    def _urls_to_paths(mime: QMimeData) -> list[str]:
+        paths: list[str] = []
         if mime.hasUrls():
             for url in mime.urls():
                 local = url.toLocalFile()
@@ -517,7 +532,7 @@ class ImSlimWindow(QWidget):
                     paths.append(local)
         return paths
 
-    def _read_clipboard_image(self, clipboard) -> QImage:
+    def _read_clipboard_image(self, clipboard: QClipboard) -> QImage:
         # On Wayland, image data is transferred asynchronously from the
         # clipboard owner, so the first read may come back empty.
         image = clipboard.image()
@@ -531,21 +546,21 @@ class ImSlimWindow(QWidget):
             attempts += 1
         return image
 
-    def _save_clipboard_image(self, image) -> str | None:
+    def _save_clipboard_image(self, image: QImage) -> str | None:
         directory = tempfile.gettempdir()
         path = os.path.join(directory, f"imslim-pasted-{time.time_ns()}.png")
-        if image.save(path, "PNG"):
+        if image.save(path, b"PNG"):
             return path
         return None
 
-    def on_select(self):
+    def on_select(self) -> None:
         files, _filter = QFileDialog.getOpenFileNames(self, _("Select Images"), "", image_filter())
         if not files:
             return
         self.show_view("loading")
         self.compress_files(files)
 
-    def on_select_folder(self):
+    def on_select_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(self, _("Select Folder"))
         if not folder:
             return
@@ -558,16 +573,16 @@ class ImSlimWindow(QWidget):
         if self.settings.save_method == SAVE_NEW_FILE:
             message = _(
                 "All of the images in the directories selected and their "
-                "subdirectories will be compressed. The original images will "
-                "not be modified. New compressed files will be saved with a "
-                "“.imslim.[timestamp]” suffix."
+                + "subdirectories will be compressed. The original images will "
+                + "not be modified. New compressed files will be saved with a "
+                + "“.imslim.[timestamp]” suffix."
             )
         else:
             message = _(
                 "All of the images in the directories selected and their "
-                "subdirectories will be compressed and overwritten. A backup "
-                "of the original images will be saved with a "
-                "“.BAK.[timestamp]” suffix."
+                + "subdirectories will be compressed and overwritten. A backup "
+                + "of the original images will be saved with a "
+                + "“.BAK.[timestamp]” suffix."
             )
         if self.settings.output_folder:
             message += "\n\n" + _(f"Output folder: {self.settings.output_folder}")
@@ -579,17 +594,19 @@ class ImSlimWindow(QWidget):
             if self.settings.save_method == SAVE_BACKUP_OVERWRITE
             else QMessageBox.Icon.Question
         )
-        box.addButton(QMessageBox.StandardButton.Cancel)
-        box.addButton(QMessageBox.StandardButton.Ok)
+        _res = box.addButton(QMessageBox.StandardButton.Cancel)
+        _res = box.addButton(QMessageBox.StandardButton.Ok)
         return box.exec() == QMessageBox.StandardButton.Ok
 
     # ------------------------------------------------------------------ DnD
-    def dragEnterEvent(self, event):
+    @override
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         mime = event.mimeData()
         if mime.hasUrls():
             event.acceptProposedAction()
 
-    def dropEvent(self, event):
+    @override
+    def dropEvent(self, event: QDropEvent) -> None:
         paths = self._urls_to_paths(event.mimeData())
         if not paths:
             return
@@ -597,7 +614,7 @@ class ImSlimWindow(QWidget):
         self.compress_files(paths)
 
     # ------------------------------------------------------------- save method
-    def set_saving_subtitle(self):
+    def set_saving_subtitle(self) -> None:
         if self.settings.save_method == SAVE_NEW_FILE:
             label = _("Saving new compressed files with a “.imslim.[timestamp]” suffix")
         else:
@@ -607,14 +624,14 @@ class ImSlimWindow(QWidget):
         self.subtitle_label.setText(label)
 
     # ------------------------------------------------------------- dialogs
-    def on_settings(self):
+    def on_settings(self) -> None:
         if self.prefs_dialog is not None:
-            self.prefs_dialog.close()
+            _res = self.prefs_dialog.close()
         self.prefs_dialog = SettingsDialog(self.settings, self)
-        self.prefs_dialog.settings_changed.connect(self.set_saving_subtitle)
+        _res = self.prefs_dialog.settings_changed.connect(self.set_saving_subtitle)
         self.prefs_dialog.show()
 
-    def on_about(self):
+    def on_about(self) -> None:
         static_pairs = static_about_pairs()
         dialog = QMessageBox(
             QMessageBox.Icon.Information,
@@ -626,36 +643,38 @@ class ImSlimWindow(QWidget):
         self._about_static_pairs = static_pairs
         worker = _VersionProbeWorker()
         self._about_worker = worker
-        worker.versions_ready.connect(self._on_about_versions)
-        worker.finished.connect(self._on_about_worker_finished)
+        _res = worker.versions_ready.connect(self._on_about_versions)
+        _res = worker.finished.connect(self._on_about_worker_finished)
         worker.start()
-        dialog.exec()
+        _res = dialog.exec()
         self._about_dialog = None
         self._about_static_pairs = None
 
     @staticmethod
-    def _about_message(static_pairs, tool_pairs) -> str:
+    def _about_message(
+        static_pairs: list[tuple[str, str]], tool_pairs: list[tuple[str, str]]
+    ) -> str:
         debug_lines = "".join(
             f"<tr><td><b>{key}</b></td><td>{value}</td></tr>"
             for key, value in (*static_pairs, *tool_pairs)
         )
         return _(
             "<div style='min-width: 360px;'>"
-            "<div style='font-size: 18pt; font-weight: bold;'>ImSlim</div>"
-            "<div style='font-size: 9pt; color: #808080;'>"
-            "Version {version}</div>"
-            "<div style='margin-top: 10px;'>"
-            "Compress your images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG, "
-            "in both lossless and lossy modes.</div>"
-            "<hr style='color: palette(mid); background-color: palette(mid); height: 1px; border: none; margin: 12px 0;'/>"
-            "<div style='font-weight: bold;'>Environment</div>"
-            "<table style='border-spacing: 6px 2px;'>"
-            "{debug}"
-            "</table>"
-            "</div>"
+            + "<div style='font-size: 18pt; font-weight: bold;'>ImSlim</div>"
+            + "<div style='font-size: 9pt; color: #808080;'>"
+            + "Version {version}</div>"
+            + "<div style='margin-top: 10px;'>"
+            + "Compress your images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG, "
+            + "in both lossless and lossy modes.</div>"
+            + "<hr style='color: palette(mid); background-color: palette(mid); height: 1px; border: none; margin: 12px 0;'/>"
+            + "<div style='font-weight: bold;'>Environment</div>"
+            + "<table style='border-spacing: 6px 2px;'>"
+            + "{debug}"
+            + "</table>"
+            + "</div>"
         ).format(version=__version__, debug=debug_lines)
 
-    def _on_about_versions(self, tool_pairs) -> None:
+    def _on_about_versions(self, tool_pairs: list[tuple[str, str]]) -> None:
         if self._about_dialog is None or self._about_static_pairs is None:
             return
         self._about_dialog.setText(self._about_message(self._about_static_pairs, tool_pairs))

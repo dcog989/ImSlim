@@ -1,7 +1,9 @@
 import os
+from collections.abc import Callable
+from typing import override
 
 from PySide6.QtCore import Qt, QThread, QUrl, Signal
-from PySide6.QtGui import QAction, QDesktopServices, QImage, QPixmap
+from PySide6.QtGui import QAction, QContextMenuEvent, QDesktopServices, QImage, QPixmap
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -21,43 +23,44 @@ from .tools import create_thumbnail_qimage
 class _ThumbnailLoader(QThread):
     """Decode a thumbnail image off the UI thread; emits a value QImage."""
 
-    loaded = Signal(object)
+    loaded: Signal = Signal(object)
 
-    def __init__(self, filename: str, size: int, parent=None):
+    def __init__(self, filename: str, size: int, parent: QWidget | None = None):
         super().__init__(parent)
-        self._filename = filename
-        self._size = size
+        self._filename: str = filename
+        self._size: int = size
 
-    def run(self):
+    @override
+    def run(self) -> None:
         self.loaded.emit(create_thumbnail_qimage(self._filename, self._size, self._size))
 
 
 class ResultItemRow(QWidget):
-    def __init__(self, result_item: ResultItem, parent=None):
+    def __init__(self, result_item: ResultItem, parent: QWidget | None = None):
         super().__init__(parent)
-        self.result_item = result_item
+        self.result_item: ResultItem = result_item
 
-        self.thumbnail = QLabel()
-        self.title_label = QLabel(result_item.filename)
+        self.thumbnail: QLabel = QLabel()
+        self.title_label: QLabel = QLabel(result_item.filename)
         title_font = self.title_label.font()
         title_font.setBold(True)
         self.title_label.setFont(title_font)
         self.title_label.setWordWrap(True)
-        self.subtitle_label = QLabel()
+        self.subtitle_label: QLabel = QLabel()
         self.subtitle_label.setObjectName("rowSubtitle")
         self.subtitle_label.setWordWrap(True)
         self.subtitle_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
-        self.savings_label = QLabel()
+        self.savings_label: QLabel = QLabel()
         self.savings_label.setObjectName("rowSavings")
 
-        self.spinner = QProgressBar()
+        self.spinner: QProgressBar = QProgressBar()
         self.spinner.setRange(0, 0)
         self.spinner.setFixedSize(20, 16)
         self.spinner.setTextVisible(False)
 
-        self.skipped_button = self._make_info_button(self._show_skipped_info)
-        self.error_button = self._make_info_button(self._show_error_info)
+        self.skipped_button: QToolButton = self._make_info_button(self._show_skipped_info)
+        self.error_button: QToolButton = self._make_info_button(self._show_error_info)
 
         text_vbox = QVBoxLayout()
         text_vbox.setSpacing(0)
@@ -74,14 +77,16 @@ class ResultItemRow(QWidget):
         layout.addWidget(self.skipped_button)
         layout.addWidget(self.error_button)
 
-        self._thumbnail_loader = _ThumbnailLoader(result_item.filename, 48, self)
-        self._thumbnail_loader.loaded.connect(self._set_thumbnail)
+        self._thumbnail_loader: _ThumbnailLoader | None = _ThumbnailLoader(
+            result_item.filename, 48, self
+        )
+        _res = self._thumbnail_loader.loaded.connect(self._set_thumbnail)
         self._thumbnail_loader.start()
 
-        result_item.updated.connect(self.refresh)
+        _res = result_item.updated.connect(self.refresh)
         self.refresh()
 
-    def _set_thumbnail(self, image: QImage | None):
+    def _set_thumbnail(self, image: QImage | None) -> None:
         if self._thumbnail_loader is not None:
             self._thumbnail_loader.deleteLater()
         self._thumbnail_loader = None
@@ -90,15 +95,15 @@ class ResultItemRow(QWidget):
         self.thumbnail.setPixmap(QPixmap.fromImage(image))
 
     @staticmethod
-    def _make_info_button(handler) -> QToolButton:
+    def _make_info_button(handler: Callable[..., None]) -> QToolButton:
         button = QToolButton()
         button.setText("i")
         button.setToolTip(_("More Information"))
         button.setVisible(False)
-        button.clicked.connect(handler)
+        _res = button.clicked.connect(handler)
         return button
 
-    def refresh(self):
+    def refresh(self) -> None:
         item = self.result_item
         self.spinner.setVisible(item.running)
 
@@ -110,23 +115,24 @@ class ResultItemRow(QWidget):
         self.error_button.setVisible(item.error and item.error_details)
 
     def _show_skipped_info(self):
-        QMessageBox.information(
+        _res = QMessageBox.information(
             self,
             _("Skipped"),
             _(
                 "Compression was skipped because compressing the file would have "
-                "resulted in a larger file size."
+                + "resulted in a larger file size."
             ),
         )
 
     def _show_error_info(self):
-        QMessageBox.warning(
+        _res = QMessageBox.warning(
             self,
             _("Error"),
             self.result_item.error_details_message,
         )
 
-    def contextMenuEvent(self, event):
+    @override
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         filename = self.result_item.new_filename
         if not filename or not os.path.exists(filename):
             event.ignore()
@@ -134,11 +140,13 @@ class ResultItemRow(QWidget):
 
         menu = QMenu(self)
         open_image = QAction(_("Open Image"), menu)
-        open_image.triggered.connect(lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(filename)))
+        _res = open_image.triggered.connect(
+            lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(filename))
+        )
         show_in_folder = QAction(_("Show in Folder"), menu)
-        show_in_folder.triggered.connect(
+        _res = show_in_folder.triggered.connect(
             lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(filename)))
         )
         menu.addAction(open_image)
         menu.addAction(show_in_folder)
-        menu.exec(event.globalPos())
+        _res = menu.exec(event.globalPos())

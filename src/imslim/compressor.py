@@ -2,13 +2,16 @@ import html
 import logging
 import os
 import subprocess
+import threading
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import NamedTuple
+from typing import IO, NamedTuple, cast
 
 from ._i18n import _
 from .output_writer import OutputWriter
 from .result_item import ResultItem
+from .settings_manager import SettingsManager
 
 
 class CancelledError(Exception):
@@ -21,11 +24,58 @@ class Command(NamedTuple):
     ignore_errors: bool = False
 
 
+_KILL_GRACE_SECONDS = 0.5
+
+
+class CompressionContext:
+    """Shared cancellation state for one compression batch."""
+
+    def __init__(self) -> None:
+        self._cancel_event: threading.Event = threading.Event()
+        self._processes: list[subprocess.Popen[bytes]] = []
+        self._lock: threading.Lock = threading.Lock()
+
+    @property
+    def cancelled(self) -> bool:
+        return self._cancel_event.is_set()
+
+    def register_process(self, process: subprocess.Popen[bytes]) -> None:
+        with self._lock:
+            self._processes.append(process)
+
+    def unregister_process(self, process: subprocess.Popen[bytes]) -> None:
+        with self._lock:
+            if process in self._processes:
+                self._processes.remove(process)
+
+    def cancel(self) -> None:
+        if self._cancel_event.is_set():
+            return
+        self._cancel_event.set()
+        with self._lock:
+            processes = list(self._processes)
+        deadline = time.monotonic() + _KILL_GRACE_SECONDS
+        for process in processes:
+            try:
+                process.terminate()
+            except OSError:
+                pass
+        for process in processes:
+            try:
+                remaining = max(0.0, deadline - time.monotonic())
+                _res = process.wait(timeout=remaining)
+            except subprocess.TimeoutExpired, OSError:
+                try:
+                    process.kill()
+                except OSError:
+                    pass
+
+
 class Compressor(ABC):
-    def __init__(self, settings):
+    def __init__(self, settings: SettingsManager) -> None:
         super().__init__()
-        self.settings = settings
-        self._output_writer = OutputWriter(settings)
+        self.settings: SettingsManager = settings
+        self._output_writer: OutputWriter = OutputWriter(settings)
 
     @classmethod
     @abstractmethod
@@ -34,10 +84,10 @@ class Compressor(ABC):
     @abstractmethod
     def build_command(self, result_item: ResultItem) -> list[Command]: ...
 
-    def adapt_command(self, argv: list[str], result_item: ResultItem) -> list[str]:
+    def adapt_command(self, argv: list[str], _result_item: ResultItem) -> list[str]:
         return argv
 
-    def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
+    def get_intermediate_files(self, _result_item: ResultItem) -> list[str]:
         return []
 
     def _png_intermediate_path(self, result_item: ResultItem) -> str:
@@ -50,7 +100,9 @@ class Compressor(ABC):
         except OSError:
             pass
 
-    def _run_command(self, argv: list[str], context, stdout) -> None:
+    def _run_command(
+        self, argv: list[str], context: CompressionContext, stdout: int | IO[bytes] | None
+    ) -> None:
         """Run one tool invocation as a killable subprocess."""
         process = subprocess.Popen(argv, stdout=stdout, stderr=subprocess.PIPE)
         context.register_process(process)
@@ -61,7 +113,7 @@ class Compressor(ABC):
                 )
             except subprocess.TimeoutExpired:
                 process.kill()
-                process.communicate()
+                _res = process.communicate()
                 raise
         finally:
             context.unregister_process(process)
@@ -70,7 +122,9 @@ class Compressor(ABC):
         if process.returncode != 0:
             raise subprocess.CalledProcessError(process.returncode, argv, stdout_data, stderr_data)
 
-    def _mark_cancelled(self, result_item: ResultItem, c_update_result_item: Callable) -> None:
+    def _mark_cancelled(
+        self, result_item: ResultItem, c_update_result_item: Callable[..., None]
+    ) -> None:
         result_item.cancelled = True
         result_item.running = False
         self._cleanup_temp_files(result_item)
@@ -80,7 +134,12 @@ class Compressor(ABC):
         for path in [result_item.tmp_filename, *self.get_intermediate_files(result_item)]:
             self._remove_quietly(path)
 
-    def run(self, result_item: ResultItem, c_update_result_item: Callable, context) -> None:
+    def run(
+        self,
+        result_item: ResultItem,
+        c_update_result_item: Callable[..., None],
+        context: CompressionContext,
+    ) -> None:
         if context.cancelled:
             self._mark_cancelled(result_item, c_update_result_item)
             return
@@ -119,9 +178,15 @@ class Compressor(ABC):
             )
         except subprocess.CalledProcessError as err:
             details = str(err)
-            tool_output = err.stderr if err.stderr else err.stdout
+            err_stderr = cast("str | bytes | None", err.stderr)
+            err_stdout = cast("str | bytes | None", err.stdout)
+            tool_output = err_stderr if err_stderr else err_stdout
             if tool_output:
-                details += "\n" + tool_output.decode(errors="replace").strip()
+                if isinstance(tool_output, str):
+                    decoded_output = tool_output.strip()
+                else:
+                    decoded_output = tool_output.decode(errors="replace").strip()
+                details += "\n" + decoded_output
             result_item.set_error(_("Compression failed."), html.escape(details))
             logging.error(result_item.error_details_message)
         except OSError as err:

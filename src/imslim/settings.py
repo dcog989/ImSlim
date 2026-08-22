@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from typing import cast
+
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
@@ -21,29 +24,38 @@ from PySide6.QtWidgets import (
 )
 
 from ._i18n import _
+from .settings_manager import SettingsManager
 
 
 class SettingsDialog(QDialog):
-    settings_changed = Signal()
+    settings_changed: Signal = Signal()
 
-    def __init__(self, settings, parent=None):
+    def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(_("Settings"))
-        self.settings = settings
+        self.settings: SettingsManager = settings
         self._format_spins: list[tuple[QSpinBox, str]] = []
         self._format_checks: list[tuple[QCheckBox, str]] = []
+        self.combo_save_method: QComboBox = QComboBox()
+        self.entry_output_folder: QLineEdit = QLineEdit()
+        self.btn_output_folder: QPushButton = QPushButton()
+        self.btn_clear_output_folder: QPushButton = QPushButton()
+        self.toggle_recursive: QCheckBox = QCheckBox()
+        self.toggle_metadata: QCheckBox = QCheckBox()
+        self.toggle_file_attributes: QCheckBox = QCheckBox()
+        self.spin_timeout: QSpinBox = QSpinBox()
         self.build_ui()
 
-    def build_ui(self):
+    def build_ui(self) -> None:
         layout = QVBoxLayout(self)
 
         tabs = QTabWidget()
-        tabs.addTab(self._build_general_tab(), _("General"))
-        tabs.addTab(self._build_formats_tab(), _("Formats"))
+        _res = tabs.addTab(self._build_general_tab(), _("General"))
+        _res = tabs.addTab(self._build_formats_tab(), _("Formats"))
         layout.addWidget(tabs)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        buttons.rejected.connect(self.close)
+        _res = buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
 
         self._load_values()
@@ -63,10 +75,10 @@ class SettingsDialog(QDialog):
         self.entry_output_folder.setPlaceholderText(_("Same folder as the original files"))
 
         self.btn_output_folder = QPushButton(_("Browse…"))
-        self.btn_output_folder.clicked.connect(self.on_browse_output_folder)
+        _res = self.btn_output_folder.clicked.connect(self.on_browse_output_folder)
 
         self.btn_clear_output_folder = QPushButton(_("Clear"))
-        self.btn_clear_output_folder.clicked.connect(self.on_clear_output_folder)
+        _res = self.btn_clear_output_folder.clicked.connect(self.on_clear_output_folder)
 
         output_row = QHBoxLayout()
         output_row.addWidget(self.entry_output_folder, 1)
@@ -90,12 +102,12 @@ class SettingsDialog(QDialog):
         form.addRow(_("Keep File Attributes When Possible"), self.toggle_file_attributes)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
 
-        self.combo_save_method.currentIndexChanged.connect(self.on_save_method_changed)
-        self.entry_output_folder.textChanged.connect(self.on_output_folder_changed)
-        self.spin_timeout.valueChanged.connect(self.on_int_changed("compression-timeout"))
-        self.toggle_recursive.toggled.connect(self.on_bool_changed("recursive"))
-        self.toggle_metadata.toggled.connect(self.on_bool_changed("metadata"))
-        self.toggle_file_attributes.toggled.connect(self.on_bool_changed("file-attributes"))
+        _res = self.combo_save_method.currentIndexChanged.connect(self.on_save_method_changed)
+        _res = self.entry_output_folder.textChanged.connect(self.on_output_folder_changed)
+        _res = self.spin_timeout.valueChanged.connect(self.on_int_changed("compression-timeout"))
+        _res = self.toggle_recursive.toggled.connect(self.on_bool_changed("recursive"))
+        _res = self.toggle_metadata.toggled.connect(self.on_bool_changed("metadata"))
+        _res = self.toggle_file_attributes.toggled.connect(self.on_bool_changed("file-attributes"))
 
         return tab
 
@@ -227,8 +239,8 @@ class SettingsDialog(QDialog):
                 _("BMP / TIFF"),
                 _(
                     "BMP and TIFF images are always converted to WebP: they are decoded and "
-                    "re-encoded with the WebP settings above. The original file is never "
-                    "modified and the compressed result is saved as a new .webp file."
+                    + "re-encoded with the WebP settings above. The original file is never "
+                    + "modified and the compressed result is saved as a new .webp file."
                 ),
             ),
             note_row,
@@ -238,7 +250,7 @@ class SettingsDialog(QDialog):
         )
         return tab
 
-    def _build_note_group(self, title, text) -> QWidget:
+    def _build_note_group(self, title: str, text: str) -> QWidget:
         group = QGroupBox(title)
         layout = QVBoxLayout(group)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -247,7 +259,12 @@ class SettingsDialog(QDialog):
         layout.addWidget(note)
         return group
 
-    def _build_format_group(self, title, spins, checks) -> QWidget:
+    def _build_format_group(
+        self,
+        title: str,
+        spins: tuple[tuple[str, str, str, str, int, int], ...],
+        checks: tuple[tuple[str, str, str, str], ...],
+    ) -> QWidget:
         group = QGroupBox(title)
         layout = QVBoxLayout(group)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -258,7 +275,7 @@ class SettingsDialog(QDialog):
 
         for attr_name, label, hint, key in checks:
             check = QCheckBox(label)
-            check.toggled.connect(self.on_bool_changed(key))
+            _res = check.toggled.connect(self.on_bool_changed(key))
             setattr(self, f"toggle_{attr_name}", check)
             self._format_checks.append((check, key))
             layout.addWidget(check)
@@ -292,7 +309,15 @@ class SettingsDialog(QDialog):
 
         return hint_label
 
-    def _spin_row(self, attr_name, label, hint, key, lower, upper) -> QVBoxLayout:
+    def _spin_row(
+        self,
+        attr_name: str,
+        label: str,
+        hint: str,
+        key: str,
+        lower: int,
+        upper: int,
+    ) -> QVBoxLayout:
         column = QVBoxLayout()
         column.setSpacing(2)
 
@@ -302,7 +327,7 @@ class SettingsDialog(QDialog):
         label_widget.setMinimumWidth(110)
         spin = QSpinBox()
         spin.setRange(lower, upper)
-        spin.valueChanged.connect(self.on_int_changed(key))
+        _res = spin.valueChanged.connect(self.on_int_changed(key))
         setattr(self, f"spin_{attr_name}", spin)
         self._format_spins.append((spin, key))
         row.addWidget(label_widget)
@@ -314,7 +339,7 @@ class SettingsDialog(QDialog):
 
         return column
 
-    def _load_values(self):
+    def _load_values(self) -> None:
         s = self.settings
         self.combo_save_method.setCurrentIndex(s.save_method)
         self.entry_output_folder.setText(s.output_folder)
@@ -324,19 +349,19 @@ class SettingsDialog(QDialog):
         self.spin_timeout.setValue(s.compression_timeout)
 
         for spin, key in self._format_spins:
-            spin.setValue(getattr(s, key.replace("-", "_")))
+            spin.setValue(cast(int, getattr(s, key.replace("-", "_"))))
         for check, key in self._format_checks:
-            check.setChecked(getattr(s, key.replace("-", "_")))
+            check.setChecked(cast(bool, getattr(s, key.replace("-", "_"))))
 
-    def on_save_method_changed(self, index):
+    def on_save_method_changed(self, index: int) -> None:
         self.settings.save_method = index
         self.settings_changed.emit()
 
-    def on_output_folder_changed(self, text):
+    def on_output_folder_changed(self, text: str) -> None:
         self.settings.output_folder = text.strip()
         self.settings_changed.emit()
 
-    def on_browse_output_folder(self):
+    def on_browse_output_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
             self,
             _("Select Output Folder"),
@@ -345,17 +370,17 @@ class SettingsDialog(QDialog):
         if folder:
             self.entry_output_folder.setText(folder)
 
-    def on_clear_output_folder(self):
+    def on_clear_output_folder(self) -> None:
         self.entry_output_folder.setText("")
 
-    def on_bool_changed(self, key):
-        def handler(checked):
+    def on_bool_changed(self, key: str) -> Callable[[bool], None]:
+        def handler(checked: bool) -> None:
             self.settings.set_boolean(key, checked)
 
         return handler
 
-    def on_int_changed(self, key):
-        def handler(value):
+    def on_int_changed(self, key: str) -> Callable[[int], None]:
+        def handler(value: int) -> None:
             self.settings.set_int(key, value)
 
         return handler

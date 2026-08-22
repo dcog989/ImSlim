@@ -16,16 +16,16 @@ from .binary_resolver import KNOWN_TOOLS, resolve_tool
 def image_filter() -> str:
     return _(
         "Images (*.png *.jpg *.jpeg *.gif *.webp *.avif *.jxl *.svg *.bmp *.tiff *.tif);;"
-        "PNG (*.png);;"
-        "JPEG (*.jpg *.jpeg);;"
-        "BMP (*.bmp);;"
-        "GIF (*.gif);;"
-        "WebP (*.webp);;"
-        "AVIF (*.avif);;"
-        "JXL (*.jxl);;"
-        "SVG (*.svg);;"
-        "TIFF (*.tiff *.tif);;"
-        "All files (*)"
+        + "PNG (*.png);;"
+        + "JPEG (*.jpg *.jpeg);;"
+        + "BMP (*.bmp);;"
+        + "GIF (*.gif);;"
+        + "WebP (*.webp);;"
+        + "AVIF (*.avif);;"
+        + "JXL (*.jxl);;"
+        + "SVG (*.svg);;"
+        + "TIFF (*.tiff *.tif);;"
+        + "All files (*)"
     )
 
 
@@ -46,7 +46,7 @@ def sizeof_fmt(num: float | None) -> str:
 def _decimal_separator() -> str:
     """Return the host locale's decimal separator (e.g. "." or ",")."""
     try:
-        locale.setlocale(locale.LC_NUMERIC, "")
+        _res = locale.setlocale(locale.LC_NUMERIC, "")
         return locale.localeconv()["decimal_point"]
     except locale.Error, ValueError, AttributeError, KeyError:
         return "."
@@ -78,7 +78,7 @@ def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> Q
 
 
 def get_image_paths_from_folder(folder_path: str, recursive: bool = False) -> list[str]:
-    images = []
+    images: list[str] = []
     try:
         with os.scandir(folder_path) as it:
             for entry in sorted(it, key=lambda e: e.name):
@@ -127,7 +127,7 @@ def static_about_pairs() -> list[tuple[str, str]]:
 
 
 def tool_version_pairs() -> list[tuple[str, str]]:
-    pairs = []
+    pairs: list[tuple[str, str]] = []
     for tool in KNOWN_TOOLS:
         try:
             path = resolve_tool(tool)

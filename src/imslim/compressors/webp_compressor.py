@@ -1,3 +1,5 @@
+from typing import override
+
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor
 from ..image_convert import to_png
@@ -7,6 +9,7 @@ _CONVERTED_MIME_TYPES = ("image/bmp", "image/tiff")
 
 
 class WEBPCompressor(Compressor):
+    @override
     @classmethod
     def get_file_type(cls) -> str:
         return "webp"
@@ -17,6 +20,7 @@ class WEBPCompressor(Compressor):
     def _needs_conversion(self, result_item: ResultItem) -> bool:
         return result_item.mime_type in _CONVERTED_MIME_TYPES
 
+    @override
     def build_command(self, result_item: ResultItem) -> list[Command]:
         commands: list[Command] = []
         input_path = result_item.filename
@@ -59,6 +63,7 @@ class WEBPCompressor(Compressor):
         commands.append(Command(cwebp))
         return commands
 
+    @override
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
         if self._needs_conversion(result_item):
             return [self._intermediate_path(result_item)]

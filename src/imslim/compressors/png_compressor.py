@@ -1,14 +1,19 @@
+from typing import override
+
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor
+from ..result_item import ResultItem
 
 
 class PNGCompressor(Compressor):
+    @override
     @classmethod
     def get_file_type(cls) -> str:
         return "png"
 
-    def build_command(self, result_item) -> list[Command]:
-        commands = []
+    @override
+    def build_command(self, result_item: ResultItem) -> list[Command]:
+        commands: list[Command] = []
 
         if self.settings.lossy:  # lossy compression
             pngquant = [
