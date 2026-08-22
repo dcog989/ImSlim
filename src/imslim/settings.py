@@ -28,6 +28,14 @@ from PySide6.QtWidgets import (
 from ._i18n import _
 from .settings_manager import SettingsManager
 
+_FORM_STYLESHEET = (
+    "QPushButton { padding: 6px 16px; }"
+    "QComboBox { padding: 5px 12px; }"
+    "QSpinBox { padding: 0px 6px; min-height: 22px; }"
+    "QLineEdit { padding: 5px 10px; }"
+    "QCheckBox, QRadioButton { spacing: 8px; }"
+)
+
 
 class SettingsDialog(QDialog):
     settings_changed: Signal = Signal()
@@ -52,6 +60,7 @@ class SettingsDialog(QDialog):
 
     def build_ui(self) -> None:
         layout = QVBoxLayout(self)
+        self.setStyleSheet(_FORM_STYLESHEET)
 
         tabs = QTabWidget()
         _res = tabs.addTab(self._build_general_tab(), _("General"))
@@ -84,6 +93,7 @@ class SettingsDialog(QDialog):
         self.btn_clear_output_folder = QPushButton("✕")
         self.btn_clear_output_folder.setToolTip(_("Clear the output folder"))
         self.btn_clear_output_folder.setFixedWidth(36)
+        self.btn_clear_output_folder.setStyleSheet("QPushButton { padding: 6px 10px; }")
         _res = self.btn_clear_output_folder.clicked.connect(self.on_clear_output_folder)
 
         output_row = QHBoxLayout()
