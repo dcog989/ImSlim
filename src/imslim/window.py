@@ -97,6 +97,7 @@ class _PasteFilter(QObject):
 
 
 _HAMBURGER = "\u2630"
+_CLOSE = "\u2715"
 
 
 class ImSlimWindow(QWidget):
@@ -153,10 +154,10 @@ class ImSlimWindow(QWidget):
         header_layout.setContentsMargins(8, 6, 8, 6)
 
         self.clear_button: QToolButton = QToolButton()
-        self.clear_button.setText(_("Clear"))
+        self.clear_button.setText(_CLOSE)
         self.clear_button.setToolTip(_("Clear results and return to the main window."))
-        self.clear_button.setFixedHeight(32)
-        self.clear_button.setStyleSheet("QToolButton { padding: 0 12px; }")
+        self.clear_button.setFixedSize(32, 32)
+        self.clear_button.setStyleSheet("QToolButton { padding: 0; }")
         _res = self.clear_button.clicked.connect(self.clear_results)
 
         self.stop_button: QToolButton = QToolButton()
