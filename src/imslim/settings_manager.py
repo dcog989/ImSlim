@@ -41,7 +41,7 @@ DEFAULTS: dict[str, str | int | bool] = {
     "gif-lossy-level": 80,
     "gif-lossless-level": 3,
     "svg-maximum-level": False,
-    "compression-timeout": 30,
+    "compression-timeout": 15,
 }
 
 

@@ -94,6 +94,13 @@ class SettingsDialog(QDialog):
         self.spin_timeout = QSpinBox()
         self.spin_timeout.setRange(1, 300)
         self.spin_timeout.setSuffix(_(" s"))
+        self.spin_timeout.setToolTip(
+            _(
+                "Maximum seconds a single compression tool may run on one image "
+                + "before it is stopped. Raise this for very large or slow-to-compress "
+                + "images (e.g. AVIF); lower it to fail faster on unresponsive tools."
+            )
+        )
 
         form.addRow(_("Save Method"), self.combo_save_method)
         form.addRow(_("Output Folder"), output_row)
