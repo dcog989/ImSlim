@@ -190,9 +190,9 @@ requires-dist = [{ name = "pyside6", specifier = ">=6.11" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "basedpyright", specifier = ">=1.1.407" },
-    { name = "commitizen", specifier = ">=4.17.1" },
-    { name = "ruff", specifier = ">=0.15.4" },
+    { name = "basedpyright", specifier = ">=1.39.10" },
+    { name = "commitizen", specifier = ">=4.18.0" },
+    { name = "ruff", specifier = ">=0.16.4" },
 ]
 
 [[package]]

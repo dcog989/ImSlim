@@ -17,9 +17,9 @@ imslim = "imslim.main:main"
 
 [dependency-groups]
 dev = [
-    "basedpyright>=1.1.407",
-    "commitizen>=4.17.1",
-    "ruff>=0.15.4",
+    "basedpyright>=1.39.10",
+    "commitizen>=4.18.0",
+    "ruff>=0.16.4",
 ]
 
 [tool.commitizen]
