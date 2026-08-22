@@ -158,7 +158,7 @@ class SettingsDialog(QDialog):
         )
         self.radio_metadata = self._radio_row(_("Keep metadata"), _("Remove metadata"), "metadata")
         self.radio_file_attributes = self._radio_row(
-            _("Keep attr"), _("Reset attr"), "file-attributes"
+            _("Keep attributes"), _("Reset attributes"), "file-attributes"
         )
 
         form.addRow(_("Compression Method"), self.radio_compression_method)
