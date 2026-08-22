@@ -9,9 +9,9 @@ _LOG_FILE_NAME = "imslim.log"
 def log_file_path() -> str:
     """Absolute path of the app's rotating log file."""
     base = QStandardPaths.writableLocation(
-        QStandardPaths.StandardLocation.AppDataLocation
+        QStandardPaths.StandardLocation.GenericDataLocation
     ) or QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
-    return os.path.join(base, _LOG_FILE_NAME)
+    return os.path.join(base, "ImSlim", _LOG_FILE_NAME)
 
 
 def _coerce_bool(raw: object) -> bool:
