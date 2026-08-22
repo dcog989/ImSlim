@@ -2,11 +2,12 @@ import os
 from collections.abc import Callable
 from typing import override
 
-from PySide6.QtCore import Qt, QThread, QUrl, Signal
+from PySide6.QtCore import QSize, Qt, QThread, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
     QContextMenuEvent,
     QDesktopServices,
+    QIcon,
     QImage,
     QMouseEvent,
     QPixmap,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
 from ._i18n import _
 from .result_item import ResultItem
 from .tools import create_thumbnail_qimage
+from .widgets import circle_off_icon, shield_alert_icon
 
 
 class _ThumbnailLoader(QThread):
@@ -80,8 +82,14 @@ class ResultItemRow(QWidget):
         self.spinner.setFixedSize(20, 16)
         self.spinner.setTextVisible(False)
 
-        self.skipped_button: QToolButton = self._make_info_button(self._show_skipped_info)
-        self.error_button: QToolButton = self._make_info_button(self._show_error_info)
+        self.skipped_button: QToolButton = self._make_info_button(
+            self._show_skipped_info,
+            circle_off_icon(self.palette().color(self.palette().ColorRole.WindowText), 16),
+        )
+        self.error_button: QToolButton = self._make_info_button(
+            self._show_error_info,
+            shield_alert_icon(self.palette().color(self.palette().ColorRole.WindowText), 16),
+        )
 
         text_vbox = QVBoxLayout()
         text_vbox.setSpacing(0)
@@ -124,9 +132,13 @@ class ResultItemRow(QWidget):
             self._thumbnail_loader = None
 
     @staticmethod
-    def _make_info_button(handler: Callable[..., None]) -> QToolButton:
+    def _make_info_button(handler: Callable[..., None], icon: QIcon | None = None) -> QToolButton:
         button = QToolButton()
-        button.setText("i")
+        if icon is None:
+            button.setText("i")
+        else:
+            button.setIcon(icon)
+            button.setIconSize(QSize(16, 16))
         button.setToolTip(_("More Information"))
         button.setVisible(False)
         _res = button.clicked.connect(handler)

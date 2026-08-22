@@ -3,7 +3,7 @@ import os
 from collections.abc import Callable
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap, QPolygonF
+from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap, QPolygonF
 
 IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
 
@@ -65,6 +65,47 @@ def close_icon(color: QColor, size: int = 20) -> QIcon:
         pad = s * 0.30
         painter.drawLine(QPointF(pad, pad), QPointF(s - pad, s - pad))
         painter.drawLine(QPointF(s - pad, pad), QPointF(pad, s - pad))
+
+    return _painted_icon(size, draw)
+
+
+def circle_off_icon(color: QColor, size: int = 20) -> QIcon:
+    """A circle with a diagonal slash, matching info_icon()'s stroke weight."""
+
+    def draw(painter: QPainter, s: float) -> None:
+        pen = max(1.8, s * 0.09)
+        inset = pen
+        rect = QRectF(inset, inset, s - 2 * inset, s - 2 * inset)
+        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawEllipse(rect)
+        painter.drawLine(QPointF(s * 0.24, s * 0.76), QPointF(s * 0.76, s * 0.24))
+
+    return _painted_icon(size, draw)
+
+
+def shield_alert_icon(color: QColor, size: int = 20) -> QIcon:
+    """A shield with an exclamation mark, matching info_icon()'s stroke weight."""
+
+    def draw(painter: QPainter, s: float) -> None:
+        pen = max(1.8, s * 0.09)
+        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        path = QPainterPath()
+        path.moveTo(s * 0.5, s * 0.06)
+        path.lineTo(s * 0.16, s * 0.2)
+        path.lineTo(s * 0.2, s * 0.58)
+        path.quadTo(s * 0.28, s * 0.84, s * 0.5, s * 0.94)
+        path.quadTo(s * 0.72, s * 0.84, s * 0.8, s * 0.58)
+        path.lineTo(s * 0.84, s * 0.2)
+        path.closeSubpath()
+        painter.drawPath(path)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(color)
+        painter.drawEllipse(QPointF(s * 0.5, s * 0.72), pen * 0.8, pen * 0.8)
+        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawLine(QPointF(s * 0.5, s * 0.28), QPointF(s * 0.5, s * 0.58))
 
     return _painted_icon(size, draw)
 

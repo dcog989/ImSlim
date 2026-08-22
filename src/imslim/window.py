@@ -614,7 +614,7 @@ class ImSlimWindow(QWidget):
             result_item.subtitle_label = result_item.error_message
             self._batch_failed += 1
         elif result_item.skipped:
-            result_item.savings = _("Skipped")
+            result_item.savings = ""
             self._batch_skipped += 1
         else:
             if result_item.size > 0:
