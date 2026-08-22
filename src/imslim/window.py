@@ -47,6 +47,7 @@ from PySide6.QtWidgets import (
 
 from . import __version__
 from ._i18n import _
+from ._logging import configure_logging
 from .compression_manager import CompressionManager
 from .compressors.avif_compressor import AVIFCompressor
 from .compressors.gif_compressor import GIFCompressor
@@ -765,7 +766,13 @@ class ImSlimWindow(QWidget):
             _res = self.prefs_dialog.close()
         self.prefs_dialog = SettingsDialog(self.settings, self)
         _res = self.prefs_dialog.settings_changed.connect(self.set_active_settings)
+        _res = self.prefs_dialog.settings_changed.connect(self._reconfigure_logging)
         self.prefs_dialog.show()
+
+    def _reconfigure_logging(self) -> None:
+        # Log level / max size / backups apply immediately rather than at the
+        # next restart; configure_logging() no-ops unless those changed.
+        configure_logging()
 
     def on_about(self) -> None:
         static_pairs = static_about_pairs()
