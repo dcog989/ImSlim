@@ -36,6 +36,25 @@ jobs:
         if: github.event_name == 'pull_request'
         run: uv run cz check --rev-range origin/${{ github.base_ref }}..HEAD
 
+  typecheck:
+    name: Type check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: BasedPyright
+        run: uv run basedpyright src/imslim
+
   build:
     name: Build distribution
     runs-on: ubuntu-24.04
