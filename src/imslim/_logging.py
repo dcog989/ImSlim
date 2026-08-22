@@ -17,17 +17,21 @@ _LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
 _last_applied: tuple[str, int, int] | None = None
 
 
-def configure_logging() -> None:
+def configure_logging(settings: SettingsManager | None = None) -> None:
     """Install console and rotating-file handlers from the log settings.
 
     Re-entrant: runs at startup and again whenever the log settings change in
     the settings dialog, so those changes take effect without a restart. Any
     previously installed handlers are removed (file handlers closed) first;
     a level of NONE disables logging entirely.
+
+    ``settings`` may be passed in to reuse the live SettingsManager instance
+    (whose writes are not synced to disk until close); a fresh instance reads
+    stale values mid-edit.
     """
     global _last_applied
 
-    settings = SettingsManager()
+    settings = settings or SettingsManager()
     config = (settings.log_level, settings.log_max_size, settings.log_backups)
     if config == _last_applied:
         return

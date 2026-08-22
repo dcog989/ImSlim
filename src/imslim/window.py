@@ -771,8 +771,8 @@ class ImSlimWindow(QWidget):
 
     def _reconfigure_logging(self) -> None:
         # Log level / max size / backups apply immediately rather than at the
-        # next restart; configure_logging() no-ops unless those changed.
-        configure_logging()
+        # next restart; pass the live settings so unsynced edits are honored.
+        configure_logging(self.settings)
 
     def on_about(self) -> None:
         static_pairs = static_about_pairs()
