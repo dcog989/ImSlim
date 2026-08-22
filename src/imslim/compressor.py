@@ -4,6 +4,8 @@ import os
 import subprocess
 import threading
 import time
+
+logger = logging.getLogger(__name__)
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import IO, NamedTuple, cast
@@ -164,14 +166,14 @@ class Compressor(ABC):
                     if command.stdout_path is not None:
                         self._remove_quietly(command.stdout_path)
                     if command.ignore_errors:
-                        logging.warning("Optional command failed, ignoring: %s", argv)
+                        logger.warning("Optional command failed, ignoring: %s", argv)
                         continue
                     raise
         except CancelledError:
             self._mark_cancelled(result_item, c_update_result_item)
             return
         except subprocess.TimeoutExpired as err:
-            logging.error(str(err))
+            logger.error(str(err))
             result_item.set_error(
                 _("Compression has reached the configured timeout of %s seconds.")
                 % self.settings.compression_timeout
@@ -188,13 +190,13 @@ class Compressor(ABC):
                     decoded_output = tool_output.decode(errors="replace").strip()
                 details += "\n" + decoded_output
             result_item.set_error(_("Compression failed."), html.escape(details))
-            logging.error(result_item.error_details_message)
+            logger.error(result_item.error_details_message)
         except OSError as err:
             result_item.set_error(_("An error has occurred."), html.escape(str(err)))
-            logging.error(result_item.error_details_message)
+            logger.error(result_item.error_details_message)
         except Exception as err:
             result_item.set_error(_("An unknown error has occurred."), html.escape(str(err)))
-            logging.error(result_item.error_details_message)
+            logger.error(result_item.error_details_message)
 
         if context.cancelled or result_item.error:
             self._cleanup_temp_files(result_item)
@@ -204,7 +206,7 @@ class Compressor(ABC):
         try:
             self._output_writer.finalize(result_item)
         except FileNotFoundError:
-            logging.error("Command produced no output file: %s", last_argv)
+            logger.error("Command produced no output file: %s", last_argv)
             result_item.set_error(_("Can't find the compressed file"))
 
         self._cleanup_temp_files(result_item)

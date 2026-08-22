@@ -6,6 +6,8 @@ import platform
 import re
 import subprocess
 
+logger = logging.getLogger(__name__)
+
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QImage, QImageReader
 
@@ -70,7 +72,7 @@ def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> Q
         reader.setScaledSize(QSize(max(1, int(width * ratio)), max(1, int(height * ratio))))
         image = reader.read()
     except Exception as err:
-        logging.error(str(err))
+        logger.error(str(err))
         return None
     if image.isNull():
         return None
@@ -89,7 +91,7 @@ def get_image_paths_from_folder(folder_path: str, recursive: bool = False) -> li
                 if entry.is_file(follow_symlinks=False) and _is_image_path(entry.name):
                     images.append(entry.path)
     except OSError as err:
-        logging.warning("Could not read folder %s: %s", folder_path, err)
+        logger.warning("Could not read folder %s: %s", folder_path, err)
     return images
 
 

@@ -3,6 +3,8 @@ import logging
 import os
 import shutil
 
+logger = logging.getLogger(__name__)
+
 from ._i18n import _
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE, SettingsManager
@@ -36,7 +38,7 @@ class OutputWriter:
                 _res = shutil.copy2(result_item.filename, result_item.backup_filename)
             except OSError as err:
                 result_item.set_error(_("Can't backup the original file"), html.escape(str(err)))
-                logging.error(result_item.error_details_message)
+                logger.error(result_item.error_details_message)
                 return
 
         final_path = result_item.filename if overwriting else result_item.new_filename
@@ -44,7 +46,7 @@ class OutputWriter:
             _res = shutil.copy2(result_item.tmp_filename, final_path)
         except OSError as err:
             result_item.set_error(_("Can't write the compressed file"), html.escape(str(err)))
-            logging.error(result_item.error_details_message)
+            logger.error(result_item.error_details_message)
             return
 
         self._restore_attributes(result_item, final_path)

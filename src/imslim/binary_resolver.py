@@ -3,6 +3,8 @@ import logging
 import os
 import platform
 import shutil
+
+logger = logging.getLogger(__name__)
 from pathlib import Path
 
 BIN_DIR = Path(__file__).parent / "bin"
@@ -76,4 +78,4 @@ def _make_executable(path: str) -> None:
         try:
             os.chmod(path, 0o755)
         except OSError as err:
-            logging.warning("Could not mark %s executable: %s", path, err)
+            logger.warning("Could not mark %s executable: %s", path, err)

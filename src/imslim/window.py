@@ -585,7 +585,7 @@ class ImSlimWindow(QWidget):
                 + "“.BAK.[timestamp]” suffix."
             )
         if self.settings.output_folder:
-            message += "\n\n" + _(f"Output folder: {self.settings.output_folder}")
+            message += "\n\n" + _("Output folder: %s") % self.settings.output_folder
         box = QMessageBox(self)
         box.setWindowTitle(_("Are you sure you want to compress images in these directories?"))
         box.setText(message)

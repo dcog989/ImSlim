@@ -35,8 +35,5 @@ target-version = "py314"
 
 [tool.ruff.lint]
 ignore = [
-    "BLE001",  # blind excepts used for subprocess/tool version checks
-    "LOG015",  # root logger usage carried over from source
-    "S110",    # try/except/pass when gettext is unavailable
-    "INT001",  # f-string inside _() is intentional (matches source)
+    "BLE001",  # broad excepts intentionally surface external tool failures to the user
 ]
