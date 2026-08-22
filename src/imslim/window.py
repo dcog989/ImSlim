@@ -10,10 +10,8 @@ from PySide6.QtCore import (
     QMimeData,
     QObject,
     QPoint,
-    QRectF,
     QSize,
     Qt,
-    QThread,
     QTimer,
     Signal,
 )
@@ -26,10 +24,6 @@ from PySide6.QtGui import (
     QIcon,
     QImage,
     QKeySequence,
-    QPainter,
-    QPaintEvent,
-    QPen,
-    QResizeEvent,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -50,6 +44,7 @@ from PySide6.QtWidgets import (
 from . import __version__
 from ._i18n import _
 from ._logging import configure_logging
+from .batch_flow import BatchFlow
 from .compression_manager import CompressionManager
 from .compressors.avif_compressor import AVIFCompressor
 from .compressors.gif_compressor import GIFCompressor
@@ -59,86 +54,19 @@ from .compressors.png_compressor import PNGCompressor
 from .compressors.svg_compressor import SVGCompressor
 from .compressors.webp_compressor import WEBPCompressor
 from .result_item import ResultItem
-from .result_item_manager import ResultItemManager
 from .result_item_row import ResultItemRow
 from .settings import SettingsDialog
 from .settings_manager import SettingsManager
-from .tools import (
-    get_image_paths_from_folder,
-    image_filter,
-    savings_percent,
-    sizeof_fmt,
-    static_about_pairs,
-    system_info_pairs,
-    tool_version_pairs,
+from .tools import image_filter, savings_percent, sizeof_fmt, static_about_pairs, system_info_pairs
+from .widgets import (
+    ResultsPage,
+    apply_muted_palette,
+    close_icon,
+    gear_icon,
+    imslim_icon,
+    info_icon,
 )
-from .widgets import apply_muted_palette, close_icon, gear_icon, imslim_icon, info_icon
-
-
-class _Bridge(QObject):
-    result_updated: Signal = Signal(ResultItem)
-    compression_enabled: Signal = Signal(bool)
-
-
-class _VersionProbeWorker(QThread):
-    """Queries bundled compression tool versions off the UI thread."""
-
-    versions_ready: Signal = Signal(list)
-
-    @override
-    def run(self) -> None:
-        self.versions_ready.emit(tool_version_pairs())
-
-
-class _BuildSettingsSnapshot:
-    """Plain values ResultItemManager needs, captured on the UI thread.
-
-    QSettings isn't thread-safe, so the snapshot replaces the live
-    SettingsManager inside the analyze worker.
-    """
-
-    def __init__(self, save_method: int, output_folder: str) -> None:
-        self.save_method: int = save_method
-        self.output_folder: str = output_folder
-
-
-class _AnalyzeWorker(QThread):
-    """Collects files and builds ResultItems off the UI thread.
-
-    Building each item stats the file and sniffs its MIME type, which for a
-    large directory would otherwise freeze the UI during "Analyzing Images".
-    """
-
-    items_ready: Signal = Signal(list)
-    no_files: Signal = Signal()
-    output_folder_error: Signal = Signal()
-
-    def __init__(self, paths: list[str], recursive: bool, settings: _BuildSettingsSnapshot) -> None:
-        super().__init__()
-        self._paths: list[str] = paths
-        self._recursive: bool = recursive
-        self._settings: _BuildSettingsSnapshot = settings
-
-    @override
-    def run(self) -> None:
-        final_files: list[str] = []
-        for path in self._paths:
-            if os.path.isdir(path):
-                final_files.extend(get_image_paths_from_folder(path, self._recursive))
-            else:
-                final_files.append(path)
-
-        if not final_files:
-            self.no_files.emit()
-            return
-
-        manager = ResultItemManager(self._settings)
-        if not manager.begin_batch():
-            self.output_folder_error.emit()
-            return
-
-        result_items: list[ResultItem] = [manager.build(path) for path in final_files]
-        self.items_ready.emit(result_items)
+from .workers import VersionProbeWorker
 
 
 class _PasteFilter(QObject):
@@ -169,83 +97,6 @@ class _PasteFilter(QObject):
 _V_SPACING = 16
 
 
-class _Spinner(QWidget):
-    """A rotating arc used as a busy indicator."""
-
-    def __init__(self, size: int = 120, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setFixedSize(size, size)
-        self._angle: int = 0
-        self._timer: QTimer = QTimer(self)
-        self._timer.setInterval(16)
-        self._timer.timeout.connect(self._advance)
-
-    def start(self) -> None:
-        self._timer.start()
-
-    def stop(self) -> None:
-        self._timer.stop()
-
-    def _advance(self) -> None:
-        self._angle = (self._angle + 6) % 360
-        self.update()
-
-    @override
-    def paintEvent(self, event: QPaintEvent) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        color = self.palette().color(self.palette().ColorRole.Text)
-        pen = QPen(
-            color,
-            6,
-            Qt.PenStyle.SolidLine,
-            Qt.PenCapStyle.RoundCap,
-            Qt.PenJoinStyle.RoundJoin,
-        )
-        painter.setPen(pen)
-        painter.drawArc(
-            QRectF(6, 6, self.width() - 12, self.height() - 12),
-            -self._angle * 16,
-            100 * 16,
-        )
-        painter.end()
-
-
-class _ResultsPage(QWidget):
-    """Results list covered by a spinner overlay while compressing."""
-
-    def __init__(self, stop_button: QToolButton) -> None:
-        super().__init__()
-        self.overlay: QWidget = QWidget(self)
-        self.overlay.setObjectName("processingOverlay")
-        self.overlay.setStyleSheet(
-            "QWidget#processingOverlay { background-color: rgba(128, 128, 128, 150); }"
-        )
-        layout = QVBoxLayout(self.overlay)
-        layout.addStretch(1)
-        self.spinner: _Spinner = _Spinner(120)
-        layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(stop_button, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addStretch(1)
-        self.overlay.hide()
-
-    def show_overlay(self) -> None:
-        self.overlay.setGeometry(self.rect())
-        self.overlay.raise_()
-        self.overlay.show()
-        self.spinner.start()
-
-    def hide_overlay(self) -> None:
-        self.overlay.hide()
-        self.spinner.stop()
-
-    @override
-    def resizeEvent(self, event: QResizeEvent) -> None:
-        if self.overlay.isVisible():
-            self.overlay.setGeometry(self.rect())
-        super().resizeEvent(event)
-
-
 class ImSlimWindow(QWidget):
     def __init__(self, app: QApplication) -> None:
         super().__init__()
@@ -256,9 +107,6 @@ class ImSlimWindow(QWidget):
         self.setAcceptDrops(True)
 
         self.settings: SettingsManager = SettingsManager()
-        self.bridge: _Bridge = _Bridge()
-        _res = self.bridge.result_updated.connect(self.update_result_item)
-        _res = self.bridge.compression_enabled.connect(self.enable_compression)
         self.prefs_dialog: SettingsDialog | None = None
         self._about_dialog: QMessageBox | None = None
         self._about_static_pairs: list[tuple[str, str]] | None = None
@@ -286,15 +134,16 @@ class ImSlimWindow(QWidget):
         self.manager.register_compressor(SVGCompressor)
         self.manager.validate_configured_compressors()
 
-        self._analyze_worker: _AnalyzeWorker | None = None
+        self.flow: BatchFlow = BatchFlow(self.settings, self.manager)
+        _res = self.flow.item_added.connect(self.add_row)
+        _res = self.flow.items_ready.connect(self._show_items_ready)
+        _res = self.flow.compression_enabled.connect(self.enable_compression)
+        _res = self.flow.summary_changed.connect(self._update_summary)
+        _res = self.flow.no_files.connect(self._on_analyze_no_files)
+        _res = self.flow.output_folder_error.connect(self._on_analyze_output_error)
+        _res = self.flow.result_updated.connect(self.update_result_item)
+
         self.rows: list[ResultItemRow] = []
-        self._batch_total: int = 0
-        self._batch_done: int = 0
-        self._batch_compressed: int = 0
-        self._batch_skipped: int = 0
-        self._batch_failed: int = 0
-        self._batch_saved_bytes: int = 0
-        self._batch_active: bool = False
         self._overlay_timer: QTimer = QTimer(self)
         self._overlay_timer.setSingleShot(True)
         self._overlay_timer.setInterval(1000)
@@ -466,7 +315,7 @@ class ImSlimWindow(QWidget):
         layout.addStretch(1)
         return page
 
-    def _build_results_page(self) -> _ResultsPage:
+    def _build_results_page(self) -> ResultsPage:
         self.results_container = QWidget()
         self.results_layout = QVBoxLayout(self.results_container)
         self.results_layout.setContentsMargins(12, 12, 12, 12)
@@ -480,7 +329,7 @@ class ImSlimWindow(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.results_container)
 
-        page = _ResultsPage(self.stop_button)
+        page = ResultsPage(self.stop_button)
         page_layout = QVBoxLayout(page)
         page_layout.setContentsMargins(0, 0, 0, 0)
         page_layout.addWidget(scroll)
@@ -557,19 +406,17 @@ class ImSlimWindow(QWidget):
     def enable_compression(self, enable: bool) -> None:
         self.clear_button.setEnabled(enable)
         if enable:
-            self._batch_active = False
             self._overlay_timer.stop()
             self.results_page.hide_overlay()
             self.stop_button.setEnabled(True)
         else:
-            self._batch_active = True
             self._overlay_timer.start()
 
     def _show_processing_overlay(self) -> None:
         self.results_page.show_overlay()
 
     def stop_compression(self) -> None:
-        self.manager.cancel()
+        self.flow.cancel()
         self.stop_button.setEnabled(False)
 
     _VIEWS: ClassVar[dict[str, tuple[int, bool]]] = {
@@ -596,14 +443,13 @@ class ImSlimWindow(QWidget):
                     widget.stop_thumbnail_loader()
                 widget.deleteLater()
         self.rows.clear()
-        self._reset_summary()
-        self._update_summary()
+        self.flow.reset()
 
     # ------------------------------------------------------- compression flow
     def start_compression(self, paths: list[str]) -> None:
         """Begin compressing the given paths, switching to the loading view only
         once at least one file has been collected."""
-        if self._batch_active:
+        if self.flow.active:
             _res = QMessageBox.information(
                 self, _("Compression in progress"), _("Wait for the current compression to finish.")
             )
@@ -611,85 +457,39 @@ class ImSlimWindow(QWidget):
         self.compress_files(paths)
 
     def compress_files(self, paths: list[str]) -> None:
-        if self._batch_active:
+        if self.flow.active:
             _res = QMessageBox.information(
                 self, _("Compression in progress"), _("Wait for the current compression to finish.")
             )
             return
-
-        self._batch_active = True
-        snapshot = _BuildSettingsSnapshot(
-            self.settings.save_method,
-            self.settings.output_folder,
-        )
-        worker = _AnalyzeWorker(paths, self.settings.recursive, snapshot)
-        self._analyze_worker = worker
-        _res = worker.items_ready.connect(self._on_items_ready)
-        _res = worker.no_files.connect(self._on_analyze_no_files)
-        _res = worker.output_folder_error.connect(self._on_analyze_output_error)
-        _res = worker.finished.connect(self._on_analyze_finished)
         self.show_view("loading")
-        worker.start()
+        self.flow.start(paths)
 
-    def _on_items_ready(self, result_items: list[ResultItem]) -> None:
-        for result_item in result_items:
-            self.add_row(result_item)
-            if result_item.error:
-                self.update_result_item(result_item)
-
-        result_items = [item for item in result_items if not item.error]
-
+    def _show_items_ready(self) -> None:
         self.show_view("results")
-        self.enable_compression(False)
-
-        for result_item in result_items:
-            result_item.running = True
-            result_item.updated.emit()
-
-        self.manager.compress(
-            result_items,
-            self.bridge.result_updated.emit,
-            self.bridge.compression_enabled.emit,
-        )
 
     def _on_analyze_no_files(self) -> None:
-        self._batch_active = False
         self.show_view("home")
         _res = QMessageBox.information(self, _("No files found"), _("No files found"))
 
     def _on_analyze_output_error(self) -> None:
-        self._batch_active = False
         self.show_view("home")
         _res = QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
-
-    def _on_analyze_finished(self) -> None:
-        worker = self._analyze_worker
-        self._analyze_worker = None
-        if worker is not None:
-            worker.deleteLater()
 
     def add_row(self, result_item: ResultItem) -> None:
         row = ResultItemRow(result_item)
         self.results_layout.insertWidget(1, row)
         self.rows.append(row)
-        self._batch_total += 1
-        self._update_summary()
 
     def update_result_item(self, result_item: ResultItem) -> None:
         result_item.running = False
         if result_item.cancelled:
             result_item.subtitle_label = _("Cancelled")
             result_item.savings = ""
-            result_item.updated.emit()
-            self._batch_done += 1
-            self._update_summary()
-            return
-        if result_item.error:
+        elif result_item.error:
             result_item.subtitle_label = result_item.error_message
-            self._batch_failed += 1
         elif result_item.skipped:
             result_item.savings = ""
-            self._batch_skipped += 1
         else:
             if result_item.size > 0:
                 savings = savings_percent(result_item.size, result_item.new_size)
@@ -697,37 +497,10 @@ class ImSlimWindow(QWidget):
                 savings = 0
             result_item.savings = str(savings) + "%"
             result_item.subtitle_label += " → " + sizeof_fmt(result_item.new_size)
-            self._batch_compressed += 1
-            if result_item.size > result_item.new_size:
-                self._batch_saved_bytes += result_item.size - result_item.new_size
         result_item.updated.emit()
-        self._batch_done += 1
-        self._update_summary()
-
-    def _reset_summary(self) -> None:
-        self._batch_total = 0
-        self._batch_done = 0
-        self._batch_compressed = 0
-        self._batch_skipped = 0
-        self._batch_failed = 0
-        self._batch_saved_bytes = 0
 
     def _update_summary(self) -> None:
-        self.summary_label.setText(self._summary_text())
-
-    def _summary_text(self) -> str:
-        text = (
-            _("%d of %d images done") % (self._batch_done, self._batch_total)
-            + " · "
-            + _("%d compressed") % self._batch_compressed
-            + " · "
-            + _("%s saved") % sizeof_fmt(self._batch_saved_bytes)
-        )
-        if self._batch_skipped:
-            text += " · " + _("%d skipped") % self._batch_skipped
-        if self._batch_failed:
-            text += " · " + _("%d failed") % self._batch_failed
-        return text
+        self.summary_label.setText(self.flow.summary.text())
 
     # ----------------------------------------------------------------- file IO
     def on_context_menu(self, pos: QPoint) -> None:
@@ -858,7 +631,7 @@ class ImSlimWindow(QWidget):
         self._about_static_pairs = static_pairs
         self._about_tool_pairs = []
         _res = copy_button.clicked.connect(self._on_copy_environment)
-        worker = _VersionProbeWorker()
+        worker = VersionProbeWorker()
         _res = worker.versions_ready.connect(self._on_about_versions)
         # Each probe deletes itself when done, so reopening the dialog while a
         # previous probe is still running can't delete the newer worker.
