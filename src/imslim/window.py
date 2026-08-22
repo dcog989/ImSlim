@@ -556,7 +556,7 @@ class ImSlimWindow(QWidget):
     def _save_clipboard_image(self, image: QImage) -> str | None:
         directory = tempfile.gettempdir()
         path = os.path.join(directory, f"imslim-pasted-{time.time_ns()}.png")
-        if image.save(path, b"PNG"):
+        if image.save(path, "PNG"):
             return path
         return None
 
