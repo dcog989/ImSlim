@@ -34,6 +34,27 @@ _LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
 _LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
 
 
+def _separator() -> QFrame:
+    """A 28px-tall horizontal divider whose line color is derived from the
+    palette. A plain QFrame HLine draws with the WindowText role, which on
+    dark themes is near-white, so the line is recolored to a subtle muted tone
+    instead.
+    """
+    palette = QApplication.palette()
+    line_color = muted_color(
+        palette.color(QPalette.ColorRole.WindowText),
+        palette.color(QPalette.ColorRole.Window),
+        0.6,
+    )
+    separator = QFrame()
+    separator.setFrameShape(QFrame.Shape.HLine)
+    separator.setFixedHeight(28)
+    separator_palette = separator.palette()
+    separator_palette.setColor(QPalette.ColorRole.WindowText, line_color)
+    separator.setPalette(separator_palette)
+    return separator
+
+
 def _form_stylesheet() -> str:
     """Stylesheet for the settings form.
 
@@ -163,10 +184,7 @@ class SettingsDialog(QDialog):
         form.addRow(_("Directory Recurse"), self.radio_recursive)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
 
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFixedHeight(28)
-        form.addRow(separator)
+        form.addRow(_separator())
 
         self.radio_compression_method = self._radio_row(
             _("Lossy"), _("Lossless"), "lossy", reverse=True
@@ -180,10 +198,7 @@ class SettingsDialog(QDialog):
         form.addRow(_("Metadata Retention"), self.radio_metadata)
         form.addRow(_("File Attributes"), self.radio_file_attributes)
 
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setFixedHeight(28)
-        form.addRow(separator)
+        form.addRow(_separator())
 
         self.combo_log_level = QComboBox()
         self.combo_log_level.addItems([_(label) for label in _LOG_LEVEL_LABELS])
