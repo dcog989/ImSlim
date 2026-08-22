@@ -604,7 +604,7 @@ class ImSlimWindow(QWidget):
         self._batch_total += 1
         self._update_summary()
 
-    def update_result_item(self, result_item: ResultItem):
+    def update_result_item(self, result_item: ResultItem) -> None:
         result_item.running = False
         if result_item.cancelled:
             result_item.subtitle_label = _("Cancelled")

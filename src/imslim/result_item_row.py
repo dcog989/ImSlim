@@ -71,7 +71,7 @@ class _ClickableThumbnail(QLabel):
 
 
 class ResultItemRow(QWidget):
-    def __init__(self, result_item: ResultItem, parent: QWidget | None = None):
+    def __init__(self, result_item: ResultItem, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.result_item: ResultItem = result_item
 
@@ -164,7 +164,7 @@ class ResultItemRow(QWidget):
         self.skipped_button.setVisible(item.skipped and not item.running)
         self.error_button.setVisible(item.error and item.error_details)
 
-    def _show_skipped_info(self):
+    def _show_skipped_info(self) -> None:
         _res = QMessageBox.information(
             self,
             _("Skipped"),
@@ -174,7 +174,7 @@ class ResultItemRow(QWidget):
             ),
         )
 
-    def _show_error_info(self):
+    def _show_error_info(self) -> None:
         _res = QMessageBox.warning(
             self,
             _("Error"),
