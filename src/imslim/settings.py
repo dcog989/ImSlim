@@ -38,7 +38,7 @@ class SettingsDialog(QDialog):
         self.settings: SettingsManager = settings
         self._format_spins: list[tuple[QSpinBox, str]] = []
         self._format_checks: list[tuple[QCheckBox, str]] = []
-        self._radio_pairs: list[tuple[QRadioButton, str]] = []
+        self._radio_pairs: list[tuple[QRadioButton, QRadioButton, str]] = []
         self.combo_save_method: QComboBox = QComboBox()
         self.entry_output_folder: QLineEdit = QLineEdit()
         self.btn_output_folder: QPushButton = QPushButton()
@@ -115,7 +115,9 @@ class SettingsDialog(QDialog):
         separator.setFrameShape(QFrame.Shape.HLine)
         form.addRow(separator)
 
-        self.radio_compression_method = self._radio_row(_("Lossy"), _("Lossless"), "lossy")
+        self.radio_compression_method = self._radio_row(
+            _("Lossy"), _("Lossless"), "lossy", reverse=True
+        )
         self.radio_metadata = self._radio_row(_("Keep metadata"), _("Remove metadata"), "metadata")
         self.radio_file_attributes = self._radio_row(
             _("Keep attr"), _("Reset attr"), "file-attributes"
@@ -131,7 +133,9 @@ class SettingsDialog(QDialog):
 
         return tab
 
-    def _radio_row(self, true_label: str, false_label: str, key: str) -> QWidget:
+    def _radio_row(
+        self, true_label: str, false_label: str, key: str, reverse: bool = False
+    ) -> QWidget:
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -140,9 +144,10 @@ class SettingsDialog(QDialog):
         false_radio = QRadioButton(false_label)
         true_radio.setChecked(True)
         _res = true_radio.toggled.connect(self.on_bool_changed(key))
-        self._radio_pairs.append((true_radio, key))
-        layout.addWidget(true_radio)
-        layout.addWidget(false_radio)
+        self._radio_pairs.append((true_radio, false_radio, key))
+        first, second = (false_radio, true_radio) if reverse else (true_radio, false_radio)
+        layout.addWidget(first)
+        layout.addWidget(second)
         return container
 
     def _build_formats_tab(self) -> QWidget:
@@ -379,8 +384,9 @@ class SettingsDialog(QDialog):
         self.entry_output_folder.setText(s.output_folder)
         self.spin_timeout.setValue(s.compression_timeout)
 
-        for radio, key in self._radio_pairs:
-            radio.setChecked(cast(bool, getattr(s, key.replace("-", "_"))))
+        for true_radio, false_radio, key in self._radio_pairs:
+            value = cast(bool, getattr(s, key.replace("-", "_")))
+            (true_radio if value else false_radio).setChecked(True)
 
         for spin, key in self._format_spins:
             spin.setValue(cast(int, getattr(s, key.replace("-", "_"))))
@@ -399,8 +405,8 @@ class SettingsDialog(QDialog):
         s.output_folder = self.entry_output_folder.text().strip()
         s.compression_timeout = self.spin_timeout.value()
 
-        for radio, key in self._radio_pairs:
-            setattr(s, key.replace("-", "_"), radio.isChecked())
+        for true_radio, _false_radio, key in self._radio_pairs:
+            setattr(s, key.replace("-", "_"), true_radio.isChecked())
 
         for spin, key in self._format_spins:
             setattr(s, key.replace("-", "_"), spin.value())
@@ -430,11 +436,13 @@ class SettingsDialog(QDialog):
     def on_bool_changed(self, key: str) -> Callable[[bool], None]:
         def handler(checked: bool) -> None:
             self.settings.set_boolean(key, checked)
+            self.settings_changed.emit()
 
         return handler
 
     def on_int_changed(self, key: str) -> Callable[[int], None]:
         def handler(value: int) -> None:
             self.settings.set_int(key, value)
+            self.settings_changed.emit()
 
         return handler
