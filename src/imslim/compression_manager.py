@@ -102,12 +102,12 @@ class CompressionManager:
         # Avoid oversubscribing: encode tools (e.g. cwebp -mt) already thread internally.
         max_workers = max(1, (os.cpu_count() or 1) // 2)
         used_compressors = self._collect_used_compressors(result_items)
-        for compressor in used_compressors:
-            try:
-                compressor.prepare_batch(result_items)
-            except OSError as err:
-                logger.warning("Failed to prepare batch resources: %s", err)
         try:
+            for compressor in used_compressors:
+                try:
+                    compressor.prepare_batch(result_items)
+                except OSError as err:
+                    logger.warning("Failed to prepare batch resources: %s", err)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures: list[Future[None]] = []
                 break_index = len(result_items)
@@ -133,8 +133,15 @@ class CompressionManager:
                         result_item.cancelled = True
                         result_item.running = False
                         c_update_result_item(result_item)
+        except Exception:
+            # A compressor escaped its own error handling (e.g. BaseException
+            # from run()); surface it and still re-enable the UI below.
+            logger.exception("Compression batch failed unexpectedly")
         finally:
             for compressor in used_compressors:
-                compressor.finish_batch()
+                try:
+                    compressor.finish_batch()
+                except Exception as err:
+                    logger.warning("Failed to finish batch resources: %s", err)
+            c_enable_compression(True)
         logger.info("Compression batch finished")
-        c_enable_compression(True)
