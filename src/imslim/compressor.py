@@ -1,6 +1,5 @@
 import html
 import logging
-import os
 import subprocess
 import threading
 import time
@@ -8,6 +7,7 @@ import time
 logger = logging.getLogger(__name__)
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from pathlib import Path
 from string.templatelib import Interpolation, Template
 from typing import IO, NamedTuple, cast
 
@@ -114,8 +114,9 @@ class Compressor(ABC):
 
     @staticmethod
     def _remove_quietly(path: str) -> None:
+        # Cleanup must never raise: it runs outside the error handlers in run().
         try:
-            os.remove(path)
+            Path(path).unlink(missing_ok=True)
         except OSError:
             pass
 
