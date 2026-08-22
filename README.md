@@ -57,7 +57,7 @@ install -Dm644 src/imslim/assets/imslim.svg ~/.local/share/icons/hicolor/scalabl
 kbuildsycoca6   # refresh the KDE application cache
 ```
 
-The desktop entry declares the app as a handler for PNG, JPEG, GIF, WebP, AVIF, JXL, BMP and TIFF; SVG is intentionally excluded so ImSlim is not offered as the default SVG opener.
+The desktop entry declares the app as a handler for PNG, JPEG, GIF, WebP, AVIF, JXL, SVG, BMP and TIFF.
 
 Full clean:
 
