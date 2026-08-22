@@ -10,7 +10,6 @@ from PySide6.QtGui import (
     QContextMenuEvent,
     QDragEnterEvent,
     QDropEvent,
-    QIcon,
     QImage,
     QKeySequence,
 )
@@ -53,7 +52,7 @@ from .tools import (
     system_info_pairs,
     tool_version_pairs,
 )
-from .widgets import ModeToggle, stylized_i_icon
+from .widgets import ModeToggle, imslim_icon
 
 
 class _Bridge(QObject):
@@ -105,7 +104,7 @@ class ImSlimWindow(QWidget):
         super().__init__()
         self.app: QApplication = app
         self.setWindowTitle("ImSlim")
-        self.setWindowIcon(QIcon(stylized_i_icon(128)))
+        self.setWindowIcon(imslim_icon())
         self.resize(650, 500)
         self.setAcceptDrops(True)
 
@@ -224,7 +223,7 @@ class ImSlimWindow(QWidget):
         layout.addStretch(1)
 
         icon = QLabel()
-        icon.setPixmap(stylized_i_icon(180))
+        icon.setPixmap(imslim_icon().pixmap(180))
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
 
@@ -647,11 +646,12 @@ class ImSlimWindow(QWidget):
     def on_about(self) -> None:
         static_pairs = static_about_pairs()
         dialog = QMessageBox(
-            QMessageBox.Icon.Information,
+            QMessageBox.Icon.NoIcon,
             _("About ImSlim"),
             self._about_message(),
             parent=self,
         )
+        dialog.setIconPixmap(imslim_icon().pixmap(96))
         copy_button = dialog.addButton(_("Copy Environment"), QMessageBox.ButtonRole.ActionRole)
         self._about_dialog = dialog
         self._about_static_pairs = static_pairs

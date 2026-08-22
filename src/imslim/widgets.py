@@ -2,8 +2,7 @@ import os
 from typing import override
 
 from PySide6.QtCore import QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPaintEvent, QPixmap, QResizeEvent
-from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtGui import QColor, QIcon, QMouseEvent, QPainter, QPaintEvent, QResizeEvent
 from PySide6.QtWidgets import QWidget
 
 from ._i18n import _
@@ -108,14 +107,9 @@ class ModeToggle(QWidget):
             self.modeChanged.emit(self._lossy)
 
 
-def stylized_i_icon(size: int) -> QPixmap:
-    """Render the ImSlim logo SVG onto a transparent pixmap of the given size."""
-    svg_path = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
-    renderer = QSvgRenderer(svg_path)
-    pm = QPixmap(size, size)
-    pm.fill(Qt.GlobalColor.transparent)
-    p = QPainter(pm)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    renderer.render(p)
-    _res = p.end()
-    return pm
+IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
+
+
+def imslim_icon() -> QIcon:
+    """The application icon, loaded directly from the bundled SVG asset."""
+    return QIcon(IMSLIM_ICON_PATH)
