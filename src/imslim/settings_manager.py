@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from typing import cast
 
@@ -27,6 +29,18 @@ def _coerce_int(raw: object, default: int) -> int:
         return int(str(raw))
     except ValueError, TypeError:
         return default
+
+
+def _setting[T](key: str, type_: type[T]) -> property[T]:
+    """Build a property binding an attribute name to a settings key."""
+
+    def getter(self: SettingsManager) -> T:
+        return cast(T, self._get(key))
+
+    def setter(self: SettingsManager, value: T) -> None:
+        self._set(key, value)
+
+    return property(getter, setter)
 
 
 SAVE_NEW_FILE = 0
@@ -94,194 +108,27 @@ class SettingsManager:
         else:
             self.set_string(key, cast(str, value))
 
-    @property
-    def save_method(self) -> int:
-        return cast(int, self._get("save-method"))
-
-    @save_method.setter
-    def save_method(self, value: int) -> None:
-        self._set("save-method", value)
-
-    @property
-    def output_folder(self) -> str:
-        return cast(str, self._get("output-folder"))
-
-    @output_folder.setter
-    def output_folder(self, value: str) -> None:
-        self._set("output-folder", value)
-
-    @property
-    def default_open_dialog_directory(self) -> str:
-        return cast(str, self._get("default-open-dialog-directory"))
-
-    @default_open_dialog_directory.setter
-    def default_open_dialog_directory(self, value: str) -> None:
-        self._set("default-open-dialog-directory", value)
-
-    @property
-    def lossy(self) -> bool:
-        return cast(bool, self._get("lossy"))
-
-    @lossy.setter
-    def lossy(self, value: bool) -> None:
-        self._set("lossy", value)
-
-    @property
-    def recursive(self) -> bool:
-        return cast(bool, self._get("recursive"))
-
-    @recursive.setter
-    def recursive(self, value: bool) -> None:
-        self._set("recursive", value)
-
-    @property
-    def metadata(self) -> bool:
-        return cast(bool, self._get("metadata"))
-
-    @metadata.setter
-    def metadata(self, value: bool) -> None:
-        self._set("metadata", value)
-
-    @property
-    def file_attributes(self) -> bool:
-        return cast(bool, self._get("file-attributes"))
-
-    @file_attributes.setter
-    def file_attributes(self, value: bool) -> None:
-        self._set("file-attributes", value)
-
-    @property
-    def png_lossy_level(self) -> int:
-        return cast(int, self._get("png-lossy-level"))
-
-    @png_lossy_level.setter
-    def png_lossy_level(self, value: int) -> None:
-        self._set("png-lossy-level", value)
-
-    @property
-    def png_lossless_level(self) -> int:
-        return cast(int, self._get("png-lossless-level"))
-
-    @png_lossless_level.setter
-    def png_lossless_level(self, value: int) -> None:
-        self._set("png-lossless-level", value)
-
-    @property
-    def jpg_lossy_level(self) -> int:
-        return cast(int, self._get("jpg-lossy-level"))
-
-    @jpg_lossy_level.setter
-    def jpg_lossy_level(self, value: int) -> None:
-        self._set("jpg-lossy-level", value)
-
-    @property
-    def jpg_progressive(self) -> bool:
-        return cast(bool, self._get("jpg-progressive"))
-
-    @jpg_progressive.setter
-    def jpg_progressive(self, value: bool) -> None:
-        self._set("jpg-progressive", value)
-
-    @property
-    def webp_lossy_level(self) -> int:
-        return cast(int, self._get("webp-lossy-level"))
-
-    @webp_lossy_level.setter
-    def webp_lossy_level(self, value: int) -> None:
-        self._set("webp-lossy-level", value)
-
-    @property
-    def webp_lossless_level(self) -> int:
-        return cast(int, self._get("webp-lossless-level"))
-
-    @webp_lossless_level.setter
-    def webp_lossless_level(self, value: int) -> None:
-        self._set("webp-lossless-level", value)
-
-    @property
-    def avif_lossy_level(self) -> int:
-        return cast(int, self._get("avif-lossy-level"))
-
-    @avif_lossy_level.setter
-    def avif_lossy_level(self, value: int) -> None:
-        self._set("avif-lossy-level", value)
-
-    @property
-    def avif_lossless_level(self) -> int:
-        return cast(int, self._get("avif-lossless-level"))
-
-    @avif_lossless_level.setter
-    def avif_lossless_level(self, value: int) -> None:
-        self._set("avif-lossless-level", value)
-
-    @property
-    def jxl_lossy_level(self) -> int:
-        return cast(int, self._get("jxl-lossy-level"))
-
-    @jxl_lossy_level.setter
-    def jxl_lossy_level(self, value: int) -> None:
-        self._set("jxl-lossy-level", value)
-
-    @property
-    def jxl_lossless_level(self) -> int:
-        return cast(int, self._get("jxl-lossless-level"))
-
-    @jxl_lossless_level.setter
-    def jxl_lossless_level(self, value: int) -> None:
-        self._set("jxl-lossless-level", value)
-
-    @property
-    def gif_lossy_level(self) -> int:
-        return cast(int, self._get("gif-lossy-level"))
-
-    @gif_lossy_level.setter
-    def gif_lossy_level(self, value: int) -> None:
-        self._set("gif-lossy-level", value)
-
-    @property
-    def gif_lossless_level(self) -> int:
-        return cast(int, self._get("gif-lossless-level"))
-
-    @gif_lossless_level.setter
-    def gif_lossless_level(self, value: int) -> None:
-        self._set("gif-lossless-level", value)
-
-    @property
-    def svg_maximum_level(self) -> bool:
-        return cast(bool, self._get("svg-maximum-level"))
-
-    @svg_maximum_level.setter
-    def svg_maximum_level(self, value: bool) -> None:
-        self._set("svg-maximum-level", value)
-
-    @property
-    def compression_timeout(self) -> int:
-        return cast(int, self._get("compression-timeout"))
-
-    @compression_timeout.setter
-    def compression_timeout(self, value: int) -> None:
-        self._set("compression-timeout", value)
-
-    @property
-    def log_level(self) -> str:
-        return cast(str, self._get("log-level"))
-
-    @log_level.setter
-    def log_level(self, value: str) -> None:
-        self._set("log-level", value)
-
-    @property
-    def log_max_size(self) -> int:
-        return cast(int, self._get("log-max-size"))
-
-    @log_max_size.setter
-    def log_max_size(self, value: int) -> None:
-        self._set("log-max-size", value)
-
-    @property
-    def log_backups(self) -> int:
-        return cast(int, self._get("log-backups"))
-
-    @log_backups.setter
-    def log_backups(self, value: int) -> None:
-        self._set("log-backups", value)
+    save_method = _setting("save-method", int)
+    output_folder = _setting("output-folder", str)
+    default_open_dialog_directory = _setting("default-open-dialog-directory", str)
+    lossy = _setting("lossy", bool)
+    recursive = _setting("recursive", bool)
+    metadata = _setting("metadata", bool)
+    file_attributes = _setting("file-attributes", bool)
+    png_lossy_level = _setting("png-lossy-level", int)
+    png_lossless_level = _setting("png-lossless-level", int)
+    jpg_lossy_level = _setting("jpg-lossy-level", int)
+    jpg_progressive = _setting("jpg-progressive", bool)
+    webp_lossy_level = _setting("webp-lossy-level", int)
+    webp_lossless_level = _setting("webp-lossless-level", int)
+    avif_lossy_level = _setting("avif-lossy-level", int)
+    avif_lossless_level = _setting("avif-lossless-level", int)
+    jxl_lossy_level = _setting("jxl-lossy-level", int)
+    jxl_lossless_level = _setting("jxl-lossless-level", int)
+    gif_lossy_level = _setting("gif-lossy-level", int)
+    gif_lossless_level = _setting("gif-lossless-level", int)
+    svg_maximum_level = _setting("svg-maximum-level", bool)
+    compression_timeout = _setting("compression-timeout", int)
+    log_level = _setting("log-level", str)
+    log_max_size = _setting("log-max-size", int)
+    log_backups = _setting("log-backups", int)
