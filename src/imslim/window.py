@@ -1,6 +1,7 @@
 import os
 import tempfile
 import time
+from collections.abc import Callable
 from typing import ClassVar, cast, override
 
 from PySide6.QtCore import (
@@ -22,6 +23,7 @@ from PySide6.QtGui import (
     QContextMenuEvent,
     QDragEnterEvent,
     QDropEvent,
+    QIcon,
     QImage,
     QKeySequence,
     QPainter,
@@ -312,21 +314,14 @@ class ImSlimWindow(QWidget):
 
         icon_color = self.palette().color(self.palette().ColorRole.WindowText)
 
-        self.about_button: QToolButton = QToolButton()
-        self.about_button.setIcon(info_icon(icon_color))
-        self.about_button.setIconSize(QSize(20, 20))
-        self.about_button.setToolTip(_("About ImSlim"))
-        self.about_button.setFixedSize(32, 32)
-        self.about_button.setStyleSheet("QToolButton { padding: 0; }")
-        _res = self.about_button.clicked.connect(self.on_about)
-
-        self.clear_button: QToolButton = QToolButton()
-        self.clear_button.setIcon(close_icon(icon_color))
-        self.clear_button.setIconSize(QSize(20, 20))
-        self.clear_button.setToolTip(_("Clear results and return to the main window."))
-        self.clear_button.setFixedSize(32, 32)
-        self.clear_button.setStyleSheet("QToolButton { padding: 0; }")
-        _res = self.clear_button.clicked.connect(self.clear_results)
+        self.about_button: QToolButton = self._make_icon_button(
+            info_icon(icon_color), _("About ImSlim"), self.on_about
+        )
+        self.clear_button: QToolButton = self._make_icon_button(
+            close_icon(icon_color),
+            _("Clear results and return to the main window."),
+            self.clear_results,
+        )
 
         self.stop_button: QToolButton = QToolButton()
         self.stop_button.setText(_("Stop"))
@@ -351,13 +346,9 @@ class ImSlimWindow(QWidget):
 
         header_layout.addStretch(1)
 
-        self.settings_button: QToolButton = QToolButton()
-        self.settings_button.setIcon(gear_icon(icon_color))
-        self.settings_button.setIconSize(QSize(20, 20))
-        self.settings_button.setToolTip(_("Settings"))
-        self.settings_button.setFixedSize(32, 32)
-        self.settings_button.setStyleSheet("QToolButton { padding: 0; }")
-        _res = self.settings_button.clicked.connect(self.on_settings)
+        self.settings_button: QToolButton = self._make_icon_button(
+            gear_icon(icon_color), _("Settings"), self.on_settings
+        )
         header_layout.addWidget(self.settings_button)
 
         root.addWidget(header)
@@ -559,6 +550,17 @@ class ImSlimWindow(QWidget):
         self.addAction(self.act_quit)
 
     # ----------------------------------------------------------------- helpers
+    @staticmethod
+    def _make_icon_button(icon: QIcon, tooltip: str, handler: Callable[[], None]) -> QToolButton:
+        button = QToolButton()
+        button.setIcon(icon)
+        button.setIconSize(QSize(20, 20))
+        button.setToolTip(tooltip)
+        button.setFixedSize(32, 32)
+        button.setStyleSheet("QToolButton { padding: 0; }")
+        _res = button.clicked.connect(handler)
+        return button
+
     def enable_compression(self, enable: bool) -> None:
         self.clear_button.setEnabled(enable)
         if enable:
