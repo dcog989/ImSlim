@@ -4,6 +4,7 @@ import time
 from typing import ClassVar, cast, override
 
 from PySide6.QtCore import (
+    QDir,
     QEvent,
     QMimeData,
     QObject,
@@ -713,18 +714,28 @@ class ImSlimWindow(QWidget):
         return None
 
     def on_select(self) -> None:
-        files, _filter = QFileDialog.getOpenFileNames(self, _("Select Images"), "", image_filter())
+        files, _filter = QFileDialog.getOpenFileNames(
+            self, _("Select Images"), self._dialog_start_dir(), image_filter()
+        )
         if not files:
             return
         self.show_view("loading")
         self.compress_files(files)
 
     def on_select_folder(self) -> None:
-        folder = QFileDialog.getExistingDirectory(self, _("Select Folder"))
+        folder = QFileDialog.getExistingDirectory(
+            self, _("Select Folder"), self._dialog_start_dir()
+        )
         if not folder:
             return
         self.show_view("loading")
         self.compress_files([folder])
+
+    def _dialog_start_dir(self) -> str:
+        start = self.settings.default_open_dialog_directory
+        if start and os.path.isdir(start):
+            return start
+        return QDir.homePath()
 
     # ------------------------------------------------------------------ DnD
     @override

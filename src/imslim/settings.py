@@ -54,6 +54,9 @@ class SettingsDialog(QDialog):
         self.entry_output_folder: QLineEdit = QLineEdit()
         self.btn_output_folder: QPushButton = QPushButton()
         self.btn_clear_output_folder: QPushButton = QPushButton()
+        self.entry_default_directory: QLineEdit = QLineEdit()
+        self.btn_default_directory: QPushButton = QPushButton()
+        self.btn_clear_default_directory: QPushButton = QPushButton()
         self.radio_recursive: QWidget = QWidget()
         self.radio_compression_method: QWidget = QWidget()
         self.radio_metadata: QWidget = QWidget()
@@ -107,6 +110,23 @@ class SettingsDialog(QDialog):
         output_row.addWidget(self.btn_output_folder)
         output_row.addWidget(self.btn_clear_output_folder)
 
+        self.entry_default_directory = QLineEdit()
+        self.entry_default_directory.setPlaceholderText(_("User's home directory"))
+
+        self.btn_default_directory = QPushButton(_("Browse…"))
+        _res = self.btn_default_directory.clicked.connect(self.on_browse_default_directory)
+
+        self.btn_clear_default_directory = QPushButton("✕")
+        self.btn_clear_default_directory.setToolTip(_("Clear the default open directory"))
+        self.btn_clear_default_directory.setFixedWidth(36)
+        self.btn_clear_default_directory.setStyleSheet("QPushButton { padding: 6px 10px; }")
+        _res = self.btn_clear_default_directory.clicked.connect(self.on_clear_default_directory)
+
+        default_directory_row = QHBoxLayout()
+        default_directory_row.addWidget(self.entry_default_directory, 1)
+        default_directory_row.addWidget(self.btn_default_directory)
+        default_directory_row.addWidget(self.btn_clear_default_directory)
+
         self.radio_recursive = self._radio_row(
             _("Compress sub-directories"), _("Compress only root"), "recursive"
         )
@@ -124,6 +144,7 @@ class SettingsDialog(QDialog):
 
         form.addRow(_("Save Method"), self.combo_save_method)
         form.addRow(_("Output Folder"), output_row)
+        form.addRow(_("Open Dialog Directory"), default_directory_row)
         form.addRow(_("Directory Recurse"), self.radio_recursive)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
 
@@ -172,6 +193,7 @@ class SettingsDialog(QDialog):
 
         _res = self.combo_save_method.currentIndexChanged.connect(self.on_save_method_changed)
         _res = self.entry_output_folder.textChanged.connect(self.on_output_folder_changed)
+        _res = self.entry_default_directory.textChanged.connect(self.on_default_directory_changed)
         _res = self.spin_timeout.valueChanged.connect(self.on_int_changed("compression-timeout"))
         _res = self.combo_log_level.currentIndexChanged.connect(self.on_log_level_changed)
         _res = self.spin_log_max_size.valueChanged.connect(self.on_int_changed("log-max-size"))
@@ -428,6 +450,7 @@ class SettingsDialog(QDialog):
         s = self.settings
         self.combo_save_method.setCurrentIndex(s.save_method)
         self.entry_output_folder.setText(s.output_folder)
+        self.entry_default_directory.setText(s.default_open_dialog_directory)
         self.spin_timeout.setValue(s.compression_timeout)
         self.combo_log_level.setCurrentIndex(_LOG_LEVELS.index(s.log_level))
         self.spin_log_max_size.setValue(s.log_max_size)
@@ -452,6 +475,7 @@ class SettingsDialog(QDialog):
         s = self.settings
         s.save_method = self.combo_save_method.currentIndex()
         s.output_folder = self.entry_output_folder.text().strip()
+        s.default_open_dialog_directory = self.entry_default_directory.text().strip()
         s.compression_timeout = self.spin_timeout.value()
         s.log_level = _LOG_LEVELS[self.combo_log_level.currentIndex()]
         s.log_max_size = self.spin_log_max_size.value()
@@ -472,6 +496,22 @@ class SettingsDialog(QDialog):
     def on_output_folder_changed(self, text: str) -> None:
         self.settings.output_folder = text.strip()
         self.settings_changed.emit()
+
+    def on_default_directory_changed(self, text: str) -> None:
+        self.settings.default_open_dialog_directory = text.strip()
+        self.settings_changed.emit()
+
+    def on_browse_default_directory(self) -> None:
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            _("Select Default Open Dialog Directory"),
+            self.entry_default_directory.text() or "",
+        )
+        if folder:
+            self.entry_default_directory.setText(folder)
+
+    def on_clear_default_directory(self) -> None:
+        self.entry_default_directory.setText("")
 
     def on_browse_output_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(

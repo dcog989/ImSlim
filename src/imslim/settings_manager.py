@@ -24,6 +24,7 @@ SAVE_BACKUP_OVERWRITE = 1
 DEFAULTS: dict[str, str | int | bool] = {
     "save-method": SAVE_NEW_FILE,
     "output-folder": "",
+    "default-open-dialog-directory": "",
     "recursive": True,
     "metadata": True,
     "file-attributes": True,
@@ -97,6 +98,14 @@ class SettingsManager:
     @output_folder.setter
     def output_folder(self, value: str) -> None:
         self._set("output-folder", value)
+
+    @property
+    def default_open_dialog_directory(self) -> str:
+        return cast(str, self._get("default-open-dialog-directory"))
+
+    @default_open_dialog_directory.setter
+    def default_open_dialog_directory(self, value: str) -> None:
+        self._set("default-open-dialog-directory", value)
 
     @property
     def lossy(self) -> bool:
