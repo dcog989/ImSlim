@@ -8,6 +8,7 @@ import time
 logger = logging.getLogger(__name__)
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from string.templatelib import Interpolation, Template
 from typing import IO, NamedTuple, cast
 
 from ._i18n import _
@@ -24,6 +25,22 @@ class Command(NamedTuple):
     argv: list[str]
     stdout_path: str | None = None
     ignore_errors: bool = False
+
+
+def tokens(template: Template) -> list[str]:
+    """Flatten a t-string into argv tokens for a tool invocation.
+
+    Static text is split on whitespace so flag/value boundaries fall out
+    naturally, while each interpolation becomes a single token so values that
+    contain spaces remain one argument.
+    """
+    result: list[str] = []
+    for part in template:
+        if isinstance(part, Interpolation):
+            result.append(str(part.value))
+        else:
+            result.extend(part.split())
+    return result
 
 
 _KILL_GRACE_SECONDS = 0.5

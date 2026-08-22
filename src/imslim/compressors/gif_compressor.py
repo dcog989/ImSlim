@@ -3,7 +3,7 @@ from typing import override
 from PySide6.QtGui import QImageReader
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor
+from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
 
 
@@ -41,6 +41,6 @@ class GIFCompressor(Compressor):
                 gifsicle += ["--no-extensions"]
             gifsicle += ["--no-comments", "--no-names"]
 
-        gifsicle += ["-o", result_item.tmp_filename, result_item.filename]
+        gifsicle += tokens(t"-o {result_item.tmp_filename} {result_item.filename}")
 
         return [Command(gifsicle)]

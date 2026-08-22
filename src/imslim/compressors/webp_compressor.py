@@ -1,7 +1,7 @@
 from typing import override
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor
+from ..compressor import Command, Compressor, tokens
 from ..image_convert import to_png
 from ..result_item import ResultItem
 
@@ -49,16 +49,10 @@ class WEBPCompressor(Compressor):
             quality = 100  # maximum cpu power for lossless
 
         # multithreaded, (lossless) compression mode, quality, output
-        cwebp += [
-            "-mt",
-            "-m",
-            str(self.settings.webp_lossless_level),
-            "-q",
-            str(quality),
-            "-o",
-            result_item.tmp_filename,
-            input_path,
-        ]
+        cwebp += tokens(
+            t"-mt -m {self.settings.webp_lossless_level} -q {quality} "
+            t"-o {result_item.tmp_filename} {input_path}"
+        )
 
         commands.append(Command(cwebp))
         return commands

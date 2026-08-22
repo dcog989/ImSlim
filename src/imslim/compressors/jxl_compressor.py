@@ -2,7 +2,7 @@ import os
 from typing import override
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor
+from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
 
 _JXL_METADATA = ("exif", "xmp", "jumbf")
@@ -26,7 +26,7 @@ class JXLCompressor(Compressor):
 
         # cjxl can't read JXL input, so decode to a temporary PNG first
         commands: list[Command] = [
-            Command([resolve_tool("djxl"), result_item.filename, intermediate])
+            Command(tokens(t"{resolve_tool('djxl')} {result_item.filename} {intermediate}"))
         ]
 
         if self.settings.metadata:
@@ -37,7 +37,9 @@ class JXLCompressor(Compressor):
             for kind in _JXL_METADATA:
                 commands.append(
                     Command(
-                        [resolve_tool("djxl"), result_item.filename, "-", "--output_format", kind],
+                        tokens(
+                            t"{resolve_tool('djxl')} {result_item.filename} - --output_format {kind}"
+                        ),
                         stdout_path=self._sidecar_path(result_item, kind),
                         ignore_errors=True,
                     )
@@ -47,12 +49,12 @@ class JXLCompressor(Compressor):
 
         # cjxl v0.12: -q 100 is lossless (the -q 100/--lossless flag was removed).
         if self.settings.lossy:
-            cjxl += ["-q", str(self.settings.jxl_lossy_level)]
+            cjxl += tokens(t"-q {self.settings.jxl_lossy_level}")
         else:
             cjxl += ["-q", "100"]
 
         # effort (1-10, default 7): higher -> slower but better compression
-        cjxl += ["-e", str(self.settings.jxl_lossless_level)]
+        cjxl += tokens(t"-e {self.settings.jxl_lossless_level}")
 
         if self.settings.metadata:
             for kind in _JXL_METADATA:

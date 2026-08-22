@@ -2,7 +2,7 @@ import json
 from typing import override
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor
+from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
 
 _SVGO_CONFIG_HEADER = "module.exports = "
@@ -32,12 +32,12 @@ class SVGCompressor(Compressor):
             # svgo 3 dropped --enable; extra plugins are enabled via a config
             # file. sortAttrs already runs in preset-default, so only
             # removeDimensions is added here.
-            svgo += ["--config", config_path]
+            svgo += tokens(t"--config {config_path}")
             with open(config_path, "w") as fp:
                 # svgo configs must be CommonJS regardless of the project
                 # package.json type, so inline the JSON as module.exports.
                 _res = fp.write(_SVGO_CONFIG_HEADER + json.dumps(_SVGO_CONFIG))
-        svgo += ["-i", result_item.filename, "-o", result_item.tmp_filename]
+        svgo += tokens(t"-i {result_item.filename} -o {result_item.tmp_filename}")
 
         return [Command(svgo)]
 

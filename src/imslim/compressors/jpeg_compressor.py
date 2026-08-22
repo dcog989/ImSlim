@@ -1,7 +1,7 @@
 from typing import override
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor
+from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
 
 
@@ -24,7 +24,7 @@ class JPEGCompressor(Compressor):
         return self._build_lossless_command(result_item)
 
     def _build_lossless_command(self, result_item: ResultItem) -> list[Command]:
-        jpegtran = [resolve_tool("jpegtran"), "-optimize"]
+        jpegtran = tokens(t"{resolve_tool('jpegtran')} -optimize")
 
         if self.settings.jpg_progressive:
             jpegtran.append("-progressive")
@@ -40,19 +40,15 @@ class JPEGCompressor(Compressor):
         intermediate = self._intermediate_path(result_item)
 
         # jpegli can't read JPEG input, so decode to a temporary PNG first
-        djpegli = [resolve_tool("djpegli"), result_item.filename, intermediate]
+        djpegli = tokens(t"{resolve_tool('djpegli')} {result_item.filename} {intermediate}")
 
         output = result_item.tmp_filename
         if not self.settings.metadata:
             output = self._encoded_path(result_item)
 
-        cjpegli = [
-            resolve_tool("cjpegli"),
-            intermediate,
-            output,
-            "--quality",
-            str(self.settings.jpg_lossy_level),
-        ]
+        cjpegli = tokens(
+            t"{resolve_tool('cjpegli')} {intermediate} {output} --quality {self.settings.jpg_lossy_level}"
+        )
         cjpegli.append(
             "--progressive_level=2" if self.settings.jpg_progressive else "--progressive_level=0"
         )
@@ -61,14 +57,10 @@ class JPEGCompressor(Compressor):
 
         if not self.settings.metadata:
             # jpegli carries ICC/EXIF/XMP from the PNG; strip all but the ICC profile
-            jpegtran = [
-                resolve_tool("jpegtran"),
-                "-copy",
-                "icc",
-                "-outfile",
-                result_item.tmp_filename,
-                self._encoded_path(result_item),
-            ]
+            jpegtran = tokens(
+                t"{resolve_tool('jpegtran')} -copy icc -outfile {result_item.tmp_filename} "
+                t"{self._encoded_path(result_item)}"
+            )
             commands.append(Command(jpegtran))
 
         return commands

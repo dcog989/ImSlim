@@ -1,7 +1,7 @@
 from typing import override
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor
+from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
 
 
@@ -19,7 +19,7 @@ class AVIFCompressor(Compressor):
         intermediate = self._intermediate_path(result_item)
 
         # avifenc can't read AVIF input, so decode to a temporary PNG first
-        avifdec = [resolve_tool("avifdec"), result_item.filename, intermediate]
+        avifdec = tokens(t"{resolve_tool('avifdec')} {result_item.filename} {intermediate}")
 
         avifenc = [resolve_tool("avifenc")]
 
@@ -31,19 +31,12 @@ class AVIFCompressor(Compressor):
 
         if self.settings.lossy:
             # tune=iq + 10-bit depth is the best quality/size operating point for libaom
-            avifenc += [
-                "-q",
-                str(self.settings.avif_lossy_level),
-                "-a",
-                "tune=iq",
-                "-d",
-                "10",
-            ]
+            avifenc += tokens(t"-q {self.settings.avif_lossy_level} -a tune=iq -d 10")
         else:
             avifenc.append("--lossless")
 
         # higher effort -> slower but better compression (speed 0-10, default 6)
-        avifenc += ["--speed", str(10 - self.settings.avif_lossless_level)]
+        avifenc += tokens(t"--speed {10 - self.settings.avif_lossless_level}")
         avifenc += [intermediate, result_item.tmp_filename]
 
         return [Command(avifdec), Command(avifenc)]

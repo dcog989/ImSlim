@@ -1,7 +1,7 @@
 from typing import override
 
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor
+from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
 
 
@@ -16,23 +16,14 @@ class PNGCompressor(Compressor):
         commands: list[Command] = []
 
         if self.settings.lossy:  # lossy compression
-            pngquant = [
-                resolve_tool("pngquant"),
-                f"--quality=0-{self.settings.png_lossy_level}",
-                "-f",
-            ]
+            quality_flag = f"--quality=0-{self.settings.png_lossy_level}"
+            pngquant = tokens(t"{resolve_tool('pngquant')} {quality_flag} -f")
             if not self.settings.metadata:
                 pngquant.append("--strip")
             pngquant += [result_item.filename, "--output", result_item.tmp_filename]
             commands.append(Command(pngquant))
 
-        oxipng = [
-            resolve_tool("oxipng"),
-            "-o",
-            str(self.settings.png_lossless_level),
-            "-i",
-            "1",
-        ]
+        oxipng = tokens(t"{resolve_tool('oxipng')} -o {self.settings.png_lossless_level} -i 1")
         if not self.settings.metadata:
             oxipng += ["--strip", "safe"]
         if self.settings.file_attributes:
