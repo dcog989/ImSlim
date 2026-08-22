@@ -5,6 +5,8 @@ from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import QWidget
 
+from ._i18n import _
+
 
 class ModeToggle(QWidget):
     """Lossless / Lossy rocker switch."""
@@ -59,14 +61,14 @@ class ModeToggle(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         acc = self.palette().color(self.palette().ColorRole.Highlight)
         base = self.palette().color(self.palette().ColorRole.Mid)
         text = self.palette().color(self.palette().ColorRole.WindowText)
         on_text = self.palette().color(self.palette().ColorRole.HighlightedText)
 
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QColor(base))
         painter.drawRoundedRect(self._track, 7, 7)
 
@@ -84,19 +86,19 @@ class ModeToggle(QWidget):
         painter.setPen(QColor(on_text) if not self._lossy else QColor(inactive))
         painter.drawText(
             QRectF(self._track.left(), self._track.top(), half, self._track.height()),
-            Qt.AlignCenter,
+            Qt.AlignmentFlag.AlignCenter,
             _("Lossless"),
         )
         painter.setPen(QColor(inactive) if not self._lossy else QColor(on_text))
         painter.drawText(
             QRectF(self._track.left() + half, self._track.top(), half, self._track.height()),
-            Qt.AlignCenter,
+            Qt.AlignmentFlag.AlignCenter,
             _("Lossy"),
         )
         painter.end()
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.LeftButton:
+        if event.button() == Qt.MouseButton.LeftButton:
             self.setLossy(not self._lossy)
             self.modeChanged.emit(self._lossy)
 
@@ -106,9 +108,9 @@ def stylized_i_icon(size: int) -> QPixmap:
     svg_path = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
     renderer = QSvgRenderer(svg_path)
     pm = QPixmap(size, size)
-    pm.fill(Qt.transparent)
+    pm.fill(Qt.GlobalColor.transparent)
     p = QPainter(pm)
-    p.setRenderHint(QPainter.Antialiasing)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
     renderer.render(p)
     p.end()
     return pm

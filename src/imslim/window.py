@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import __version__
+from ._i18n import _
 from .compression_manager import CompressionManager
 from .compressors.avif_compressor import AVIFCompressor
 from .compressors.gif_compressor import GIFCompressor
@@ -65,7 +66,7 @@ class _PasteFilter(QObject):
     context_menu_requested = Signal(QPoint)
 
     def eventFilter(self, obj, event) -> bool:
-        if event.type() == QEvent.ContextMenu:
+        if event.type() == QEvent.Type.ContextMenu:
             target = QApplication.widgetAt(event.globalPos())
             if target is None or not self._is_result_row(target):
                 self.context_menu_requested.emit(event.globalPos())
@@ -156,7 +157,7 @@ class ImSlimWindow(QWidget):
         self.mode_toggle = ModeToggle()
         self.mode_toggle.setMinimumWidth(240)
         self.mode_toggle.setMaximumWidth(240)
-        header_layout.addWidget(self.mode_toggle, alignment=Qt.AlignCenter)
+        header_layout.addWidget(self.mode_toggle, alignment=Qt.AlignmentFlag.AlignCenter)
 
         header_layout.addStretch(1)
 
@@ -168,7 +169,7 @@ class ImSlimWindow(QWidget):
         header_layout.addWidget(self.menu_button)
 
         self.subtitle_label = QLabel()
-        self.subtitle_label.setAlignment(Qt.AlignCenter)
+        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.subtitle_label.hide()
 
         root.addWidget(header)
@@ -197,7 +198,7 @@ class ImSlimWindow(QWidget):
 
         icon = QLabel()
         icon.setPixmap(stylized_i_icon(180))
-        icon.setAlignment(Qt.AlignCenter)
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
 
         layout.addSpacing(8)
@@ -207,7 +208,7 @@ class ImSlimWindow(QWidget):
         drop_font.setPointSize(12)
         drop_font.setBold(True)
         drop_label.setFont(drop_font)
-        drop_label.setAlignment(Qt.AlignCenter)
+        drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(drop_label)
 
         layout.addStretch(1)
@@ -235,18 +236,18 @@ class ImSlimWindow(QWidget):
         select_files = QPushButton(_("Select Files"))
         select_files.setMinimumHeight(36)
         select_files.setFixedWidth(200)
-        select_files.setCursor(Qt.PointingHandCursor)
+        select_files.setCursor(Qt.CursorShape.PointingHandCursor)
         select_files.clicked.connect(self.on_select)
         select_files.setStyleSheet(lozenge)
-        buttons.addWidget(select_files, 0, Qt.AlignCenter)
+        buttons.addWidget(select_files, 0, Qt.AlignmentFlag.AlignCenter)
 
         select_dir = QPushButton(_("Select Directory"))
         select_dir.setMinimumHeight(36)
         select_dir.setFixedWidth(200)
-        select_dir.setCursor(Qt.PointingHandCursor)
+        select_dir.setCursor(Qt.CursorShape.PointingHandCursor)
         select_dir.clicked.connect(self.on_select_folder)
         select_dir.setStyleSheet(lozenge)
-        buttons.addWidget(select_dir, 0, Qt.AlignCenter)
+        buttons.addWidget(select_dir, 0, Qt.AlignmentFlag.AlignCenter)
 
         layout.addLayout(buttons)
         return page
@@ -259,19 +260,19 @@ class ImSlimWindow(QWidget):
         self.loading_spinner.setRange(0, 0)
         self.loading_spinner.setTextVisible(False)
         self.loading_spinner.setFixedWidth(120)
-        self.loading_spinner.setAlignment(Qt.AlignCenter)
+        self.loading_spinner.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         title = QLabel(_("Analyzing Images"))
         title_font = title.font()
         title_font.setPointSize(18)
         title_font.setBold(True)
         title.setFont(title_font)
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         description = QLabel(_("Analyzing your images before compression…"))
-        description.setAlignment(Qt.AlignCenter)
+        description.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        layout.addWidget(self.loading_spinner, alignment=Qt.AlignCenter)
+        layout.addWidget(self.loading_spinner, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addSpacing(12)
         layout.addWidget(title)
         layout.addWidget(description)
@@ -520,12 +521,14 @@ class ImSlimWindow(QWidget):
         # On Wayland, image data is transferred asynchronously from the
         # clipboard owner, so the first read may come back empty.
         image = clipboard.image()
-        for _ in range(20):
+        attempts = 0
+        while attempts < 20:
             if not image.isNull():
                 break
             self.app.processEvents()
             time.sleep(0.05)
             image = clipboard.image()
+            attempts += 1
         return image
 
     def _save_clipboard_image(self, image) -> str | None:
@@ -572,13 +575,13 @@ class ImSlimWindow(QWidget):
         box.setWindowTitle(_("Are you sure you want to compress images in these directories?"))
         box.setText(message)
         box.setIcon(
-            QMessageBox.Warning
+            QMessageBox.Icon.Warning
             if self.settings.save_method == SAVE_BACKUP_OVERWRITE
-            else QMessageBox.Question
+            else QMessageBox.Icon.Question
         )
-        box.addButton(QMessageBox.Cancel)
-        box.addButton(QMessageBox.Ok)
-        return box.exec() == QMessageBox.Ok
+        box.addButton(QMessageBox.StandardButton.Cancel)
+        box.addButton(QMessageBox.StandardButton.Ok)
+        return box.exec() == QMessageBox.StandardButton.Ok
 
     # ------------------------------------------------------------------ DnD
     def dragEnterEvent(self, event):

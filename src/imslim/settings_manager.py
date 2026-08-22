@@ -62,12 +62,44 @@ class SettingsManager:
         else:
             self.set_string(key, cast(str, value))
 
+    @property
+    def save_method(self) -> int:
+        return cast(int, self._get("save-method"))
 
-# One typed property per DEFAULTS entry, named after the key with dashes
-# replaced by underscores (e.g. "png-lossy-level" -> settings.png_lossy_level).
-# The type is derived from the default value, so a setting is defined in
-# exactly one place instead of repeating a property/setter pair per key.
+    @save_method.setter
+    def save_method(self, value: int) -> None:
+        self._set("save-method", value)
+
+    @property
+    def output_folder(self) -> str:
+        return cast(str, self._get("output-folder"))
+
+    @output_folder.setter
+    def output_folder(self, value: str) -> None:
+        self._set("output-folder", value)
+
+    @property
+    def lossy(self) -> bool:
+        return cast(bool, self._get("lossy"))
+
+    @lossy.setter
+    def lossy(self, value: bool) -> None:
+        self._set("lossy", value)
+
+    @property
+    def recursive(self) -> bool:
+        return cast(bool, self._get("recursive"))
+
+    @recursive.setter
+    def recursive(self, value: bool) -> None:
+        self._set("recursive", value)
+
+
+# The remaining properties are generated from DEFAULTS in one place; the four
+# settings declared explicitly above are skipped here.
 for _key in DEFAULTS:
+    if _key in {"save-method", "output-folder", "lossy", "recursive"}:
+        continue
     setattr(
         SettingsManager,
         _key.replace("-", "_"),

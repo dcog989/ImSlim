@@ -9,6 +9,7 @@ import subprocess
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QImage, QImageReader
 
+from ._i18n import _
 from .binary_resolver import KNOWN_TOOLS, resolve_tool
 
 

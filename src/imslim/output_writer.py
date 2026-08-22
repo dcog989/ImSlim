@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 
+from ._i18n import _
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE
 

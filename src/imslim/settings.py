@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ._i18n import _
+
 
 class SettingsDialog(QDialog):
     settings_changed = Signal()
@@ -40,7 +42,7 @@ class SettingsDialog(QDialog):
         tabs.addTab(self._build_formats_tab(), _("Formats"))
         layout.addWidget(tabs)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
 
@@ -268,7 +270,7 @@ class SettingsDialog(QDialog):
         hint_label = QLabel(hint)
         hint_label.setWordWrap(True)
         hint_label.setMinimumHeight(hint_label.fontMetrics().height() + 4)
-        hint_label.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        hint_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
 
         # Muted but readable on both light and dark themes: blend the text
         # color toward the background instead of a hardcoded gray.

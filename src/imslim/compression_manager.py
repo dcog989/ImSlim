@@ -4,6 +4,8 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from ._i18n import _
+
 # MIME type -> (compressor type, output extension). Formats that are re-encoded
 # to a different format on output (BMP/TIFF -> WebP) carry a different extension
 # here; for the rest the source extension is kept. Single source of truth shared

@@ -3,13 +3,6 @@ import sys
 import sysconfig
 from collections.abc import Callable
 
-try:
-    import gettext
-
-    gettext.install("imslim")
-except ImportError:
-    pass
-
 from PySide6.QtCore import QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication

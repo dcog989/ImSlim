@@ -3,6 +3,7 @@ import time
 
 from PySide6.QtCore import QMimeDatabase
 
+from ._i18n import _
 from .compression_manager import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE

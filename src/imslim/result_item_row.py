@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ._i18n import _
 from .result_item import ResultItem
 from .tools import create_thumbnail_qimage
 
@@ -45,7 +46,7 @@ class ResultItemRow(QWidget):
         self.subtitle_label = QLabel()
         self.subtitle_label.setObjectName("rowSubtitle")
         self.subtitle_label.setWordWrap(True)
-        self.subtitle_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.subtitle_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
         self.savings_label = QLabel()
         self.savings_label.setObjectName("rowSavings")

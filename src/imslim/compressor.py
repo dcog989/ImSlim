@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import NamedTuple
 
+from ._i18n import _
 from .output_writer import OutputWriter
 from .result_item import ResultItem
 
