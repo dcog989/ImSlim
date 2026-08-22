@@ -10,12 +10,14 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QRadioButton,
     QSizePolicy,
     QSpinBox,
     QTabWidget,
@@ -36,13 +38,15 @@ class SettingsDialog(QDialog):
         self.settings: SettingsManager = settings
         self._format_spins: list[tuple[QSpinBox, str]] = []
         self._format_checks: list[tuple[QCheckBox, str]] = []
+        self._radio_pairs: list[tuple[QRadioButton, str]] = []
         self.combo_save_method: QComboBox = QComboBox()
         self.entry_output_folder: QLineEdit = QLineEdit()
         self.btn_output_folder: QPushButton = QPushButton()
         self.btn_clear_output_folder: QPushButton = QPushButton()
-        self.toggle_recursive: QCheckBox = QCheckBox()
-        self.toggle_metadata: QCheckBox = QCheckBox()
-        self.toggle_file_attributes: QCheckBox = QCheckBox()
+        self.radio_recursive: QWidget = QWidget()
+        self.radio_compression_method: QWidget = QWidget()
+        self.radio_metadata: QWidget = QWidget()
+        self.radio_file_attributes: QWidget = QWidget()
         self.spin_timeout: QSpinBox = QSpinBox()
         self.build_ui()
 
@@ -68,7 +72,7 @@ class SettingsDialog(QDialog):
 
         self.combo_save_method = QComboBox()
         self.combo_save_method.addItems(
-            [_("Create a new compressed file"), _("Backup original and overwrite")]
+            [_("Save to a new file"), _("Save to original after backup")]
         )
 
         self.entry_output_folder = QLineEdit()
@@ -77,7 +81,9 @@ class SettingsDialog(QDialog):
         self.btn_output_folder = QPushButton(_("Browse…"))
         _res = self.btn_output_folder.clicked.connect(self.on_browse_output_folder)
 
-        self.btn_clear_output_folder = QPushButton(_("Clear"))
+        self.btn_clear_output_folder = QPushButton("✕")
+        self.btn_clear_output_folder.setToolTip(_("Clear the output folder"))
+        self.btn_clear_output_folder.setFixedWidth(36)
         _res = self.btn_clear_output_folder.clicked.connect(self.on_clear_output_folder)
 
         output_row = QHBoxLayout()
@@ -85,15 +91,13 @@ class SettingsDialog(QDialog):
         output_row.addWidget(self.btn_output_folder)
         output_row.addWidget(self.btn_clear_output_folder)
 
-        self.toggle_recursive = QCheckBox(_("Enable or disable compression through subdirectories"))
-        self.toggle_metadata = QCheckBox(_("Keep metadata chunks that do not affect rendering"))
-        self.toggle_file_attributes = QCheckBox(
-            _("Ensure the new file has the same permissions and timestamps")
+        self.radio_recursive = self._radio_row(
+            _("Compress sub-directories"), _("Compress only root"), "recursive"
         )
 
         self.spin_timeout = QSpinBox()
         self.spin_timeout.setRange(1, 300)
-        self.spin_timeout.setSuffix(_(" s"))
+        self.spin_timeout.setSuffix("s")
         self.spin_timeout.setToolTip(
             _(
                 "Maximum seconds a single compression tool may run on one image "
@@ -104,19 +108,42 @@ class SettingsDialog(QDialog):
 
         form.addRow(_("Save Method"), self.combo_save_method)
         form.addRow(_("Output Folder"), output_row)
-        form.addRow(_("Recursive Compression"), self.toggle_recursive)
-        form.addRow(_("Keep Metadata"), self.toggle_metadata)
-        form.addRow(_("Keep File Attributes When Possible"), self.toggle_file_attributes)
+        form.addRow(_("Directory Recurse"), self.radio_recursive)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        form.addRow(separator)
+
+        self.radio_compression_method = self._radio_row(_("Lossy"), _("Lossless"), "lossy")
+        self.radio_metadata = self._radio_row(_("Keep metadata"), _("Remove metadata"), "metadata")
+        self.radio_file_attributes = self._radio_row(
+            _("Keep attr"), _("Reset attr"), "file-attributes"
+        )
+
+        form.addRow(_("Compression Method"), self.radio_compression_method)
+        form.addRow(_("Metadata Retention"), self.radio_metadata)
+        form.addRow(_("File Attributes"), self.radio_file_attributes)
 
         _res = self.combo_save_method.currentIndexChanged.connect(self.on_save_method_changed)
         _res = self.entry_output_folder.textChanged.connect(self.on_output_folder_changed)
         _res = self.spin_timeout.valueChanged.connect(self.on_int_changed("compression-timeout"))
-        _res = self.toggle_recursive.toggled.connect(self.on_bool_changed("recursive"))
-        _res = self.toggle_metadata.toggled.connect(self.on_bool_changed("metadata"))
-        _res = self.toggle_file_attributes.toggled.connect(self.on_bool_changed("file-attributes"))
 
         return tab
+
+    def _radio_row(self, true_label: str, false_label: str, key: str) -> QWidget:
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(16)
+        true_radio = QRadioButton(true_label)
+        false_radio = QRadioButton(false_label)
+        true_radio.setChecked(True)
+        _res = true_radio.toggled.connect(self.on_bool_changed(key))
+        self._radio_pairs.append((true_radio, key))
+        layout.addWidget(true_radio)
+        layout.addWidget(false_radio)
+        return container
 
     def _build_formats_tab(self) -> QWidget:
         tab = QWidget()
@@ -350,10 +377,10 @@ class SettingsDialog(QDialog):
         s = self.settings
         self.combo_save_method.setCurrentIndex(s.save_method)
         self.entry_output_folder.setText(s.output_folder)
-        self.toggle_recursive.setChecked(s.recursive)
-        self.toggle_metadata.setChecked(s.metadata)
-        self.toggle_file_attributes.setChecked(s.file_attributes)
         self.spin_timeout.setValue(s.compression_timeout)
+
+        for radio, key in self._radio_pairs:
+            radio.setChecked(cast(bool, getattr(s, key.replace("-", "_"))))
 
         for spin, key in self._format_spins:
             spin.setValue(cast(int, getattr(s, key.replace("-", "_"))))
@@ -370,10 +397,10 @@ class SettingsDialog(QDialog):
         s = self.settings
         s.save_method = self.combo_save_method.currentIndex()
         s.output_folder = self.entry_output_folder.text().strip()
-        s.recursive = self.toggle_recursive.isChecked()
-        s.metadata = self.toggle_metadata.isChecked()
-        s.file_attributes = self.toggle_file_attributes.isChecked()
         s.compression_timeout = self.spin_timeout.value()
+
+        for radio, key in self._radio_pairs:
+            setattr(s, key.replace("-", "_"), radio.isChecked())
 
         for spin, key in self._format_spins:
             setattr(s, key.replace("-", "_"), spin.value())

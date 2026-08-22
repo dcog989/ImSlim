@@ -96,6 +96,7 @@ class _PasteFilter(QObject):
 
 
 _CLOSE = "\u2715"
+_V_SPACING = 16
 
 
 class ImSlimWindow(QWidget):
@@ -125,6 +126,7 @@ class ImSlimWindow(QWidget):
         self.loading_spinner: QProgressBar = QProgressBar()
         self.results_container: QWidget = QWidget()
         self.results_layout: QVBoxLayout = QVBoxLayout()
+        self.subtitle_label: QLabel = QLabel()
         self.build_ui()
         self.show_view("home")
 
@@ -150,6 +152,7 @@ class ImSlimWindow(QWidget):
         header = QWidget()
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(8, 6, 8, 6)
+        header_layout.setSpacing(8)
 
         icon_color = self.palette().color(self.palette().ColorRole.WindowText)
 
@@ -179,6 +182,7 @@ class ImSlimWindow(QWidget):
         header_layout.addWidget(self.about_button)
         header_layout.addWidget(self.clear_button)
         header_layout.addWidget(self.stop_button)
+
         header_layout.addStretch(1)
 
         self.results_title: QLabel = QLabel(_("Compression Results"))
@@ -201,10 +205,6 @@ class ImSlimWindow(QWidget):
         _res = self.settings_button.clicked.connect(self.on_settings)
         header_layout.addWidget(self.settings_button)
 
-        self.subtitle_label: QLabel = QLabel()
-        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.subtitle_label.hide()
-
         root.addWidget(header)
 
         # Content stack
@@ -220,20 +220,28 @@ class ImSlimWindow(QWidget):
 
         root.addWidget(self.stack, 1)
 
-        self.set_saving_subtitle()
+        self.set_active_settings()
 
     def _build_home_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(40, 24, 40, 32)
+        layout.setContentsMargins(40, _V_SPACING, 40, _V_SPACING)
+        layout.setSpacing(_V_SPACING)
+
         layout.addStretch(1)
 
         icon = QLabel()
-        icon.setPixmap(imslim_icon().pixmap(180))
+        icon.setPixmap(imslim_icon().pixmap(240))
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
 
-        layout.addSpacing(8)
+        layout.addStretch(1)
+
+        self.subtitle_label = QLabel()
+        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.subtitle_label)
+
+        layout.addStretch(1)
 
         drop_label = QLabel(_("Drop or paste files or directory here to compress."))
         drop_font = drop_label.font()
@@ -282,6 +290,7 @@ class ImSlimWindow(QWidget):
         buttons.addWidget(select_dir, 0, Qt.AlignmentFlag.AlignCenter)
 
         layout.addLayout(buttons)
+        layout.addStretch(1)
         return page
 
     def _build_loading_page(self) -> QWidget:
@@ -590,22 +599,21 @@ class ImSlimWindow(QWidget):
         self.show_view("loading")
         self.compress_files(paths)
 
-    # ------------------------------------------------------------- save method
-    def set_saving_subtitle(self) -> None:
-        if self.settings.save_method == SAVE_NEW_FILE:
-            label = _("Saving new compressed files with a “.imslim.[timestamp]” suffix")
-        else:
-            label = _("Backing up originals (“.BAK.[timestamp]”) and overwriting them")
-        if self.settings.output_folder:
-            label += " → " + self.settings.output_folder
-        self.subtitle_label.setText(label)
+    # ------------------------------------------------------------- active settings
+    def set_active_settings(self) -> None:
+        parts = [
+            _("Lossy") if self.settings.lossy else _("Lossless"),
+            _("Keep metadata") if self.settings.metadata else _("Remove metadata"),
+            _("Keep attributes") if self.settings.file_attributes else _("Reset attributes"),
+        ]
+        self.subtitle_label.setText(f"[ {' | '.join(parts)} ]")
 
     # ------------------------------------------------------------- dialogs
     def on_settings(self) -> None:
         if self.prefs_dialog is not None:
             _res = self.prefs_dialog.close()
         self.prefs_dialog = SettingsDialog(self.settings, self)
-        _res = self.prefs_dialog.settings_changed.connect(self.set_saving_subtitle)
+        _res = self.prefs_dialog.settings_changed.connect(self.set_active_settings)
         self.prefs_dialog.show()
 
     def on_about(self) -> None:
