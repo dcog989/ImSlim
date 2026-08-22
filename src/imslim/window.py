@@ -7,6 +7,7 @@ from PySide6.QtCore import QEvent, QMimeData, QObject, QPoint, QSize, Qt, QThrea
 from PySide6.QtGui import (
     QAction,
     QClipboard,
+    QColor,
     QContextMenuEvent,
     QDragEnterEvent,
     QDropEvent,
@@ -141,6 +142,12 @@ class ImSlimWindow(QWidget):
 
         self.result_item_manager: ResultItemManager = ResultItemManager(self.settings)
         self.rows: list[ResultItemRow] = []
+        self._batch_total: int = 0
+        self._batch_done: int = 0
+        self._batch_compressed: int = 0
+        self._batch_skipped: int = 0
+        self._batch_failed: int = 0
+        self._batch_saved_bytes: int = 0
 
     # ------------------------------------------------------------------ UI
     def build_ui(self) -> None:
@@ -327,6 +334,8 @@ class ImSlimWindow(QWidget):
         self.results_layout.setSpacing(2)
         self.results_layout.addWidget(self._build_results_header())
         self.results_layout.addStretch(1)
+        self.summary_label = self._build_summary_label()
+        self.results_layout.addWidget(self.summary_label)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -350,6 +359,24 @@ class ImSlimWindow(QWidget):
         layout.addStretch(1)
         layout.addWidget(reduced_label)
         return header
+
+    def _build_summary_label(self) -> QLabel:
+        label = QLabel()
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setContentsMargins(0, 8, 0, 0)
+
+        palette = label.palette()
+        fg = palette.color(palette.ColorRole.Text)
+        bg = palette.color(palette.ColorRole.Base)
+        muted = QColor(
+            round(fg.red() * 0.5 + bg.red()),
+            round(fg.green() * 0.5 + bg.green()),
+            round(fg.blue() * 0.5 + bg.blue()),
+        )
+        palette.setColor(palette.ColorRole.Text, muted)
+        palette.setColor(palette.ColorRole.WindowText, muted)
+        label.setPalette(palette)
+        return label
 
     # ----------------------------------------------------------------- actions
     def create_actions(self) -> None:
@@ -405,15 +432,19 @@ class ImSlimWindow(QWidget):
 
     def clear_results(self) -> None:
         self.show_view("home")
-        self.rows.clear()
         self.stop_button.hide()
-        while self.results_layout.count() > 2:
+        while self.results_layout.count() > 3:
             item = self.results_layout.takeAt(1)
             if item is None:
                 continue
             widget = item.widget()
             if widget is not None:
+                if isinstance(widget, ResultItemRow):
+                    widget.stop_thumbnail_loader()
                 widget.deleteLater()
+        self.rows.clear()
+        self._reset_summary()
+        self._update_summary()
 
     # ------------------------------------------------------- compression flow
     def handle_files(self, paths: list[str]) -> list[str]:
@@ -459,8 +490,10 @@ class ImSlimWindow(QWidget):
 
     def add_row(self, result_item: ResultItem) -> None:
         row = ResultItemRow(result_item)
-        self.results_layout.insertWidget(self.results_layout.count() - 1, row)
+        self.results_layout.insertWidget(1, row)
         self.rows.append(row)
+        self._batch_total += 1
+        self._update_summary()
 
     def update_result_item(self, result_item: ResultItem):
         result_item.running = False
@@ -468,11 +501,15 @@ class ImSlimWindow(QWidget):
             result_item.subtitle_label = _("Cancelled")
             result_item.savings = ""
             result_item.updated.emit()
+            self._batch_done += 1
+            self._update_summary()
             return
         if result_item.error:
             result_item.subtitle_label = result_item.error_message
+            self._batch_failed += 1
         elif result_item.skipped:
             result_item.savings = _("Skipped")
+            self._batch_skipped += 1
         else:
             if result_item.size > 0:
                 savings = round(100 - (result_item.new_size * 100 / result_item.size))
@@ -480,7 +517,37 @@ class ImSlimWindow(QWidget):
                 savings = 0
             result_item.savings = str(savings) + "%"
             result_item.subtitle_label += " → " + sizeof_fmt(result_item.new_size)
+            self._batch_compressed += 1
+            if result_item.size > result_item.new_size:
+                self._batch_saved_bytes += result_item.size - result_item.new_size
         result_item.updated.emit()
+        self._batch_done += 1
+        self._update_summary()
+
+    def _reset_summary(self) -> None:
+        self._batch_total = 0
+        self._batch_done = 0
+        self._batch_compressed = 0
+        self._batch_skipped = 0
+        self._batch_failed = 0
+        self._batch_saved_bytes = 0
+
+    def _update_summary(self) -> None:
+        self.summary_label.setText(self._summary_text())
+
+    def _summary_text(self) -> str:
+        text = (
+            _("%d of %d images done") % (self._batch_done, self._batch_total)
+            + " · "
+            + _("%d compressed") % self._batch_compressed
+            + " · "
+            + _("%s saved") % sizeof_fmt(self._batch_saved_bytes)
+        )
+        if self._batch_skipped:
+            text += " · " + _("%d skipped") % self._batch_skipped
+        if self._batch_failed:
+            text += " · " + _("%d failed") % self._batch_failed
+        return text
 
     # ----------------------------------------------------------------- file IO
     def on_context_menu(self, pos: QPoint) -> None:

@@ -87,12 +87,20 @@ class ResultItemRow(QWidget):
         self.refresh()
 
     def _set_thumbnail(self, image: QImage | None) -> None:
-        if self._thumbnail_loader is not None:
-            self._thumbnail_loader.deleteLater()
+        loader = self._thumbnail_loader
         self._thumbnail_loader = None
+        if loader is not None:
+            # deleteLater() must wait for the thread to stop; otherwise Qt may
+            # destroy the QThread while run() is still winding down.
+            _res = loader.finished.connect(loader.deleteLater)
         if image is None:
             return
         self.thumbnail.setPixmap(QPixmap.fromImage(image))
+
+    def stop_thumbnail_loader(self) -> None:
+        if self._thumbnail_loader is not None:
+            self._thumbnail_loader.wait()
+            self._thumbnail_loader = None
 
     @staticmethod
     def _make_info_button(handler: Callable[..., None]) -> QToolButton:
