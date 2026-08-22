@@ -675,12 +675,7 @@ class ImSlimWindow(QWidget):
             self.start_compression(paths)
             return
 
-        image = self._read_clipboard_image(clipboard)
-        if image.isNull():
-            return
-        path = self._save_clipboard_image(image)
-        if path:
-            self.start_compression([path])
+        self._read_clipboard_image(clipboard, attempts=0)
 
     @staticmethod
     def _urls_to_paths(mime: QMimeData) -> list[str]:
@@ -692,19 +687,25 @@ class ImSlimWindow(QWidget):
                     paths.append(local)
         return paths
 
-    def _read_clipboard_image(self, clipboard: QClipboard) -> QImage:
+    def _read_clipboard_image(self, clipboard: QClipboard, attempts: int) -> None:
         # On Wayland, image data is transferred asynchronously from the
-        # clipboard owner, so the first read may come back empty.
+        # clipboard owner, so the first read may come back empty. Retry on a
+        # QTimer instead of sleeping in a loop so the UI thread stays responsive.
         image = clipboard.image()
-        attempts = 0
-        while attempts < 20:
-            if not image.isNull():
-                break
-            self.app.processEvents()
-            time.sleep(0.05)
-            image = clipboard.image()
-            attempts += 1
-        return image
+        if not image.isNull():
+            self._handle_clipboard_image(image)
+            return
+        if attempts >= 20:
+            return
+        QTimer.singleShot(
+            50,
+            lambda: self._read_clipboard_image(clipboard, attempts + 1),
+        )
+
+    def _handle_clipboard_image(self, image: QImage) -> None:
+        path = self._save_clipboard_image(image)
+        if path:
+            self.start_compression([path])
 
     def _save_clipboard_image(self, image: QImage) -> str | None:
         directory = tempfile.gettempdir()

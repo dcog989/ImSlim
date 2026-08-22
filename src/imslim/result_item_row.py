@@ -2,7 +2,7 @@ import os
 from collections.abc import Callable
 from typing import override
 
-from PySide6.QtCore import QSize, Qt, QThread, QUrl, Signal
+from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThreadPool, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
     QContextMenuEvent,
@@ -28,20 +28,34 @@ from .result_item import ResultItem
 from .tools import create_thumbnail_qimage
 from .widgets import circle_off_icon, shield_alert_icon
 
+# Shared, bounded pool: a batch of hundreds of rows must not spawn a thread per
+# row. The cap follows compression_manager's reasoning (decode is cheap but
+# saturating every core is wasteful); it is never zero even on a single-core box.
+_THUMBNAIL_POOL = QThreadPool()
+_THUMBNAIL_POOL.setMaxThreadCount(max(2, (os.cpu_count() or 2) // 2))
 
-class _ThumbnailLoader(QThread):
-    """Decode a thumbnail image off the UI thread; emits a value QImage."""
+
+# Both __init__s are called explicitly below; the multiple-inheritance
+# warning is a false positive for the standard QObject+QRunnable combo.
+class _ThumbnailTask(QObject, QRunnable):  # pyright: ignore[reportUnsafeMultipleInheritance]
+    """Decode a thumbnail image in a pooled worker thread; emits a value QImage."""
 
     loaded: Signal = Signal(object)
 
-    def __init__(self, filename: str, size: int, parent: QWidget | None = None):
-        super().__init__(parent)
+    def __init__(self, filename: str, size: int) -> None:
+        QObject.__init__(self)
+        QRunnable.__init__(self)
+        # Managed by the row/pool (tryTake + deleteLater), not auto-deleted.
+        self.setAutoDelete(False)
         self._filename: str = filename
         self._size: int = size
 
     @override
     def run(self) -> None:
         self.loaded.emit(create_thumbnail_qimage(self._filename, self._size, self._size))
+        # deleteLater() posts to the main thread (the object's affinity), so it
+        # runs after any queued 'loaded' delivery and never while run() winds down.
+        self.deleteLater()
 
 
 class _ClickableThumbnail(QLabel):
@@ -106,30 +120,25 @@ class ResultItemRow(QWidget):
         layout.addWidget(self.skipped_button)
         layout.addWidget(self.error_button)
 
-        self._thumbnail_loader: _ThumbnailLoader | None = _ThumbnailLoader(
-            result_item.filename, 48, self
-        )
-        _res = self._thumbnail_loader.loaded.connect(self._set_thumbnail)
-        self._thumbnail_loader.start()
+        self._thumbnail_task: _ThumbnailTask | None = _ThumbnailTask(result_item.filename, 48)
+        _res = self._thumbnail_task.loaded.connect(self._set_thumbnail)
+        _THUMBNAIL_POOL.start(self._thumbnail_task)
 
         _res = result_item.updated.connect(self.refresh)
         self.refresh()
 
     def _set_thumbnail(self, image: QImage | None) -> None:
-        loader = self._thumbnail_loader
-        self._thumbnail_loader = None
-        if loader is not None:
-            # deleteLater() must wait for the thread to stop; otherwise Qt may
-            # destroy the QThread while run() is still winding down.
-            _res = loader.finished.connect(loader.deleteLater)
+        self._thumbnail_task = None
         if image is None:
             return
         self.thumbnail.setPixmap(QPixmap.fromImage(image))
 
     def stop_thumbnail_loader(self) -> None:
-        if self._thumbnail_loader is not None:
-            self._thumbnail_loader.wait()
-            self._thumbnail_loader = None
+        task = self._thumbnail_task
+        self._thumbnail_task = None
+        if task is not None and _THUMBNAIL_POOL.tryTake(task):
+            # Task was still queued; skip the decode entirely.
+            task.deleteLater()
 
     @staticmethod
     def _make_info_button(handler: Callable[..., None], icon: QIcon | None = None) -> QToolButton:
