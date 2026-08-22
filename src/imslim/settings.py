@@ -2,8 +2,9 @@ from collections.abc import Callable
 from typing import cast, override
 
 from PySide6.QtCore import Qt, QUrl, Signal
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QPalette
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -32,13 +33,26 @@ from .widgets import muted_color
 _LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
 _LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
 
-_FORM_STYLESHEET = (
-    "QPushButton { padding: 6px 16px; }"
-    "QComboBox { padding: 5px 12px; }"
-    "QSpinBox { padding: 0px 6px; min-height: 22px; }"
-    "QLineEdit { padding: 5px 10px; }"
-    "QCheckBox, QRadioButton { spacing: 8px; }"
-)
+
+def _form_stylesheet() -> str:
+    """Stylesheet for the settings form.
+
+    Input backgrounds are derived from the live palette: some dark schemes
+    give input fields a Base darker than the surrounding window, which renders
+    as near-black holes. Those fields are lifted just above the window color
+    so text stays readable; light themes keep their Base untouched.
+    """
+    palette = QApplication.palette()
+    base = palette.color(QPalette.ColorRole.Base)
+    window = palette.color(QPalette.ColorRole.Window)
+    input_bg = window.lighter(115).name() if base.lightness() < window.lightness() else base.name()
+    return (
+        f"QComboBox {{ padding: 5px 12px; background-color: {input_bg}; }}"
+        f"QSpinBox {{ padding: 0px 6px; min-height: 22px; background-color: {input_bg}; }}"
+        f"QLineEdit {{ padding: 5px 10px; background-color: {input_bg}; }}"
+        "QPushButton { padding: 6px 16px; }"
+        "QCheckBox, QRadioButton { spacing: 8px; }"
+    )
 
 
 class SettingsDialog(QDialog):
@@ -70,7 +84,7 @@ class SettingsDialog(QDialog):
 
     def build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        self.setStyleSheet(_FORM_STYLESHEET)
+        self.setStyleSheet(_form_stylesheet())
 
         tabs = QTabWidget()
         _res = tabs.addTab(self._build_general_tab(), _("General"))
