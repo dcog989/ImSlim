@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
 from string.templatelib import Interpolation, Template
-from typing import IO, NamedTuple, cast
+from typing import IO, NamedTuple
 
 from ._i18n import _
 from .output_writer import OutputWriter
@@ -173,60 +173,15 @@ class Compressor(ABC):
 
         last_argv: list[str] | None = None
         try:
-            commands = self.build_command(result_item)
-            for command in commands:
-                argv = self.adapt_command(command.argv, result_item)
-                last_argv = argv
-                logger.debug("Running %s for %s", argv, result_item.filename)
-                try:
-                    if command.stdout_path is not None:
-                        # Stream stdout straight to the sidecar file instead of
-                        # buffering the whole payload in memory first.
-                        with open(command.stdout_path, "wb") as fp:
-                            self._run_command(argv, context, stdout=fp)
-                    else:
-                        self._run_command(argv, context, stdout=subprocess.PIPE)
-                except CancelledError:
-                    raise
-                except Exception:
-                    if command.stdout_path is not None:
-                        self._remove_quietly(command.stdout_path)
-                    if command.ignore_errors:
-                        logger.warning("Optional command failed, ignoring: %s", argv)
-                        continue
-                    raise
+            last_argv = self._execute_commands(result_item, context)
         except CancelledError:
             self._mark_cancelled(result_item, c_update_result_item)
             return
-        except subprocess.TimeoutExpired as err:
-            logger.error(str(err))
-            result_item.set_error(
-                _("Compression has reached the configured timeout of %s seconds.")
-                % self.settings.compression_timeout
-            )
-        except subprocess.CalledProcessError as err:
-            details = str(err)
-            err_stderr = cast(str | bytes | None, err.stderr)
-            err_stdout = cast(str | bytes | None, err.stdout)
-            tool_output = err_stderr if err_stderr else err_stdout
-            if tool_output:
-                if isinstance(tool_output, str):
-                    decoded_output = tool_output.strip()
-                else:
-                    decoded_output = tool_output.decode(errors="replace").strip()
-                details += "\n" + decoded_output
-            result_item.set_error(_("Compression failed."), html.escape(details))
-            logger.error(result_item.error_details_message)
-        except OSError as err:
-            result_item.set_error(_("An error has occurred."), html.escape(str(err)))
-            logger.error(result_item.error_details_message)
         except Exception as err:
-            result_item.set_error(_("An unknown error has occurred."), html.escape(str(err)))
-            logger.error(result_item.error_details_message)
+            self._report_command_error(result_item, err)
 
         if context.cancelled or result_item.error:
-            self._cleanup_temp_files(result_item)
-            c_update_result_item(result_item)
+            self._finish(result_item, c_update_result_item)
             return
 
         try:
@@ -236,9 +191,74 @@ class Compressor(ABC):
             result_item.set_error(_("Can't find the compressed file"))
 
         if result_item.error:
-            self._cleanup_temp_files(result_item)
-            c_update_result_item(result_item)
+            self._finish(result_item, c_update_result_item)
             return
+
+        self._log_outcome(result_item)
+        self._finish(result_item, c_update_result_item)
+
+    def _execute_commands(
+        self, result_item: ResultItem, context: CompressionContext
+    ) -> list[str] | None:
+        """Run every command in the pipeline, returning the last argv run.
+
+        Per-command failures clean up their sidecar output; commands marked
+        ignore_errors are skipped instead of aborting the pipeline.
+        """
+        last_argv: list[str] | None = None
+        for command in self.build_command(result_item):
+            argv = self.adapt_command(command.argv, result_item)
+            last_argv = argv
+            logger.debug("Running %s for %s", argv, result_item.filename)
+            try:
+                if command.stdout_path is not None:
+                    # Stream stdout straight to the sidecar file instead of
+                    # buffering the whole payload in memory first.
+                    with open(command.stdout_path, "wb") as fp:
+                        self._run_command(argv, context, stdout=fp)
+                else:
+                    self._run_command(argv, context, stdout=subprocess.PIPE)
+            except CancelledError:
+                raise
+            except Exception:
+                if command.stdout_path is not None:
+                    self._remove_quietly(command.stdout_path)
+                if command.ignore_errors:
+                    logger.warning("Optional command failed, ignoring: %s", argv)
+                    continue
+                raise
+        return last_argv
+
+    def _report_command_error(self, result_item: ResultItem, err: Exception) -> None:
+        """Translate a pipeline exception into a result-item error."""
+        if isinstance(err, subprocess.TimeoutExpired):
+            logger.error(str(err))
+            result_item.set_error(
+                _("Compression has reached the configured timeout of %s seconds.")
+                % self.settings.compression_timeout
+            )
+            return
+        if isinstance(err, subprocess.CalledProcessError):
+            details = str(err)
+            tool_output = err.stderr or err.stdout
+            if tool_output:
+                decoded_output = (
+                    tool_output.strip()
+                    if isinstance(tool_output, str)
+                    else tool_output.decode(errors="replace").strip()
+                )
+                details += "\n" + decoded_output
+            result_item.set_error(_("Compression failed."), html.escape(details))
+            logger.error(result_item.error_details_message)
+            return
+        if isinstance(err, OSError):
+            result_item.set_error(_("An error has occurred."), html.escape(str(err)))
+            logger.error(result_item.error_details_message)
+            return
+        result_item.set_error(_("An unknown error has occurred."), html.escape(str(err)))
+        logger.error(result_item.error_details_message)
+
+    def _log_outcome(self, result_item: ResultItem) -> None:
         if result_item.skipped:
             logger.info("Skipped %s: output not smaller than input", result_item.filename)
         elif result_item.size > 0:
@@ -251,6 +271,6 @@ class Compressor(ABC):
                 savings,
             )
 
+    def _finish(self, result_item: ResultItem, c_update_result_item: Callable[..., None]) -> None:
         self._cleanup_temp_files(result_item)
-
         c_update_result_item(result_item)
