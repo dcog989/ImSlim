@@ -1,10 +1,11 @@
 import os
 import sys
 import sysconfig
+import time
 from collections.abc import Callable
 from typing import cast
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QObject, QTimer, QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
@@ -79,6 +80,10 @@ _APP_NAME = "ImSlim"
 SOCKET_NAME = _APP_NAME.lower()
 _CONNECT_TIMEOUT_MS = 1000
 _WRITE_TIMEOUT_MS = 500
+# Stale-connection sweep: a client that connects but never sends data (and so
+# never triggers readChannelFinished) must not hold a buffer entry forever.
+_SWEEP_INTERVAL_MS = 5000
+_IDLE_TIMEOUT_MS = 10000
 
 
 def _local_paths() -> list[str]:
@@ -91,20 +96,28 @@ def _local_paths() -> list[str]:
     return paths
 
 
-class SingleInstance:
+class SingleInstance(QObject):
     """Single-instance gate over a local socket.
 
     The first process becomes the primary and listens on a named socket;
     later processes forward their command-line paths to it, which the primary
-    delivers through the `on_paths` callback.
+    delivers through the `on_paths` callback. A background sweep reaps
+    connections that connect but never send data, so a hung or malformed
+    client cannot accumulate buffer entries indefinitely.
     """
 
     def __init__(self, name: str, on_paths: Callable[[list[str]], None]) -> None:
+        super().__init__()
         self._name: str = name
         self._on_paths: Callable[[list[str]], None] = on_paths
         self._server: QLocalServer | None = None
         self._conn_buffer: dict[QLocalSocket, bytearray] = {}
+        self._conn_started: dict[QLocalSocket, float] = {}
         self.is_primary: bool = False
+
+        self._sweep_timer: QTimer = QTimer(self)
+        self._sweep_timer.setInterval(_SWEEP_INTERVAL_MS)
+        _res = self._sweep_timer.timeout.connect(self._sweep_stale_connections)
 
     def become_primary(self) -> None:
         self._server = QLocalServer()
@@ -112,6 +125,7 @@ class SingleInstance:
         self.is_primary = self._server.listen(self._name)
         if self.is_primary:
             _res = self._server.newConnection.connect(self._on_new_connection)
+            self._sweep_timer.start()
 
     def send_paths(self, paths: list[str]) -> None:
         socket = QLocalSocket()
@@ -129,6 +143,7 @@ class SingleInstance:
         if conn is None:
             return
         self._conn_buffer[conn] = bytearray()
+        self._conn_started[conn] = time.monotonic()
         _res = conn.readyRead.connect(lambda: self._read_more(conn))
         _res = conn.readChannelFinished.connect(lambda: self._finish(conn))
         self._read_more(conn)
@@ -145,10 +160,21 @@ class SingleInstance:
             return
         buffer.extend(conn.readAll().data())
         _res = self._conn_buffer.pop(conn, None)
+        _res = self._conn_started.pop(conn, None)
         conn.disconnectFromServer()
         data = bytes(buffer)
-        if data:
-            self._on_paths(data.decode("utf-8").split("\0"))
+        paths = data.decode("utf-8").split("\0") if data else []
+        self._on_paths(paths)
+
+    def _sweep_stale_connections(self) -> None:
+        now = time.monotonic()
+        for conn, started in list(self._conn_started.items()):
+            if (now - started) * 1000 <= _IDLE_TIMEOUT_MS:
+                continue
+            _res = self._conn_buffer.pop(conn, None)
+            _res = self._conn_started.pop(conn, None)
+            conn.disconnectFromServer()
+            conn.deleteLater()
 
 
 class ImSlimApp(QApplication):
@@ -180,13 +206,15 @@ class ImSlimApp(QApplication):
     def _on_foreign_paths(self, paths: list[str]) -> None:
         if self.win is None:
             return
+        # A bare relaunch forwards no paths; focus the existing window either way.
         self.win.show()
         self.win.raise_()
         self.win.activateWindow()
-        self.win.compress_files(paths)
+        if paths:
+            self.win.compress_files(paths)
 
 
-def main():
+def main() -> None:
     app = ImSlimApp(sys.argv)
     configure_logging()
     sys.exit(app.run())
