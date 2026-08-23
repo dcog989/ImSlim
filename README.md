@@ -46,8 +46,7 @@ make format        # runs ruff format
 make fix           # auto fix lint issues
 make run           # runs the app
 make bump          # bump version via commitizen
-make install       # install locally
-make reinstall     # reinstalls even when version has not changed
+make install       # install locally (installs even if version unchanged)
 ```
 
 > [!NOTE]
