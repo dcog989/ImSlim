@@ -69,6 +69,7 @@ from .widgets import (
     gear_icon,
     imslim_icon,
     info_icon,
+    muted_color,
 )
 from .workers import VersionProbeWorker
 
@@ -476,8 +477,20 @@ class ImSlimWindow(QWidget):
 
     def add_row(self, result_item: ResultItem) -> None:
         row = ResultItemRow(result_item)
+        self._apply_row_alternation(row, len(self.rows))
         self.results_layout.insertWidget(1, row)
         self.rows.append(row)
+
+    @staticmethod
+    def _apply_row_alternation(row: ResultItemRow, index: int) -> None:
+        if index % 2 == 0:
+            return
+        palette = row.palette()
+        base = palette.color(palette.ColorRole.Base)
+        window = palette.color(palette.ColorRole.Window)
+        palette.setColor(palette.ColorRole.Window, muted_color(base, window, 0.6))
+        row.setPalette(palette)
+        row.setAutoFillBackground(True)
 
     def update_result_item(self, result_item: ResultItem) -> None:
         result_item.running = False
