@@ -1,20 +1,37 @@
-init:
-	uv sync
+build:
+	uv build
 
-lint:
-	uv run ruff format
+check:
+	uv run ruff check
+	uv run basedpyright src/imslim
+
+clean:
+	rm -rf .venv dist src/*.egg-info && find . -name __pycache__ -type d -exec rm -rf {} +
 
 format:
 	uv run ruff format .
 
-analyze:
-	uv run ruff check
-
 fix:
 	uv run ruff check --fix
 
-types:
-	uv run ruff check
+init:
+	uv sync
 
-update_deps:
+install:
+	uv tool install .
+	mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/scalable/apps
+	install -Dm644 assets/imslim.desktop ~/.local/share/applications/imslim.desktop
+	install -Dm644 src/imslim/assets/imslim.svg ~/.local/share/icons/hicolor/scalable/apps/imslim.svg
+	kbuildsycoca6
+
+reinstall:
+	uv tool install . --force
+
+run:
+	uv run imslim
+
+tools:
+	./scripts/build_tools.sh
+
+upgrade:
 	uv lock --upgrade
