@@ -4,7 +4,8 @@ A Linux-first image compressor. Compress common image formats. Built on top of g
 
 Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
-[insert images]
+![screen-1](assets/screen-1.webp)
+![screen-2](assets/screen-2.webp) ![screen-3](assets/screen-3.webp) ![screen-4](assets/screen-4.webp)
 
 ## Features
 
@@ -17,7 +18,7 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
 ## Tech Stack
 
-Built with Python / PySide6. The compression libraries are built from the latest releases:
+Built with Python / PySide6. The compression libraries are built from source, latest releases:
 
 - [libjxl](https://github.com/libjxl/libjxl) (`cjxl`/`djxl`)
 - [jpegli](https://github.com/google/jpegli) (`cjpegli`/`djpegli`)
