@@ -44,13 +44,6 @@ def _tool_file(directory: str, name: str) -> str | None:
 @functools.cache
 def _resolve(name: str) -> str | None:
     """Return the cached path to a tool, or None if it could not be found."""
-    override_dir = os.environ.get("IMSLIM_TOOLS_PATH")
-    if override_dir:
-        candidate = _tool_file(override_dir, name)
-        if candidate is not None:
-            _make_executable(candidate)
-            return candidate
-
     candidate = _tool_file(str(BIN_DIR / _platform_dir()), name)
     if candidate is not None:
         _make_executable(candidate)
