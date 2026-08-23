@@ -21,14 +21,11 @@ init:
 	uv sync
 
 install:
-	uv tool install .
+	uv tool install . --force
 	mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/scalable/apps
 	install -Dm644 assets/imslim.desktop ~/.local/share/applications/imslim.desktop
 	install -Dm644 src/imslim/assets/imslim.svg ~/.local/share/icons/hicolor/scalable/apps/imslim.svg
 	kbuildsycoca6
-
-reinstall:
-	uv tool install . --force
 
 run:
 	uv run imslim
