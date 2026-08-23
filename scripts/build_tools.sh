@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the bundled compression tools for linux-x86_64 from the latest
 # available versions: stable release tags where available, latest main for
-# jpegli, latest LTS for node, latest svgo from npm.
+# jpegli, latest node, latest svgo from npm.
 #
 # Incremental: a tool is only rebuilt when a newer version than the one
 # recorded in $WORK/.versions is available, or when its output is missing.
@@ -22,7 +22,7 @@
 #   libwebp (cwebp)                       -> latest release tag
 #   libavif (avifenc avifdec)             -> latest release tag
 #   gifsicle                              -> latest release tag
-#   node + svgo                           -> latest LTS node, svgo@latest
+#   node + svgo                           -> latest node, svgo@latest
 
 set -euo pipefail
 
@@ -72,7 +72,7 @@ latest_git_commit() {
 
 latest_node_version() {
     curl -fsSL https://nodejs.org/dist/index.json \
-        | python3 -c 'import json,sys; print(next(x["version"] for x in json.load(sys.stdin) if x.get("lts")))'
+        | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["version"])'
 }
 
 latest_svgo_version() {
