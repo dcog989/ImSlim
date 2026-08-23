@@ -18,6 +18,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QAction,
     QClipboard,
+    QColor,
     QContextMenuEvent,
     QDragEnterEvent,
     QDropEvent,
@@ -64,6 +65,7 @@ from .widgets import (
     ResultsPage,
     apply_muted_palette,
     close_icon,
+    download_icon,
     gear_icon,
     imslim_icon,
     info_icon,
@@ -226,7 +228,9 @@ class ImSlimWindow(QWidget):
         layout.setSpacing(_V_SPACING)
 
         icon = QLabel()
-        icon.setPixmap(imslim_icon().pixmap(240))
+        bg = self.palette().color(self.palette().ColorRole.Window)
+        icon_color = QColor("#3a3a3a") if bg.lightness() < 128 else QColor("#d3d3d3")
+        icon.setPixmap(download_icon(icon_color, 240).pixmap(240))
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
 

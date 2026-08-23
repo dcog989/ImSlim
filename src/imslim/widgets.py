@@ -64,6 +64,40 @@ def imslim_icon() -> QIcon:
     return QIcon(QIcon(IMSLIM_ICON_PATH).pixmap(1024))
 
 
+def download_icon(color: QColor, size: int = 20) -> QIcon:
+    """A down arrow into a tray (Lucide 'download'), matching the other icons' stroke."""
+
+    def draw(painter: QPainter, s: float) -> None:
+        pen = max(1.8, s * 0.09)
+        painter.setPen(
+            QPen(
+                color,
+                pen,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
+            )
+        )
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        cx = s / 2
+        top_y = s * 0.125
+        tip_y = s * 0.625
+        painter.drawLine(QPointF(cx, top_y), QPointF(cx, tip_y))
+        wing = s * 0.2083
+        painter.drawLine(QPointF(cx - wing, s * 0.4167), QPointF(cx, tip_y))
+        painter.drawLine(QPointF(cx + wing, s * 0.4167), QPointF(cx, tip_y))
+        tray = QPainterPath()
+        tray.moveTo(s * 0.875, s * 0.625)
+        tray.lineTo(s * 0.875, s * 0.7917)
+        tray.quadTo(s * 0.875, s * 0.875, s * 0.7917, s * 0.875)
+        tray.lineTo(s * 0.2083, s * 0.875)
+        tray.quadTo(s * 0.125, s * 0.875, s * 0.125, s * 0.7917)
+        tray.lineTo(s * 0.125, s * 0.625)
+        painter.drawPath(tray)
+
+    return _painted_icon(size, draw)
+
+
 def _painted_icon(size: int, draw: Callable[[QPainter, float], None]) -> QIcon:
     """Render a monochrome icon with QPainter on a transparent, HiDPI-safe pixmap."""
     scale = 2.0
