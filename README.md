@@ -55,4 +55,4 @@ make install       # install locally (installs even if version unchanged)
 
 ## License
 
-[GNU General Public License v3](gpl-3.0.md)
+[GNU General Public License v3](LICENSE)
