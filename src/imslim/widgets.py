@@ -202,7 +202,7 @@ def gear_icon(color: QColor, size: int = 20) -> QIcon:
         root_r = s * 0.36
         hub_r = s * 0.15
         teeth = 8
-        points = []
+        points: list[QPointF] = []
         for i in range(2 * teeth):
             angle = math.pi * i / teeth
             radius = tip_r if i % 2 == 0 else root_r
@@ -232,7 +232,7 @@ class Spinner(QWidget):
         self._angle: int = 0
         self._timer: QTimer = QTimer(self)
         self._timer.setInterval(16)
-        self._timer.timeout.connect(self._advance)
+        _res = self._timer.timeout.connect(self._advance)
 
     def start(self) -> None:
         self._timer.start()
@@ -262,7 +262,7 @@ class Spinner(QWidget):
             -self._angle * 16,
             100 * 16,
         )
-        painter.end()
+        _res = painter.end()
 
 
 class ResultsPage(QWidget):

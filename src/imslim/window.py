@@ -126,6 +126,7 @@ class ImSlimWindow(QWidget):
         self.results_container: QWidget = QWidget()
         self.results_layout: QVBoxLayout = QVBoxLayout()
         self.subtitle_label: QLabel = QLabel()
+        self.summary_label: QLabel = QLabel()
         self.build_ui()
         self.show_view("home")
 
@@ -152,7 +153,7 @@ class ImSlimWindow(QWidget):
         self._overlay_timer: QTimer = QTimer(self)
         self._overlay_timer.setSingleShot(True)
         self._overlay_timer.setInterval(1000)
-        self._overlay_timer.timeout.connect(self._show_processing_overlay)
+        _res = self._overlay_timer.timeout.connect(self._show_processing_overlay)
 
     # ------------------------------------------------------------------ UI
     def build_ui(self) -> None:
@@ -212,7 +213,7 @@ class ImSlimWindow(QWidget):
 
         self.home_page: QWidget = self._build_home_page()
         self.loading_page: QWidget = self._build_loading_page()
-        self.results_page: QWidget = self._build_results_page()
+        self.results_page: ResultsPage = self._build_results_page()
 
         _res = self.stack.addWidget(self.home_page)  # index 0
         _res = self.stack.addWidget(self.loading_page)  # index 1
@@ -565,7 +566,8 @@ class ImSlimWindow(QWidget):
     def _save_clipboard_image(self, image: QImage) -> str | None:
         directory = tempfile.gettempdir()
         path = os.path.join(directory, f"imslim-pasted-{time.time_ns()}.png")
-        if image.save(path, "PNG"):
+        # PySide6's stub types `format` as bytes, but the runtime requires str.
+        if image.save(path, "PNG"):  # pyright: ignore[reportCallIssue, reportArgumentType]
             return path
         return None
 

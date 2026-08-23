@@ -59,7 +59,7 @@ class JPEGCompressor(Compressor):
             # jpegli carries ICC/EXIF/XMP from the PNG; strip all but the ICC profile
             jpegtran = tokens(
                 t"{resolve_tool('jpegtran')} -copy icc -outfile {result_item.tmp_filename} "
-                t"{self._encoded_path(result_item)}"
+                + t"{self._encoded_path(result_item)}"
             )
             commands.append(Command(jpegtran))
 

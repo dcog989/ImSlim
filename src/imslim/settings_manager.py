@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import os
-from typing import cast
+from typing import Protocol, TypeVar, cast, final
 
 from PySide6.QtCore import QSettings, QStandardPaths
 
 _LOG_FILE_NAME = "imslim.log"
+
+_T = TypeVar("_T")
 
 
 def log_file_path() -> str:
@@ -31,16 +33,24 @@ def _coerce_int(raw: object, default: int) -> int:
         return default
 
 
-def _setting[T](key: str, type_: type[T]) -> property[T]:
+class _SettingDescriptor(Protocol[_T]):
+    """The descriptor interface `_setting()` returns, generic over its value type."""
+
+    def __get__(self, instance: SettingsManager | None, owner: type[SettingsManager]) -> _T: ...
+
+    def __set__(self, instance: SettingsManager, value: _T) -> None: ...
+
+
+def _setting[T](key: str, _type: type[T]) -> _SettingDescriptor[T]:
     """Build a property binding an attribute name to a settings key."""
 
     def getter(self: SettingsManager) -> T:
-        return cast(T, self._get(key))
+        return cast(T, self._get(key))  # pyright: ignore[reportPrivateUsage]
 
     def setter(self: SettingsManager, value: T) -> None:
-        self._set(key, value)
+        self._set(key, cast("str | int | bool", value))  # pyright: ignore[reportPrivateUsage]
 
-    return property(getter, setter)
+    return cast(_SettingDescriptor[T], cast(object, property(getter, setter)))
 
 
 SAVE_NEW_FILE = 0
@@ -74,6 +84,7 @@ DEFAULTS: dict[str, str | int | bool] = {
 }
 
 
+@final
 class SettingsManager:
     def __init__(self) -> None:
         self._settings: QSettings = QSettings("ImSlim", "ImSlim")

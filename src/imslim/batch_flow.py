@@ -30,10 +30,10 @@ class BatchFlow(QObject):
         self.summary: BatchSummary = BatchSummary()
         self._active: bool = False
         self._analyze_worker: AnalyzeWorker | None = None
-        self.result_updated.connect(self._on_result_updated)
+        _res = self.result_updated.connect(self._on_result_updated)
         # The manager emits this from its own thread; the queued connection
         # delivers _on_compression_enabled on the UI thread.
-        self.compression_enabled.connect(self._on_compression_enabled)
+        _res = self.compression_enabled.connect(self._on_compression_enabled)
 
     @property
     def active(self) -> bool:

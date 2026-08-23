@@ -51,7 +51,7 @@ class WEBPCompressor(Compressor):
         # multithreaded, (lossless) compression mode, quality, output
         cwebp += tokens(
             t"-mt -m {self.settings.webp_lossless_level} -q {quality} "
-            t"-o {result_item.tmp_filename} {input_path}"
+            + t"-o {result_item.tmp_filename} {input_path}"
         )
 
         commands.append(Command(cwebp))

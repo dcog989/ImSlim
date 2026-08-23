@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
 from string.templatelib import Interpolation, Template
-from typing import IO, NamedTuple
+from typing import IO, NamedTuple, cast
 
 from ._i18n import _
 from .format import savings_percent
@@ -38,7 +38,7 @@ def tokens(template: Template) -> list[str]:
     result: list[str] = []
     for part in template:
         if isinstance(part, Interpolation):
-            result.append(str(part.value))
+            result.append(str(cast(object, part.value)))
         else:
             result.extend(part.split())
     return result
@@ -110,7 +110,7 @@ class Compressor(ABC):
     def get_intermediate_files(self, _result_item: ResultItem) -> list[str]:
         return []
 
-    def prepare_batch(self, result_items: list[ResultItem]) -> None:
+    def prepare_batch(self, _result_items: list[ResultItem]) -> None:
         """Hook invoked once per batch before any item is compressed."""
 
     def finish_batch(self) -> None:
@@ -131,7 +131,9 @@ class Compressor(ABC):
         self, argv: list[str], context: CompressionContext, stdout: int | IO[bytes] | None
     ) -> None:
         """Run one tool invocation as a killable subprocess."""
-        process = subprocess.Popen(argv, stdout=stdout, stderr=subprocess.PIPE)
+        process: subprocess.Popen[bytes] = subprocess.Popen(
+            argv, stdout=stdout, stderr=subprocess.PIPE
+        )
         context.register_process(process)
         try:
             try:
@@ -240,13 +242,11 @@ class Compressor(ABC):
             return
         if isinstance(err, subprocess.CalledProcessError):
             details = str(err)
-            tool_output = err.stderr or err.stdout
+            stderr = cast("bytes | None", err.stderr)
+            stdout = cast("bytes | None", err.stdout)
+            tool_output = stderr or stdout
             if tool_output:
-                decoded_output = (
-                    tool_output.strip()
-                    if isinstance(tool_output, str)
-                    else tool_output.decode(errors="replace").strip()
-                )
+                decoded_output = tool_output.decode(errors="replace").strip()
                 details += "\n" + decoded_output
             result_item.set_error(_("Compression failed."), html.escape(details))
             logger.error(result_item.error_details_message)
