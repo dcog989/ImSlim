@@ -40,6 +40,8 @@ cp -a "$OUT_DIR/pyinstaller/ImSlim/." "$APP_DIR/usr/bin/"
 
 mkdir -p "$APP_DIR/usr/share/applications"
 cp "$ROOT/assets/imslim.desktop" "$APP_DIR/usr/share/applications/imslim.desktop"
+# appimagetool requires the .desktop entry at the AppDir root.
+cp "$ROOT/assets/imslim.desktop" "$APP_DIR/imslim.desktop"
 
 for size in 16 32 64 128 256 512; do
     dir="$APP_DIR/usr/share/icons/hicolor/${size}x${size}/apps"
