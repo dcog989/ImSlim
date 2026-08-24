@@ -10,5 +10,5 @@ pre-commit:
 
 commit-msg:
   commands:
-    commitizen:
-      run: uv run cz check --message-length-limit 100 --commit-msg-file {1}
+    cog:
+      run: cog verify --file {1}

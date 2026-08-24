@@ -2,7 +2,7 @@ build:
 	uv build
 
 bump:
-	uv run cz bump
+	cog bump --auto
 
 check:
 	uv run ruff check

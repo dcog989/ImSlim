@@ -32,9 +32,15 @@ jobs:
       - name: Ruff format check
         run: uv run ruff format --check .
 
+      - name: Install cocogitto
+        if: github.event_name == 'pull_request'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cocogitto
+
       - name: Commit message check
         if: github.event_name == 'pull_request'
-        run: uv run cz check --rev-range origin/${{ github.base_ref }}..HEAD
+        run: cog check -i origin/${{ github.base_ref }}..HEAD
 
   typecheck:
     name: Type check

@@ -46,7 +46,7 @@ make clean         # remove all build artifacts
 make format        # runs ruff format
 make fix           # auto fix lint issues
 make run           # runs the app
-make bump          # bump version via commitizen
+make bump          # bump version + changelog via cog (cocogitto)
 make install       # install locally (installs even if version unchanged)
 ```
 

@@ -18,17 +18,8 @@ imslim = "imslim.main:main"
 [dependency-groups]
 dev = [
     "basedpyright>=1.39.10",
-    "commitizen>=4.18.0",
     "ruff>=0.16.4",
 ]
-
-[tool.commitizen]
-name = "cz_conventional_commits"
-version_provider = "pep621"
-version_files = ["src/imslim/__init__.py:__version__"]
-major_version_zero = true
-max_header_length = 100
-message_length_limit = 100
 
 [tool.ruff]
 builtins = ["_"]
