@@ -22,8 +22,9 @@ APP_DIR="$OUT_DIR/ImSlim.AppDir"
 mkdir -p "$OUT_DIR"
 rm -rf "$APP_DIR"
 
-# Raster icon for the AppDir and desktop entry.
-"$ROOT/.venv/bin/python" "$ROOT/scripts/make_icons.py"
+# Raster icon for the AppDir and desktop entry. Force the offscreen Qt
+# platform: icon rendering must not require a display (e.g. in CI).
+QT_QPA_PLATFORM=offscreen "$ROOT/.venv/bin/python" "$ROOT/scripts/make_icons.py"
 
 # Build the onedir bundle (payload for the AppImage).
 IMSLIM_ONE_FILE=0 "$ROOT/.venv/bin/pyinstaller" \
@@ -43,7 +44,7 @@ cp "$ROOT/assets/imslim.desktop" "$APP_DIR/usr/share/applications/imslim.desktop
 for size in 16 32 64 128 256 512; do
     dir="$APP_DIR/usr/share/icons/hicolor/${size}x${size}/apps"
     mkdir -p "$dir"
-    "$ROOT/.venv/bin/python" - "$ROOT/build/icon/imslim.png" "$dir/imslim.png" "$size" <<'PY'
+    QT_QPA_PLATFORM=offscreen "$ROOT/.venv/bin/python" - "$ROOT/build/icon/imslim.png" "$dir/imslim.png" "$size" <<'PY'
 import sys
 from PySide6.QtGui import QImage
 src, dst, size = sys.argv[1], sys.argv[2], int(sys.argv[3])
