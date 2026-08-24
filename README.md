@@ -56,7 +56,7 @@ make install        # install locally (installs even if version unchanged)
 
 ## Release
 
-Releases are built as a standalone Linux **AppImage** via GitHub Actions. Pushing a `v*` tag runs `.github/workflows/release.yml`, which:
+Releases are built as a standalone Linux **AppImage** via GitHub Actions. Pushing a version tag (e.g. `0.5.1`, no `v` prefix) runs `.github/workflows/release.yml`, which:
 
 1. builds the compression tools (`scripts/build_tools.sh`),
 2. packages the app with PyInstaller (`imslim.spec`) into an AppImage,

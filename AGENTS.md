@@ -33,7 +33,7 @@
 - Format: `uv run ruff format .`
 - Build wheel/sdist: `uv build` / `uvx --from build python -m build` (build backend: uv_build)
 - Package standalone binary: `./scripts/package_linux.sh` → `dist/ImSlim-*-linux-x86_64.AppImage` (PyInstaller via `imslim.spec`; icons via `scripts/make_icons.py`)
-- Release: `cog bump --auto` (Cocogitto, external Rust binary — `cargo install cocogitto` / `pacman -S cocogitto` / `brew install cocogitto`; config in `cog.toml`, changelog template `changelog.tpl` filters to feat/fix/perf/refactor). Bumps version, syncs `pyproject.toml` + `src/imslim/__init__.py`, writes `CHANGELOG.md`, and tags. Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds the Linux AppImage and attaches it to the GitHub release.
+- Release: `cog bump --auto` (Cocogitto, external Rust binary — `cargo install cocogitto` / `pacman -S cocogitto` / `brew install cocogitto`; config in `cog.toml`, changelog template `changelog.tpl` filters to feat/fix/perf/refactor). Bumps version, syncs `pyproject.toml` + `src/imslim/__init__.py`, writes `CHANGELOG.md`, and tags. Pushing a version tag (e.g. `0.5.1`, no `v` prefix) runs `.github/workflows/release.yml`, which builds the Linux AppImage and attaches it to the GitHub release.
 
 ### Code Changes
 
