@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.5.4 - 2026-08-24
+
+#### Bug Fixes
+
+- (3c80cc2) install Qt runtime libs and force offscreen for icon rendering - dcog989
+
+- (0583499) match cocogitto display-name commit types and add version header - dcog989
+- - -
+
 
 
 
