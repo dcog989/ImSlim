@@ -27,6 +27,9 @@ install:
 	install -Dm644 src/imslim/assets/imslim.svg ~/.local/share/icons/hicolor/scalable/apps/imslim.svg
 	kbuildsycoca6
 
+package-linux:
+	./scripts/package_linux.sh
+
 run:
 	uv run imslim
 

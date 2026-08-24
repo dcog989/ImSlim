@@ -3,7 +3,7 @@
 ## Project
 
 - Name: ImSlim
-- Description: Desktop app to compress images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG formats, in lossless or lossy mode. BMP and TIFF sources are re-encoded to WebP. Built on the external tools pngquant/oxipng, cjpegli/djpegli, mozjpeg jpegtran, cwebp, gifsicle, cjxl/djxl, avifdec/avifenc and svgo. Tools are bundled per-platform in `src/imslim/bin/` (built by `scripts/build_tools.sh`); `src/imslim/binary_resolver.py` resolves them.
+- Description: Desktop app to compress images in PNG, JPEG, GIF, WebP, AVIF, JXL and SVG formats, in lossless or lossy mode. BMP and TIFF sources are re-encoded to WebP. Built on the external tools pngquant/oxipng, cjpegli/djpegli, mozjpeg jpegtran, cwebp, gifsicle, cjxl/djxl, avifdec/avifenc and svgo. Tools are bundled per-platform in `src/imslim/bin/` (built by `scripts/build_tools.sh`); `src/imslim/binary_resolver.py` resolves them (frozen-binary aware for PyInstaller).
 - Tech: Python (>=3.14), PySide6 (Qt6). Setup and deps managed via `uv`. Lint/format via `ruff`; type-check via `basedpyright`.
 
 ## Key Files
@@ -26,13 +26,14 @@
 
 - Install: `uv sync`
 - Dev: `uv run imslim` (or `python -m imslim`)
-- Build bundled tools: `./scripts/build_tools.sh` (populates `src/imslim/bin/<platform>/`); run after a fresh clone so the app has its backends
+- Build bundled tools: `./scripts/build_tools.sh` (populates `src/imslim/bin/linux-x86_64/`); run after a fresh clone so the app has its backends
 - Test: no test suite configured
 - Type-check: `uv run basedpyright src/imslim`
 - Lint: `uv run ruff check`
 - Format: `uv run ruff format .`
-- Build: `uv build` / `uvx --from build python -m build` (build backend: uv_build)
-- Release: `cog bump --auto` (Cocogitto, external Rust binary — `cargo install cocogitto` / `pacman -S cocogitto` / `brew install cocogitto`; config in `cog.toml`, changelog template `changelog.tpl` filters to feat/fix/perf/refactor). Bumps version, syncs `pyproject.toml` + `src/imslim/__init__.py`, writes `CHANGELOG.md`, and tags.
+- Build wheel/sdist: `uv build` / `uvx --from build python -m build` (build backend: uv_build)
+- Package standalone binary: `./scripts/package_linux.sh` → `dist/ImSlim-*-linux-x86_64.AppImage` (PyInstaller via `imslim.spec`; icons via `scripts/make_icons.py`)
+- Release: `cog bump --auto` (Cocogitto, external Rust binary — `cargo install cocogitto` / `pacman -S cocogitto` / `brew install cocogitto`; config in `cog.toml`, changelog template `changelog.tpl` filters to feat/fix/perf/refactor). Bumps version, syncs `pyproject.toml` + `src/imslim/__init__.py`, writes `CHANGELOG.md`, and tags. Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds the Linux AppImage and attaches it to the GitHub release.
 
 ### Code Changes
 

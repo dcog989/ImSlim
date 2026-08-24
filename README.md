@@ -37,21 +37,32 @@ Built with Python / PySide6. The compression libraries are built from source, la
 See `Makefile` for details:
 
 ```sh
-make init          # runs uv sync, installs deps
-make build         # package / build the app
-make upgrade       # refresh dependency lockfile to newest versions
-make tools         # runs build / update script for image libraries
-make check         # runs ruff check + basedpyright
-make clean         # remove all build artifacts
-make format        # runs ruff format
-make fix           # auto fix lint issues
-make run           # runs the app
-make bump          # bump version + changelog via cog (cocogitto)
-make install       # install locally (installs even if version unchanged)
+make init           # runs uv sync, installs deps
+make build          # package / build the app
+make upgrade        # refresh dependency lockfile to newest versions
+make tools          # runs build / update script for image libraries
+make package-linux  # build the Linux AppImage
+make check          # runs ruff check + basedpyright
+make clean          # remove all build artifacts
+make format         # runs ruff format
+make fix            # auto fix lint issues
+make run            # runs the app
+make bump           # bump version + changelog via cog (cocogitto)
+make install        # install locally (installs even if version unchanged)
 ```
 
 > [!NOTE]
 > `make install`: creates a desktop entry that declares the app as a handler for supported image types. It is KDE-specific due to `kbuildsycoca6`.
+
+## Release
+
+Releases are built as a standalone Linux **AppImage** via GitHub Actions. Pushing a `v*` tag runs `.github/workflows/release.yml`, which:
+
+1. builds the compression tools (`scripts/build_tools.sh`),
+2. packages the app with PyInstaller (`imslim.spec`) into an AppImage,
+3. attaches the artifact to the GitHub release.
+
+The tools in `src/imslim/bin/linux-x86_64/` are bundled into the AppImage. The wheel and sdist are still published through `uv build` for pip installs (which requires the compression tools on PATH outside Linux x86_64).
 
 ## License
 

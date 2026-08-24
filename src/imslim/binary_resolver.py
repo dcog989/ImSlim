@@ -3,11 +3,19 @@ import logging
 import os
 import platform
 import shutil
+import sys
 
 logger = logging.getLogger(__name__)
 from pathlib import Path
 
-BIN_DIR = Path(__file__).parent / "bin"
+# PyInstaller extracts the bundled bin/ tree into _MEIPASS at runtime; when
+# frozen the source-tree path (above bin/) is not on disk.
+_BIN_ROOT = (
+    Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
+    if getattr(sys, "frozen", False)
+    else Path(__file__).parent
+)
+BIN_DIR = _BIN_ROOT / "bin"
 
 KNOWN_TOOLS = (
     "avifdec",
@@ -28,8 +36,8 @@ KNOWN_TOOLS = (
 def _platform_dir() -> str:
     """Return the binary subdir for the current platform (e.g. linux-x86_64).
 
-    Binaries are only bundled for linux-x86_64; other platforms fall back to
-    PATH via shutil.which().
+    Binaries are only bundled for the platforms built by the release pipeline;
+    other platforms fall back to PATH via shutil.which().
     """
     return f"{platform.system().lower()}-{platform.machine().lower()}"
 
