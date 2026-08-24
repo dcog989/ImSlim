@@ -30,7 +30,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Python + uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"
 
