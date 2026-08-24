@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## 0.5.5 - 2026-08-24
+
+#### Bug Fixes
+
+- (d9bbdc1) copy desktop entry to AppDir root for appimagetool - dcog989
+- - -
+
 ## 0.5.4 - 2026-08-24
 
 #### Bug Fixes
