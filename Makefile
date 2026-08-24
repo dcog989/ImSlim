@@ -22,10 +22,15 @@ init:
 
 install:
 	uv tool install . --force
-	mkdir -p ~/.local/share/applications ~/.local/share/icons/hicolor/scalable/apps
-	install -Dm644 assets/imslim.desktop ~/.local/share/applications/imslim.desktop
-	install -Dm644 src/imslim/assets/imslim.svg ~/.local/share/icons/hicolor/scalable/apps/imslim.svg
-	kbuildsycoca6
+	mkdir -p $(HOME)/.local/share/applications $(HOME)/.local/share/icons/hicolor/scalable/apps
+	@BIN=$$(command -v imslim 2>/dev/null || echo $(HOME)/.local/bin/imslim); \
+	sed "s|^Exec=.*|Exec=$$BIN %F|" assets/imslim.desktop | \
+		install -Dm644 /dev/stdin $(HOME)/.local/share/applications/imslim.desktop
+	install -Dm644 src/imslim/assets/imslim.svg $(HOME)/.local/share/icons/hicolor/scalable/apps/imslim.svg
+	@if command -v kbuildsycoca6 >/dev/null 2>&1; then kbuildsycoca6; \
+	elif command -v kbuildsycoca5 >/dev/null 2>&1; then kbuildsycoca5; fi
+	@if command -v update-desktop-database >/dev/null 2>&1; then \
+		update-desktop-database $(HOME)/.local/share/applications; fi
 
 package-linux:
 	./scripts/package_linux.sh
