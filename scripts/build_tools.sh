@@ -43,8 +43,14 @@ install_deps() {
         log "only apt-based images are supported; skipping dependency install"
         return
     fi
-    apt-get update -qq
-    apt-get install -y -qq \
+    # CI runners are not root; elevate when sudo is available, otherwise run
+    # apt-get directly (e.g. inside a root container).
+    local apt="apt-get"
+    if [[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
+        apt="sudo apt-get"
+    fi
+    $apt update -qq
+    $apt install -y -qq \
         build-essential cmake ninja-build pkg-config curl git \
         libpng-dev zlib1g-dev libjpeg-dev libwebp-dev \
         libhwy-dev libbrotli-dev liblcms2-dev libaom-dev libyuv-dev \
