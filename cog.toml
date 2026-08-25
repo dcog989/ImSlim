@@ -2,6 +2,7 @@
 
 branch_whitelist = ["main"]
 ignore_merge_commits = true
+tag_prefix = "v"
 
 # Keep the package manifest and __version__ in sync with the bumped tag.
 # `{{version}}` is replaced by cog with the target version before the hooks run.
@@ -12,7 +13,7 @@ pre_bump_hooks = [
 
 post_bump_hooks = [
     "git push",
-    "git push origin {{version}}",
+    "git push origin {{version_tag}}",
 ]
 
 [changelog]
