@@ -9,6 +9,7 @@ tag_prefix = "v"
 pre_bump_hooks = [
     "sed -i 's/^version = .*/version = \"{{version}}\"/' pyproject.toml",
     "sed -i 's/^__version__ = .*/__version__ = \"{{version}}\"/' src/imslim/__init__.py",
+    "uv lock",
 ]
 
 post_bump_hooks = [
