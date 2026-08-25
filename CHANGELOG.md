@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.5.6 - 2026-08-25
+
+#### Features
+
+- (3df7555) publish changelog section as GitHub release body - dcog989
+- - -
+
 ## 0.5.5 - 2026-08-24
 
 #### Bug Fixes
