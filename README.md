@@ -1,6 +1,6 @@
 # ImSlim
 
-A Linux-first image compressor. Compress common image formats. Built on top of gold standard image processing libraries using Python / PySide6.
+A Linux-first image compressor for common image formats. Built on top of gold standard image processing libraries using Python / PySide6.
 
 Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
@@ -63,6 +63,8 @@ Releases are built as a standalone Linux **AppImage** via GitHub Actions. Pushin
 3. attaches the artifact to the GitHub release.
 
 The tools in `src/imslim/bin/linux-x86_64/` are bundled into the AppImage. The wheel and sdist are still published through `uv build` for pip installs (which requires the compression tools on PATH outside Linux x86_64).
+
+---
 
 ## License
 
