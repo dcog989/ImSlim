@@ -462,6 +462,13 @@ build_svgo() {
         log "svgo: downloading node $node_ver"
         curl -fsSLo "$WORK/node-$node_ver.tar.xz" \
             "https://nodejs.org/dist/$node_ver/node-$node_ver-linux-x64.tar.xz"
+        # Verify against the checksums nodejs publishes for that release;
+        # fail loudly on a corrupt or tampered download.
+        local expected
+        expected="$(curl -fsSL "https://nodejs.org/dist/$node_ver/SHASUMS256.txt" \
+            | awk -v f="node-$node_ver-linux-x64.tar.xz" '$2 == f { print $1 }')"
+        echo "$expected  $WORK/node-$node_ver.tar.xz" | sha256sum -c --quiet \
+            || { log "node $node_ver tarball sha256 mismatch"; exit 1; }
         rm -rf "$WORK/node"
         mkdir -p "$WORK/node"
         tar -xJf "$WORK/node-$node_ver.tar.xz" -C "$WORK/node" --strip-components=1

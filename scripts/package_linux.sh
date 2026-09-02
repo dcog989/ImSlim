@@ -22,6 +22,8 @@ APP_DIR="$OUT_DIR/ImSlim.AppDir"
 mkdir -p "$OUT_DIR"
 rm -rf "$APP_DIR"
 
+log() { printf '\033[1;36m[package]\033[0m %s\n' "$*"; }
+
 # Raster icon for the AppDir and desktop entry. Force the offscreen Qt
 # platform: icon rendering must not require a display (e.g. in CI).
 QT_QPA_PLATFORM=offscreen "$ROOT/.venv/bin/python" "$ROOT/scripts/make_icons.py"
@@ -64,15 +66,22 @@ exec "$HERE/usr/bin/ImSlim" "$@"
 EOF
 chmod +x "$APP_DIR/AppRun"
 
-# appimagetool: fetch a portable build into .build/ if not already present.
+# appimagetool: fetch a pinned release build into .build/ if not already
+# present, verifying its sha256 so a corrupt or tampered download fails
+# loudly instead of producing a broken AppImage.
+APPIMAGETOOL_VERSION="1.9.1"
+APPIMAGETOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
 APPIMAGETOOL="$ROOT/.build/appimagetool"
-if [[ ! -x "$APPIMAGETOOL" ]]; then
-    log() { printf '\033[1;36m[package]\033[0m %s\n' "$*"; }
-    log "downloading appimagetool"
+verify_appimagetool() {
+    echo "$APPIMAGETOOL_SHA256  $APPIMAGETOOL" | sha256sum -c --quiet
+}
+if [[ ! -x "$APPIMAGETOOL" ]] || ! verify_appimagetool 2>/dev/null; then
+    log "downloading appimagetool $APPIMAGETOOL_VERSION"
     curl -fsSLo "$APPIMAGETOOL" \
-        "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$ARCH.AppImage"
+        "https://github.com/AppImage/appimagetool/releases/download/$APPIMAGETOOL_VERSION/appimagetool-x86_64.AppImage"
     chmod +x "$APPIMAGETOOL"
 fi
+verify_appimagetool || { log "appimagetool sha256 mismatch"; exit 1; }
 
 "$APPIMAGETOOL" --appimage-extract-and-run "$APP_DIR" "$OUT_DIR/$APPIMAGE_NAME"
 rm -rf "$APP_DIR"
