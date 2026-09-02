@@ -7,8 +7,8 @@ tag_prefix = "v"
 # Keep the package manifest and __version__ in sync with the bumped tag.
 # `{{version}}` is replaced by cog with the target version before the hooks run.
 pre_bump_hooks = [
-    "sed -i 's/^version = .*/version = \"{{version}}\"/' pyproject.toml",
-    "sed -i 's/^__version__ = .*/__version__ = \"{{version}}\"/' src/imslim/__init__.py",
+    "sed -i 's/^version = .*/version = \"{{version}}\"/' pyproject.toml && grep -q '^version = \"{{version}}\"' pyproject.toml",
+    "sed -i 's/^__version__ = .*/__version__ = \"{{version}}\"/' src/imslim/__init__.py && grep -q '^__version__ = \"{{version}}\"' src/imslim/__init__.py",
     "uv lock",
 ]
 

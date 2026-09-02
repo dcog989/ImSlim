@@ -6,6 +6,10 @@ on:
       - "v[0-9]*"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -13,8 +17,18 @@ jobs:
   linux:
     name: Linux AppImage (x86_64)
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Restore bundled tools cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: |
+            .build/.versions
+            .build/appimagetool
+            src/imslim/bin/linux-x86_64
+          key: tools-${{ hashFiles('tools.lock') }}
 
       - name: Install build dependencies
         run: |
@@ -54,6 +68,7 @@ jobs:
   wheel:
     name: Build wheel
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -77,6 +92,7 @@ jobs:
     needs: [linux, wheel]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
