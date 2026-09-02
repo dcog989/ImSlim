@@ -34,6 +34,8 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Sync dependencies (incl. pyinstaller)
         run: uv sync --group dev
@@ -59,6 +61,8 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Build wheel
         run: uv build
