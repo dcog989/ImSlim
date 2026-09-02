@@ -48,23 +48,45 @@ mkdir -p "$OUT" "$WORK" "$PREFIX"
 log() { printf '\033[1;36m[build]\033[0m %s\n' "$*"; }
 
 install_deps() {
-    if ! command -v apt-get >/dev/null 2>&1; then
-        log "only apt-based images are supported; skipping dependency install"
+    local pkg_manager=""
+    if command -v apt-get >/dev/null 2>&1; then
+        pkg_manager="apt-get"
+    elif command -v pacman >/dev/null 2>&1; then
+        pkg_manager="pacman"
+    fi
+    if [[ -z "$pkg_manager" ]]; then
+        log "no supported package manager found (apt-get or pacman); skipping dependency install"
         return
     fi
-    # CI runners are not root; elevate when sudo is available, otherwise run
-    # apt-get directly (e.g. inside a root container).
-    local apt="apt-get"
+
+    # Elevate when sudo is available, otherwise run directly (e.g. as root).
+    local pm="$pkg_manager"
     if [[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
-        apt="sudo apt-get"
+        pm="sudo $pkg_manager"
     fi
-    $apt update -qq
-    $apt install -y -qq \
-        build-essential cmake ninja-build pkg-config curl git \
-        libpng-dev zlib1g-dev libjpeg-dev libwebp-dev \
-        libhwy-dev libbrotli-dev liblcms2-dev libaom-dev libyuv-dev \
-        libdav1d-dev \
-        libsqlite3-dev libzstd-dev libtiff-dev
+
+    if [[ "$pkg_manager" == "apt-get" ]]; then
+        $pm update -qq
+        $pm install -y -qq \
+            build-essential cmake ninja-build pkg-config curl git \
+            libpng-dev zlib1g-dev libjpeg-dev libwebp-dev \
+            libhwy-dev libbrotli-dev liblcms2-dev libaom-dev libyuv-dev \
+            libdav1d-dev \
+            libsqlite3-dev libzstd-dev libtiff-dev
+    else
+        # Arch-based (e.g. CachyOS): --needed skips already-installed packages.
+        # No -Sy: partial upgrades are discouraged; assume repos are current.
+        local deps=(
+            base-devel cmake ninja pkgconf curl git rust \
+            libpng libjpeg-turbo libwebp highway brotli lcms2 \
+            aom libyuv dav1d sqlite zstd libtiff
+        )
+        # zlib is often provided by zlib-ng-compat; forcing zlib then conflicts.
+        if ! pacman -Qq zlib zlib-ng-compat 2>/dev/null | grep -q .; then
+            deps+=(zlib)
+        fi
+        $pm -S --needed --noconfirm "${deps[@]}"
+    fi
 }
 
 # ---------------------------------------------------------------------------
