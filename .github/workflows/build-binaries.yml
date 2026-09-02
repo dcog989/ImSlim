@@ -15,23 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            build-essential cmake ninja-build pkg-config curl git \
-            libpng-dev zlib1g-dev libjpeg-dev libwebp-dev \
-            libhwy-dev libbrotli-dev liblcms2-dev libaom-dev libyuv-dev \
-            libdav1d-dev \
-            libsqlite3-dev libzstd-dev libtiff-dev
-
-      - name: Install Rust for oxipng
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build bundled tools
-        run: ./scripts/build_tools.sh
-
-      - name: Install Python + uv
+      - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"
