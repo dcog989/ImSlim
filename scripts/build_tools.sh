@@ -1,28 +1,32 @@
 #!/usr/bin/env bash
-# Builds the bundled compression tools for linux-x86_64 from the latest
-# available versions: stable release tags where available, latest main for
-# jpegli, latest node, latest svgo from npm.
+# Builds the bundled compression tools for linux-x86_64, pinned to the
+# versions recorded in tools.lock (committed) so release builds are
+# reproducible. Use --update to refresh tools.lock against the latest
+# available versions; --check reports when a locked tool has a newer
+# version (exits 1 if any are behind).
 #
-# Incremental: a tool is only rebuilt when a newer version than the one
-# recorded in $WORK/.versions is available, or when its output is missing.
+# Incremental: a tool is only rebuilt when the pinned version differs from
+# the one recorded in $WORK/.versions, or when its output is missing.
 #
 # Output: src/imslim/bin/linux-x86_64/  (each tool plus its LICENSE)
 #
 # Run from the repository root:
-#   ./scripts/build_tools.sh            # builds/updates everything as needed
+#   ./scripts/build_tools.sh            # builds the tools.lock-pinned versions
 #   ./scripts/build_tools.sh libjxl     # builds a single tool group
+#   ./scripts/build_tools.sh --update   # resolve latest versions, refresh tools.lock
+#   ./scripts/build_tools.sh --check    # exit 1 if a locked tool is behind latest
 #   ./scripts/build_tools.sh --force    # rebuild everything regardless
 #
 # Tools / sources:
-#   libjxl  (cjxl djxl)                   -> latest release tag
-#   jpegli  (cjpegli djpegli)             -> latest main commit
-#   mozjpeg (jpegtran)                    -> latest release tag
-#   oxipng                                -> latest release tag
-#   pngquant                              -> latest release tag
-#   libwebp (cwebp)                       -> latest release tag
-#   libavif (avifenc avifdec)             -> latest release tag
-#   gifsicle                              -> latest release tag
-#   node + svgo                           -> latest node, svgo@latest
+#   libjxl  (cjxl djxl)                   -> pinned release tag
+#   jpegli  (cjpegli djpegli)             -> pinned main commit (no releases)
+#   mozjpeg (jpegtran)                    -> pinned release tag
+#   oxipng                                -> pinned release tag
+#   pngquant                              -> pinned release tag
+#   libwebp (cwebp)                       -> pinned release tag
+#   libavif (avifenc avifdec)             -> pinned release tag
+#   gifsicle                              -> pinned release tag
+#   node + svgo                           -> pinned node, pinned svgo
 
 set -euo pipefail
 
@@ -32,7 +36,10 @@ WORK="$ROOT/.build"
 JOBS="${JOBS:-$(nproc)}"
 PREFIX="$WORK/prefix"
 VERSIONS="$WORK/.versions"
+LOCK="$ROOT/tools.lock"
 FORCE=0
+UPDATE_LOCK=0
+CHECK=0
 
 mkdir -p "$OUT" "$WORK" "$PREFIX"
 
@@ -87,6 +94,64 @@ latest_svgo_version() {
 }
 
 # ---------------------------------------------------------------------------
+# Lock file (tools.lock) bookkeeping
+# ---------------------------------------------------------------------------
+
+locked_version() {
+    awk -v t="$1" '$1 == t { print $2 }' "$LOCK" 2>/dev/null | tail -n 1
+}
+
+latest_version() {
+    case "$1" in
+        libjxl)   latest_git_tag "https://github.com/libjxl/libjxl.git" ;;
+        jpegli)   latest_git_commit "https://github.com/google/jpegli.git" main ;;
+        mozjpeg)  latest_git_tag "https://github.com/mozilla/mozjpeg.git" ;;
+        oxipng)   latest_git_tag "https://github.com/shssoichiro/oxipng.git" ;;
+        pngquant) latest_git_tag "https://github.com/kornelski/pngquant.git" ;;
+        webp)     latest_git_tag "https://github.com/webmproject/libwebp.git" ;;
+        avif)     latest_git_tag "https://github.com/AOMediaCodec/libavif.git" ;;
+        gifsicle) latest_git_tag "https://github.com/kohler/gifsicle.git" ;;
+        node)     latest_node_version ;;
+        svgo)     latest_svgo_version ;;
+    esac
+}
+
+# Version to build: the locked one when present (reproducible release
+# builds), unless --update requests the latest available.
+target_version() {
+    local tool="$1"
+    if [[ "$UPDATE_LOCK" -eq 1 ]]; then
+        latest_version "$tool"
+        return
+    fi
+    local locked; locked="$(locked_version "$tool")"
+    if [[ -n "$locked" ]]; then
+        echo "$locked"
+    else
+        latest_version "$tool"
+    fi
+}
+
+check_lock() {
+    local tool latest locked stale=0
+    for tool in libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle node svgo; do
+        latest="$(latest_version "$tool")"
+        locked="$(locked_version "$tool")"
+        if [[ -z "$locked" ]]; then
+            log "$tool: not locked (latest $latest)"
+            stale=1
+        elif [[ "$locked" != "$latest" ]]; then
+            log "$tool: locked $locked, latest $latest"
+            stale=1
+        fi
+    done
+    if [[ "$stale" -eq 0 ]]; then
+        log "tools.lock is up to date"
+    fi
+    return "$stale"
+}
+
+# ---------------------------------------------------------------------------
 # Incremental-build bookkeeping
 # ---------------------------------------------------------------------------
 
@@ -125,12 +190,24 @@ ensure_repo() {
     fi
 }
 
+ensure_commit() {
+    local dir="$1" url="$2" ref="$3"
+    if [[ -d "$dir/.git" ]]; then
+        git -C "$dir" fetch -q --force origin "$ref" --depth 1
+    else
+        git init -q "$dir"
+        git -C "$dir" remote add origin "$url"
+        git -C "$dir" fetch -q --force origin "$ref" --depth 1
+    fi
+    git -C "$dir" checkout -q "$ref"
+}
+
 # ---------------------------------------------------------------------------
 # libjxl (cjxl djxl)
 # ---------------------------------------------------------------------------
 build_libjxl() {
     local url=https://github.com/libjxl/libjxl.git
-    local tag; tag="$(latest_git_tag "$url")"
+    local tag; tag="$(target_version libjxl)"
     need_build libjxl "$tag" cjxl || return 0
     ensure_repo "$WORK/libjxl" "$url" "$tag"
     cd "$WORK/libjxl"
@@ -165,19 +242,13 @@ build_libjxl() {
 
 # ---------------------------------------------------------------------------
 # jpegli (cjpegli djpegli)
-# jpegli has no releases; track the latest main commit.
+# jpegli has no releases; the lock pins a main commit.
 # ---------------------------------------------------------------------------
 build_jpegli() {
     local url=https://github.com/google/jpegli.git
-    local commit; commit="$(latest_git_commit "$url" main)"
+    local commit; commit="$(target_version jpegli)"
     need_build jpegli "$commit" cjpegli || return 0
-    if [[ -d "$WORK/jpegli/.git" ]]; then
-        git -C "$WORK/jpegli" fetch -q origin main --depth 1
-        git -C "$WORK/jpegli" checkout -q "$commit"
-    else
-        git clone -q --depth 1 "$url" "$WORK/jpegli"
-        git -C "$WORK/jpegli" checkout -q "$commit"
-    fi
+    ensure_commit "$WORK/jpegli" "$url" "$commit"
     cd "$WORK/jpegli"
     ./deps.sh
 
@@ -208,7 +279,7 @@ build_jpegli() {
 # ---------------------------------------------------------------------------
 build_mozjpeg() {
     local url=https://github.com/mozilla/mozjpeg.git
-    local tag; tag="$(latest_git_tag "$url")"
+    local tag; tag="$(target_version mozjpeg)"
     need_build mozjpeg "$tag" jpegtran || return 0
     ensure_repo "$WORK/mozjpeg" "$url" "$tag"
     cd "$WORK/mozjpeg"
@@ -236,7 +307,7 @@ build_mozjpeg() {
 # ---------------------------------------------------------------------------
 build_oxipng() {
     local url=https://github.com/shssoichiro/oxipng.git
-    local tag; tag="$(latest_git_tag "$url")"
+    local tag; tag="$(target_version oxipng)"
     need_build oxipng "$tag" oxipng || return 0
     ensure_repo "$WORK/oxipng" "$url" "$tag"
     cd "$WORK/oxipng"
@@ -253,7 +324,7 @@ build_oxipng() {
 # ---------------------------------------------------------------------------
 build_pngquant() {
     local url=https://github.com/kornelski/pngquant.git
-    local tag; tag="$(latest_git_tag "$url")"
+    local tag; tag="$(target_version pngquant)"
     need_build pngquant "$tag" pngquant || return 0
     ensure_repo "$WORK/pngquant" "$url" "$tag"
     git -C "$WORK/pngquant" submodule update --init --recursive
@@ -272,7 +343,7 @@ build_pngquant() {
 # ---------------------------------------------------------------------------
 build_webp() {
     local url=https://github.com/webmproject/libwebp.git
-    local tag; tag="$(latest_git_tag "$url")"
+    local tag; tag="$(target_version webp)"
     need_build webp "$tag" cwebp || return 0
     ensure_repo "$WORK/libwebp" "$url" "$tag"
     cd "$WORK/libwebp"
@@ -303,7 +374,7 @@ build_webp() {
 # ---------------------------------------------------------------------------
 build_avif() {
     local url=https://github.com/AOMediaCodec/libavif.git
-    local tag; tag="$(latest_git_tag "$url")"
+    local tag; tag="$(target_version avif)"
     need_build avif "$tag" avifenc || return 0
     ensure_repo "$WORK/libavif" "$url" "$tag"
     cd "$WORK/libavif"
@@ -339,7 +410,7 @@ build_avif() {
 # ---------------------------------------------------------------------------
 build_gifsicle() {
     local url=https://github.com/kohler/gifsicle.git
-    local tag; tag="$(latest_git_tag "$url")"
+    local tag; tag="$(target_version gifsicle)"
     need_build gifsicle "$tag" gifsicle || return 0
     ensure_repo "$WORK/gifsicle" "$url" "$tag"
     cd "$WORK/gifsicle"
@@ -370,8 +441,8 @@ installed_svgo_version() {
 
 build_svgo() {
     local node_ver svgo_ver
-    node_ver="$(latest_node_version)"
-    svgo_ver="$(latest_svgo_version)"
+    node_ver="$(target_version node)"
+    svgo_ver="$(target_version svgo)"
     local node_current=0 svgo_current=0
     if [[ "$(installed_node_version)" == "$node_ver" ]]; then
         node_current=1
@@ -382,6 +453,8 @@ build_svgo() {
 
     if [[ "$FORCE" -eq 0 && "$node_current" -eq 1 && "$svgo_current" -eq 1 ]]; then
         log "svgo: already up to date (node $node_ver, svgo $svgo_ver), skipping"
+        record_version node "$node_ver"
+        record_version svgo "$svgo_ver"
         return 0
     fi
 
@@ -410,6 +483,8 @@ exec "$DIR/node" "$DIR/svgo-dist/node_modules/svgo/bin/svgo" "$@"
 EOF
     chmod +x "$OUT/svgo"
     cp "$OUT/svgo-dist/node_modules/svgo/LICENSE" "$OUT/LICENSE-svgo"
+    record_version node "$node_ver"
+    record_version svgo "$svgo_ver"
     log "svgo: done (node $node_ver, svgo $svgo_ver)"
 }
 
@@ -418,9 +493,17 @@ main() {
     for arg in "$@"; do
         case "$arg" in
             --force|-f) FORCE=1 ;;
+            --update|-u) UPDATE_LOCK=1 ;;
+            --check|-c) CHECK=1 ;;
             *) groups+=("$arg") ;;
         esac
     done
+
+    if [[ "$CHECK" -eq 1 ]]; then
+        check_lock
+        exit $?
+    fi
+
     [[ ${#groups[@]} -eq 0 ]] && groups=(libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle svgo)
 
     install_deps
@@ -428,6 +511,11 @@ main() {
         log "checking $group"
         ( "build_$group" )
     done
+
+    if [[ "$UPDATE_LOCK" -eq 1 ]]; then
+        cp "$VERSIONS" "$LOCK"
+        log "tools.lock refreshed"
+    fi
     log "done — tools up to date in $OUT"
 }
 
