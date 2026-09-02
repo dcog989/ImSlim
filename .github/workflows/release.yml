@@ -76,6 +76,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Verify tag matches package version
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          init_ver="$(python3 -c 'import sys; sys.path.insert(0,"src"); print(__import__("imslim").__version__)')"
+          proj_ver="$(awk -F'"' '/^version = /{print $2}' pyproject.toml)"
+          if [[ "$tag" != "v$init_ver" || "$init_ver" != "$proj_ver" ]]; then
+            echo "version mismatch: tag=$tag, __version__=$init_ver, pyproject.toml=$proj_ver" >&2
+            exit 1
+          fi
+
       - uses: actions/download-artifact@v7
         with:
           name: imslim-linux-x86_64
