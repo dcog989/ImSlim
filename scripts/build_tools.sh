@@ -16,6 +16,7 @@
 #   ./scripts/build_tools.sh --update   # resolve latest versions, refresh tools.lock
 #   ./scripts/build_tools.sh --check    # exit 1 if a locked tool is behind latest
 #   ./scripts/build_tools.sh --force    # rebuild everything regardless
+#   ./scripts/build_tools.sh --no-deps   # skip the apt dependency install (CI already installs them)
 #
 # Tools / sources:
 #   libjxl  (cjxl djxl)                   -> pinned release tag
@@ -40,6 +41,7 @@ LOCK="$ROOT/tools.lock"
 FORCE=0
 UPDATE_LOCK=0
 CHECK=0
+NO_DEPS=0
 
 mkdir -p "$OUT" "$WORK" "$PREFIX"
 
@@ -62,7 +64,7 @@ install_deps() {
         libpng-dev zlib1g-dev libjpeg-dev libwebp-dev \
         libhwy-dev libbrotli-dev liblcms2-dev libaom-dev libyuv-dev \
         libdav1d-dev \
-        libsqlite3-dev libzstd-dev libtiff-dev && true
+        libsqlite3-dev libzstd-dev libtiff-dev
 }
 
 # ---------------------------------------------------------------------------
@@ -502,6 +504,7 @@ main() {
             --force|-f) FORCE=1 ;;
             --update|-u) UPDATE_LOCK=1 ;;
             --check|-c) CHECK=1 ;;
+            --no-deps|-n) NO_DEPS=1 ;;
             *) groups+=("$arg") ;;
         esac
     done
@@ -513,7 +516,9 @@ main() {
 
     [[ ${#groups[@]} -eq 0 ]] && groups=(libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle svgo)
 
-    install_deps
+    if [[ "$NO_DEPS" -eq 0 ]]; then
+        install_deps
+    fi
     for group in "${groups[@]}"; do
         log "checking $group"
         ( "build_$group" )

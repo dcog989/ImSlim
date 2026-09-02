@@ -39,7 +39,7 @@ jobs:
         run: uv sync --group dev
 
       - name: Build bundled tools
-        run: ./scripts/build_tools.sh
+        run: ./scripts/build_tools.sh --no-deps
 
       - name: Package AppImage
         run: ./scripts/package_linux.sh
