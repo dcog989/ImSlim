@@ -1,3 +1,4 @@
+import html
 import os
 import tempfile
 import time
@@ -28,6 +29,7 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
     QFileDialog,
     QHBoxLayout,
     QLabel,
@@ -65,6 +67,7 @@ from .widgets import (
     ResultsPage,
     apply_muted_palette,
     close_icon,
+    combo_stylesheet,
     download_icon,
     gear_icon,
     imslim_icon,
@@ -125,7 +128,9 @@ class ImSlimWindow(QWidget):
         self.loading_spinner: QProgressBar = QProgressBar()
         self.results_container: QWidget = QWidget()
         self.results_layout: QVBoxLayout = QVBoxLayout()
-        self.subtitle_label: QLabel = QLabel()
+        self.combo_compression: QComboBox = QComboBox()
+        self.combo_metadata: QComboBox = QComboBox()
+        self.combo_attributes: QComboBox = QComboBox()
         self.summary_label: QLabel = QLabel()
         self.build_ui()
         self.show_view("home")
@@ -221,8 +226,6 @@ class ImSlimWindow(QWidget):
 
         root.addWidget(self.stack, 1)
 
-        self.set_active_settings()
-
     def _build_home_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -236,9 +239,46 @@ class ImSlimWindow(QWidget):
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
 
-        self.subtitle_label = QLabel()
-        self.subtitle_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.subtitle_label)
+        options_row = QHBoxLayout()
+        options_row.setSpacing(12)
+        options_row.addStretch(1)
+
+        self.combo_compression = self._build_option_combo(
+            (_("Lossy"), _("Lossless")),
+            _(
+                "Compression method. Lossy produces much smaller files with some "
+                + "quality loss; lossless preserves the original pixels exactly."
+            ),
+        )
+        self.combo_metadata = self._build_option_combo(
+            (_("Keep metadata"), _("Remove metadata")),
+            _(
+                "Metadata retention. Keep or strip metadata such as EXIF, ICC "
+                + "profiles and comments from the compressed images."
+            ),
+        )
+        self.combo_attributes = self._build_option_combo(
+            (_("Keep attributes"), _("Reset attributes")),
+            _(
+                "File attributes. Keep the original timestamps and permissions on "
+                + "the output files, or reset them to the defaults."
+            ),
+        )
+
+        options_row.addWidget(self.combo_compression)
+        options_row.addWidget(self.combo_metadata)
+        options_row.addWidget(self.combo_attributes)
+        options_row.addStretch(1)
+
+        layout.addLayout(options_row)
+
+        self.combo_compression.setCurrentIndex(0 if self.settings.lossy else 1)
+        self.combo_metadata.setCurrentIndex(0 if self.settings.metadata else 1)
+        self.combo_attributes.setCurrentIndex(0 if self.settings.file_attributes else 1)
+
+        _res = self.combo_compression.currentIndexChanged.connect(self.on_compression_changed)
+        _res = self.combo_metadata.currentIndexChanged.connect(self.on_metadata_changed)
+        _res = self.combo_attributes.currentIndexChanged.connect(self.on_attributes_changed)
 
         drop_label = QLabel(_("Drop or paste files or directory here to compress."))
         drop_font = drop_label.font()
@@ -608,20 +648,28 @@ class ImSlimWindow(QWidget):
         self.start_compression(paths)
 
     # ------------------------------------------------------------- active settings
-    def set_active_settings(self) -> None:
-        parts = [
-            _("Lossy") if self.settings.lossy else _("Lossless"),
-            _("Keep metadata") if self.settings.metadata else _("Remove metadata"),
-            _("Keep attributes") if self.settings.file_attributes else _("Reset attributes"),
-        ]
-        self.subtitle_label.setText(f"[ {' | '.join(parts)} ]")
+    @staticmethod
+    def _build_option_combo(items: tuple[str, str], tooltip: str) -> QComboBox:
+        combo = QComboBox()
+        combo.addItems([_(item) for item in items])
+        combo.setStyleSheet(combo_stylesheet())
+        combo.setToolTip(f"<div style='width: 300px'>{html.escape(tooltip)}</div>")
+        return combo
+
+    def on_compression_changed(self, index: int) -> None:
+        self.settings.lossy = index == 0
+
+    def on_metadata_changed(self, index: int) -> None:
+        self.settings.metadata = index == 0
+
+    def on_attributes_changed(self, index: int) -> None:
+        self.settings.file_attributes = index == 0
 
     # ------------------------------------------------------------- dialogs
     def on_settings(self) -> None:
         if self.prefs_dialog is not None:
             _res = self.prefs_dialog.close()
         self.prefs_dialog = SettingsDialog(self.settings, self)
-        _res = self.prefs_dialog.settings_changed.connect(self.set_active_settings)
         _res = self.prefs_dialog.settings_changed.connect(self._reconfigure_logging)
         self.prefs_dialog.show()
 

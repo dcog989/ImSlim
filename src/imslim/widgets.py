@@ -16,9 +16,35 @@ from PySide6.QtGui import (
     QPolygonF,
     QResizeEvent,
 )
-from PySide6.QtWidgets import QToolButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QToolButton, QVBoxLayout, QWidget
 
 IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
+
+
+def input_background_color() -> str:
+    """Background for input fields, lifted just above the window color.
+
+    Some dark schemes give input fields a Base darker than the surrounding
+    window, which renders as near-black holes. Those fields are lifted above
+    the window color so text stays readable; light themes keep their Base.
+    """
+    palette = QApplication.palette()
+    base = palette.color(QPalette.ColorRole.Base)
+    window = palette.color(QPalette.ColorRole.Window)
+    if base.lightness() < window.lightness():
+        return window.lighter(115).name()
+    return base.name()
+
+
+def combo_stylesheet() -> str:
+    """QComboBox styling shared by the settings form and the home page.
+
+    Setting a background color forces the stylesheet renderer to draw the
+    combo, which is required for the internal padding to shift the text.
+    """
+    return (
+        f"QComboBox {{ padding: 3px 12px 5px 12px; background-color: {input_background_color()}; }}"
+    )
 
 
 def muted_color(fg: QColor, bg: QColor, factor: float = 0.5) -> QColor:

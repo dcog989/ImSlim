@@ -4,7 +4,6 @@ from typing import cast, override
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QCloseEvent, QPalette
 from PySide6.QtWidgets import (
-    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -28,7 +27,7 @@ from PySide6.QtWidgets import (
 
 from ._i18n import _
 from .settings_manager import SettingsManager, log_file_path
-from .widgets import apply_muted_palette
+from .widgets import apply_muted_palette, combo_stylesheet, input_background_color
 
 _LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
 _LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
@@ -60,16 +59,13 @@ def _form_stylesheet() -> str:
     as near-black holes. Those fields are lifted just above the window color
     so text stays readable; light themes keep their Base untouched.
     """
-    palette = QApplication.palette()
-    base = palette.color(QPalette.ColorRole.Base)
-    window = palette.color(QPalette.ColorRole.Window)
-    input_bg = window.lighter(115).name() if base.lightness() < window.lightness() else base.name()
+    input_bg = input_background_color()
     return (
-        f"QComboBox {{ padding: 5px 12px; background-color: {input_bg}; }}"
-        f"QSpinBox {{ padding: 0px 6px; min-height: 22px; background-color: {input_bg}; }}"
-        f"QLineEdit {{ padding: 5px 10px; background-color: {input_bg}; }}"
-        "QPushButton { padding: 6px 16px; }"
-        "QCheckBox, QRadioButton { spacing: 8px; }"
+        combo_stylesheet()
+        + f"QSpinBox {{ padding: 0px 6px; min-height: 22px; background-color: {input_bg}; }}"
+        + f"QLineEdit {{ padding: 5px 10px; background-color: {input_bg}; }}"
+        + "QPushButton { padding: 6px 16px; }"
+        + "QCheckBox, QRadioButton { spacing: 8px; }"
     )
 
 
@@ -91,9 +87,6 @@ class SettingsDialog(QDialog):
         self.btn_default_directory: QPushButton = QPushButton()
         self.btn_clear_default_directory: QPushButton = QPushButton()
         self.radio_recursive: QWidget = QWidget()
-        self.radio_compression_method: QWidget = QWidget()
-        self.radio_metadata: QWidget = QWidget()
-        self.radio_file_attributes: QWidget = QWidget()
         self.spin_timeout: QSpinBox = QSpinBox()
         self.combo_log_level: QComboBox = QComboBox()
         self.spin_log_max_size: QSpinBox = QSpinBox()
@@ -180,20 +173,6 @@ class SettingsDialog(QDialog):
         form.addRow(_("Open Dialog Directory"), default_directory_row)
         form.addRow(_("Directory Recurse"), self.radio_recursive)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
-
-        form.addRow(_separator())
-
-        self.radio_compression_method = self._radio_row(
-            _("Lossy"), _("Lossless"), "lossy", reverse=True
-        )
-        self.radio_metadata = self._radio_row(_("Keep metadata"), _("Remove metadata"), "metadata")
-        self.radio_file_attributes = self._radio_row(
-            _("Keep attributes"), _("Reset attributes"), "file-attributes"
-        )
-
-        form.addRow(_("Compression Method"), self.radio_compression_method)
-        form.addRow(_("Metadata Retention"), self.radio_metadata)
-        form.addRow(_("File Attributes"), self.radio_file_attributes)
 
         form.addRow(_separator())
 
