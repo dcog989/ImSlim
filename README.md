@@ -18,7 +18,7 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
 ## Tech Stack
 
-Built with Python / PySide6. The compression libraries are built from source, latest releases:
+Built with Python / PySide6. The compression libraries are built from source, latest releases, and statically linked so the bundled tools are self-contained (no distro package dependencies):
 
 - [libjxl](https://github.com/libjxl/libjxl) (`cjxl`/`djxl`)
 - [jpegli](https://github.com/google/jpegli) (`cjpegli`/`djpegli`)
@@ -44,6 +44,7 @@ make tools          # runs build / update script for image libraries
 make package-linux  # build the Linux AppImage
 make check          # runs ruff check + basedpyright
 make clean          # remove all build artifacts
+make distclean      # remove build tools - expensive!
 make format         # runs ruff format
 make fix            # auto fix lint issues
 make run            # runs the app
@@ -62,7 +63,7 @@ Releases are built as a standalone Linux **AppImage** via GitHub Actions. Pushin
 2. packages the app with PyInstaller (`imslim.spec`) into an AppImage,
 3. attaches the artifact to the GitHub release.
 
-The tools in `src/imslim/bin/linux-x86_64/` are bundled into the AppImage. The wheel and sdist are still published through `uv build` for pip installs (which requires the compression tools on PATH outside Linux x86_64).
+The tools in `src/imslim/bin/linux-x86_64/` are bundled into the AppImage. Compression codec libraries (aom, dav1d, libjpeg-turbo, libpng, zlib, brotli, highway, lcms2) are built from source and linked statically into the tools, so the AppImage runs on any distro without relying on system packages. The wheel and sdist are still published through `uv build` for pip installs (which requires the compression tools on PATH outside Linux x86_64).
 
 ---
 

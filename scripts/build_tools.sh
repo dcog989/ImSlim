@@ -28,6 +28,12 @@
 #   libavif (avifenc avifdec)             -> pinned release tag
 #   gifsicle                              -> pinned release tag
 #   node + svgo                           -> pinned node, pinned svgo
+#
+# Shared static dependencies (built into $PREFIX, linked into the tools so the
+# bundled binaries are self-contained and do not depend on distro packages):
+#   zlib                                  -> pinned release tag
+#   libpng                                -> pinned release tag
+#   lcms2                                 -> pinned release tag
 
 set -euo pipefail
 
@@ -38,10 +44,20 @@ JOBS="${JOBS:-$(nproc)}"
 PREFIX="$WORK/prefix"
 VERSIONS="$WORK/.versions"
 LOCK="$ROOT/tools.lock"
+CONFIG_HASH_FILE="$WORK/.config-hash"
 FORCE=0
 UPDATE_LOCK=0
 CHECK=0
 NO_DEPS=0
+
+# Hash the build script's configuration so changing build flags invalidates the
+# incremental-build cache even when pinned versions are unchanged. Hashing the
+# whole script is coarse but correct: any build-affecting edit forces a rebuild.
+script_config_hash() {
+    # $BASH_SOURCE may be relative; hash the canonical path so the result is
+    # independent of the current directory (build steps cd into $WORK).
+    sha256sum "$ROOT/scripts/build_tools.sh" | awk '{print $1}'
+}
 
 mkdir -p "$OUT" "$WORK" "$PREFIX"
 
@@ -69,22 +85,14 @@ install_deps() {
         $pm update -qq
         $pm install -y -qq \
             build-essential cmake ninja-build pkg-config curl git \
-            libpng-dev zlib1g-dev libjpeg-dev libwebp-dev \
-            libhwy-dev libbrotli-dev liblcms2-dev libaom-dev libyuv-dev \
-            libdav1d-dev \
-            libsqlite3-dev libzstd-dev libtiff-dev
+            autoconf automake libtool nasm
     else
         # Arch-based (e.g. CachyOS): --needed skips already-installed packages.
         # No -Sy: partial upgrades are discouraged; assume repos are current.
         local deps=(
             base-devel cmake ninja pkgconf curl git rust \
-            libpng libjpeg-turbo libwebp highway brotli lcms2 \
-            aom libyuv dav1d sqlite zstd libtiff
+            autoconf automake libtool nasm
         )
-        # zlib is often provided by zlib-ng-compat; forcing zlib then conflicts.
-        if ! pacman -Qq zlib zlib-ng-compat 2>/dev/null | grep -q .; then
-            deps+=(zlib)
-        fi
         $pm -S --needed --noconfirm "${deps[@]}"
     fi
 }
@@ -137,7 +145,22 @@ latest_version() {
         gifsicle) latest_git_tag "https://github.com/kohler/gifsicle.git" ;;
         node)     latest_node_version ;;
         svgo)     latest_svgo_version ;;
+        zlib)     latest_git_tag "https://github.com/madler/zlib.git" ;;
+        libpng)   latest_git_tag "https://github.com/pnggroup/libpng.git" ;;
+        lcms2)    latest_lcms2_version ;;
     esac
+}
+
+# Little CMS tags its releases as e.g. lcms2.19.1 (no 'v' prefix), which the
+# generic tag matcher rejects; resolve those directly.
+latest_lcms2_version() {
+    git ls-remote --tags --refs "https://github.com/mm2/Little-CMS.git" \
+        | sed 's#.*refs/tags/##' \
+        | grep -E '^lcms2\.[0-9]+(\.[0-9]+)?$' \
+        | sed 's/^lcms2\./2./' \
+        | sort -V \
+        | tail -n 1 \
+        | sed 's/^2\./lcms2./'
 }
 
 # Version to build: the locked one when present (reproducible release
@@ -158,7 +181,7 @@ target_version() {
 
 check_lock() {
     local tool latest locked stale=0
-    for tool in libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle node svgo; do
+    for tool in zlib libpng lcms2 libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle node svgo; do
         latest="$(latest_version "$tool")"
         locked="$(locked_version "$tool")"
         if [[ -z "$locked" ]]; then
@@ -192,13 +215,19 @@ record_version() {
 
 need_build() {
     local tool="$1" version="$2" primary="$3"
+    local artifact="$primary"
+    [[ "$primary" != /* ]] && artifact="$OUT/$primary"
     if [[ "$FORCE" -eq 1 ]]; then
         log "$tool: --force set, rebuilding"
         return 0
     fi
-    if [[ "$(recorded_version "$tool")" == "$version" && -x "$OUT/$primary" ]]; then
-        log "$tool: already up to date ($version), skipping"
-        return 1
+    if [[ "$(recorded_version "$tool")" == "$version" && -f "$artifact" ]]; then
+        if [[ "$(cat "$CONFIG_HASH_FILE" 2>/dev/null)" == "$(script_config_hash)" ]]; then
+            log "$tool: already up to date ($version), skipping"
+            return 1
+        fi
+        log "$tool: build config changed, rebuilding"
+        return 0
     fi
     log "$tool: new version available ($version), building"
     return 0
@@ -227,6 +256,73 @@ ensure_commit() {
 }
 
 # ---------------------------------------------------------------------------
+# Shared static dependencies
+# Built from source into $PREFIX so the bundled tools link them statically and
+# do not depend on distro-provided shared libraries at runtime.
+# ---------------------------------------------------------------------------
+
+build_zlib() {
+    local url=https://github.com/madler/zlib.git
+    local tag; tag="$(target_version zlib)"
+    need_build zlib "$tag" "$PREFIX/lib/libz.a" || return 0
+    ensure_repo "$WORK/zlib" "$url" "$tag"
+    cd "$WORK/zlib"
+
+    cmake -E remove_directory build
+    cmake -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DZLIB_BUILD_SHARED=OFF \
+        -DZLIB_BUILD_STATIC=ON \
+        -DZLIB_BUILD_TESTING=OFF
+    cmake --build build -j"$JOBS"
+    cmake --install build
+
+    record_version zlib "$tag"
+}
+
+build_libpng() {
+    local url=https://github.com/pnggroup/libpng.git
+    local tag; tag="$(target_version libpng)"
+    need_build libpng "$tag" "$PREFIX/lib/libpng16.a" || return 0
+    ensure_repo "$WORK/libpng" "$url" "$tag"
+    cd "$WORK/libpng"
+
+    cmake -E remove_directory build
+    cmake -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DCMAKE_PREFIX_PATH="$PREFIX" \
+        -DPNG_SHARED=OFF \
+        -DPNG_STATIC=ON \
+        -DPNG_TESTS=OFF \
+        -DPNG_TOOLS=OFF
+    cmake --build build -j"$JOBS"
+    cmake --install build
+
+    record_version libpng "$tag"
+}
+
+build_lcms2() {
+    local url=https://github.com/mm2/Little-CMS.git
+    local tag; tag="$(target_version lcms2)"
+    need_build lcms2 "$tag" "$PREFIX/lib/liblcms2.a" || return 0
+    ensure_repo "$WORK/lcms2" "$url" "$tag"
+    cd "$WORK/lcms2"
+
+    ./autogen.sh
+    # Only the core color library is needed; disable the optional JPEG/TIFF
+    # plugins so the build stays self-contained.
+    ./configure --prefix="$PREFIX" --disable-shared --enable-static \
+        --without-jpeg --without-tiff
+    make -j"$JOBS"
+    make install
+
+    record_version lcms2 "$tag"
+}
+
+# ---------------------------------------------------------------------------
 # libjxl (cjxl djxl)
 # ---------------------------------------------------------------------------
 build_libjxl() {
@@ -239,26 +335,38 @@ build_libjxl() {
 
     # Reconfig from scratch: stale CMake caches (e.g. after flag changes)
     # otherwise leak old linker flags into the build.
+    # Install into a private prefix so libjxl's bundled deps (zlib 1.3.1,
+    # brotli, hwy) do not clobber the shared $PREFIX zlib/libpng/lcms2 that
+    # pngquant and cwebp link against.
     cmake -E remove_directory build
+    cmake -E remove_directory "$WORK/install-libjxl"
     cmake -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DCMAKE_INSTALL_PREFIX="$WORK/install-libjxl" \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_TESTING=OFF \
         -DJPEGXL_ENABLE_TOOLS=ON \
         -DJPEGXL_ENABLE_DEVTOOLS=OFF \
         -DJPEGXL_ENABLE_BENCHMARK=OFF \
         -DJPEGXL_ENABLE_EXAMPLES=OFF \
+        -DJPEGXL_ENABLE_DOXYGEN=OFF \
+        -DJPEGXL_ENABLE_MANPAGES=OFF \
         -DJPEGXL_ENABLE_PLUGINS=OFF \
         -DJPEGXL_ENABLE_SJPEG=OFF \
         -DJPEGXL_ENABLE_VIEWERS=OFF \
-        -DJPEGXL_ENABLE_FLAC=OFF \
-        -DJPEGXL_ENABLE_TCMALLOC=OFF
+        -DJPEGXL_ENABLE_OPENEXR=OFF \
+        -DJPEGXL_ENABLE_TCMALLOC=OFF \
+        -DJPEGXL_BUNDLE_LIBPNG=ON \
+        -DJPEGXL_FORCE_SYSTEM_BROTLI=OFF \
+        -DJPEGXL_FORCE_SYSTEM_HWY=OFF \
+        -DJPEGXL_FORCE_SYSTEM_LCMS2=OFF \
+        -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \
+        -DCMAKE_DISABLE_FIND_PACKAGE_GIF=TRUE
     cmake --build build -j"$JOBS"
     cmake --install build
 
-    cp "$PREFIX/bin/cjxl" "$OUT/cjxl"
-    cp "$PREFIX/bin/djxl" "$OUT/djxl"
+    cp "$WORK/install-libjxl/bin/cjxl" "$OUT/cjxl"
+    cp "$WORK/install-libjxl/bin/djxl" "$OUT/djxl"
     chmod +x "$OUT/cjxl" "$OUT/djxl"
     cp LICENSE "$OUT/LICENSE-libjxl"
     record_version libjxl "$tag"
@@ -278,20 +386,33 @@ build_jpegli() {
 
     # Reconfig from scratch: stale CMake caches (e.g. after flag changes)
     # otherwise leak old linker flags into the build.
+    # Install into a private prefix so jpegli's bundled deps (zlib 1.3.1,
+    # hwy) do not clobber the shared $PREFIX zlib/libpng/lcms2 that pngquant
+    # and cwebp link against.
     cmake -E remove_directory build
+    cmake -E remove_directory "$WORK/install-jpegli"
     cmake -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DCMAKE_INSTALL_PREFIX="$WORK/install-jpegli" \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_TESTING=OFF \
-        -DJPEGXL_ENABLE_TOOLS=ON \
-        -DJPEGXL_ENABLE_DEVTOOLS=OFF \
-        -DJPEGXL_ENABLE_PLUGINS=OFF
+        -DJPEGLI_ENABLE_TOOLS=ON \
+        -DJPEGLI_ENABLE_DEVTOOLS=OFF \
+        -DJPEGLI_ENABLE_BENCHMARK=OFF \
+        -DJPEGLI_ENABLE_DOXYGEN=OFF \
+        -DJPEGLI_ENABLE_MANPAGES=OFF \
+        -DJPEGLI_ENABLE_OPENEXR=OFF \
+        -DJPEGLI_ENABLE_JPEGLI_LIBJPEG=OFF \
+        -DJPEGLI_BUNDLE_LIBPNG=ON \
+        -DJPEGLI_FORCE_SYSTEM_HWY=OFF \
+        -DJPEGLI_FORCE_SYSTEM_LCMS2=OFF \
+        -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \
+        -DCMAKE_DISABLE_FIND_PACKAGE_GIF=TRUE
     cmake --build build -j"$JOBS"
     cmake --install build
 
     for tool in cjpegli djpegli; do
-        cp "$PREFIX/bin/$tool" "$OUT/$tool"
+        cp "$WORK/install-jpegli/bin/$tool" "$OUT/$tool"
         chmod +x "$OUT/$tool"
     done
     cp LICENSE "$OUT/LICENSE-jpegli"
@@ -347,6 +468,10 @@ build_oxipng() {
 # pngquant
 # ---------------------------------------------------------------------------
 build_pngquant() {
+    # pngquant statically links libpng, lcms2 and zlib from $PREFIX.
+    build_zlib
+    build_libpng
+    build_lcms2
     local url=https://github.com/kornelski/pngquant.git
     local tag; tag="$(target_version pngquant)"
     need_build pngquant "$tag" pngquant || return 0
@@ -354,8 +479,10 @@ build_pngquant() {
     git -C "$WORK/pngquant" submodule update --init --recursive
     cd "$WORK/pngquant"
 
-    # pngquant 3.x is a Rust project
-    cargo build --release -j"$JOBS"
+    # pngquant 3.x is a Rust project; statically link the bundled libpng,
+    # lcms2 and zlib (via pkg-config) so the binary is self-contained.
+    PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig" \
+        cargo build --release -j"$JOBS" --features "static z-static"
     cp target/release/pngquant "$OUT/pngquant"
     chmod +x "$OUT/pngquant"
     cp COPYRIGHT "$OUT/LICENSE-pngquant"
@@ -366,6 +493,9 @@ build_pngquant() {
 # libwebp (cwebp)
 # ---------------------------------------------------------------------------
 build_webp() {
+    # cwebp reads PNG input, so its static libpng/zlib must be built first.
+    build_zlib
+    build_libpng
     local url=https://github.com/webmproject/libwebp.git
     local tag; tag="$(target_version webp)"
     need_build webp "$tag" cwebp || return 0
@@ -376,14 +506,18 @@ build_webp() {
     cmake -B build -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+        -DCMAKE_PREFIX_PATH="$PREFIX" \
         -DBUILD_SHARED_LIBS=OFF \
+        -DWEBP_LINK_STATIC=ON \
         -DWEBP_BUILD_CWEBP=ON \
         -DWEBP_BUILD_DWEBP=OFF \
         -DWEBP_BUILD_ANIM_UTILS=OFF \
         -DWEBP_BUILD_GIF2WEBP=OFF \
         -DWEBP_BUILD_IMG2WEBP=OFF \
         -DWEBP_BUILD_VWEBP=OFF \
-        -DWEBP_BUILD_WEBPINFO=OFF
+        -DWEBP_BUILD_WEBPINFO=OFF \
+        -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \
+        -DCMAKE_DISABLE_FIND_PACKAGE_GIF=TRUE
     cmake --build build -j"$JOBS"
     cmake --install build
 
@@ -411,12 +545,11 @@ build_avif() {
         -DBUILD_SHARED_LIBS=OFF \
         -DAVIF_BUILD_APPS=ON \
         -DAVIF_BUILD_TESTS=OFF \
-        -DAVIF_CODEC_AOM=SYSTEM \
-        -DAVIF_CODEC_DAV1D=SYSTEM \
+        -DAVIF_CODEC_AOM=LOCAL \
+        -DAVIF_CODEC_DAV1D=OFF \
         -DAVIF_LIBYUV=OFF \
-        -DAVIF_JPEG=SYSTEM \
-        -DAVIF_PNG=SYSTEM \
-        -DAVIF_ZLIBPNG=SYSTEM \
+        -DAVIF_JPEG=LOCAL \
+        -DAVIF_ZLIBPNG=LOCAL \
         -DAVIF_ENABLE_WERROR=OFF
     cmake --build build -j"$JOBS"
     cmake --install build
@@ -440,7 +573,9 @@ build_gifsicle() {
     cd "$WORK/gifsicle"
 
     ./bootstrap.sh
-    ./configure --prefix="$PREFIX" --disable-shared --enable-static
+    # gifsicle is a standalone program, not a libtool library; the shared
+    # library flags used for the other deps are unrecognized here.
+    ./configure --prefix="$PREFIX"
     make -j"$JOBS"
     make install
 
@@ -536,7 +671,14 @@ main() {
         exit $?
     fi
 
-    [[ ${#groups[@]} -eq 0 ]] && groups=(libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle svgo)
+    [[ ${#groups[@]} -eq 0 ]] && groups=(zlib libpng lcms2 libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle svgo)
+
+    # Seed the config hash on a fresh checkout so shared deps built more than
+    # once in a single run (e.g. zlib for pngquant and cwebp) compare against
+    # the current script instead of a missing file and rebuild needlessly.
+    if [[ ! -s "$CONFIG_HASH_FILE" ]]; then
+        script_config_hash > "$CONFIG_HASH_FILE"
+    fi
 
     if [[ "$NO_DEPS" -eq 0 ]]; then
         install_deps
@@ -545,6 +687,7 @@ main() {
         log "checking $group"
         ( "build_$group" )
     done
+    script_config_hash > "$CONFIG_HASH_FILE"
 
     if [[ "$UPDATE_LOCK" -eq 1 ]]; then
         cp "$VERSIONS" "$LOCK"

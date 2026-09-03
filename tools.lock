@@ -8,3 +8,6 @@ avif v1.4.2
 gifsicle v1.96
 node v26.7.0
 svgo 4.1.0
+zlib v1.3.2
+libpng v1.6.58
+lcms2 lcms2.19.1
