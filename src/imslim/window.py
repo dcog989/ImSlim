@@ -190,7 +190,6 @@ class ImSlimWindow(QWidget):
         header_layout.addWidget(self.clear_button)
         header_layout.addStretch(1)
         header_layout.addWidget(self.results_title)
-        header_layout.addStretch(1)
 
         self.combo_compression = self._build_option_combo(
             (_("Lossy"), _("Lossless")),
