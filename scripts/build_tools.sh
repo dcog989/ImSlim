@@ -617,7 +617,12 @@ build_svgo() {
         return 0
     fi
 
-    if [[ "$node_current" -eq 0 ]]; then
+    # npm install below needs the full extracted node tree, not just the
+    # binary copied out to $OUT/node — a restored bin-output cache (e.g. CI,
+    # which caches src/imslim/bin/linux-x86_64 but not .build/node) can leave
+    # $OUT/node current while $WORK/node is missing, so check for the
+    # extraction directly rather than trusting node_current alone.
+    if [[ "$node_current" -eq 0 || ! -x "$WORK/node/bin/node" ]]; then
         log "svgo: downloading node $node_ver"
         curl -fsSLo "$WORK/node-$node_ver.tar.xz" \
             "https://nodejs.org/dist/$node_ver/node-$node_ver-linux-x64.tar.xz"
