@@ -98,6 +98,7 @@ class SettingsDialog(QDialog):
         self._about_tool_pairs: list[tuple[str, str]] = []
         self._about_index: int = 0
         self._about_populated: bool = False
+        self._about_env_label: QLabel = QLabel()
         self.build_ui()
 
     def build_ui(self) -> None:
