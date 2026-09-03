@@ -4,11 +4,11 @@ import os
 import shutil
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
 from ._i18n import _
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE, SettingsManager
+
+logger = logging.getLogger(__name__)
 
 
 class OutputWriter:

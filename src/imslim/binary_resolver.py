@@ -4,9 +4,9 @@ import os
 import platform
 import shutil
 import sys
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
-from pathlib import Path
 
 # PyInstaller extracts the bundled bin/ tree into _MEIPASS at runtime; when
 # frozen the source-tree path (above bin/) is not on disk.

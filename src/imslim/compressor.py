@@ -3,8 +3,6 @@ import logging
 import subprocess
 import threading
 import time
-
-logger = logging.getLogger(__name__)
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from pathlib import Path
@@ -16,6 +14,8 @@ from .format import savings_percent
 from .output_writer import OutputWriter
 from .result_item import ResultItem
 from .settings_manager import SettingsManager
+
+logger = logging.getLogger(__name__)
 
 
 class CancelledError(Exception):
