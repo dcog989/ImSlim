@@ -96,6 +96,8 @@ class SettingsDialog(QDialog):
         self.spin_log_max_size: QSpinBox = QSpinBox()
         self.spin_log_backups: QSpinBox = QSpinBox()
         self._about_tool_pairs: list[tuple[str, str]] = []
+        self._about_index: int = 0
+        self._about_populated: bool = False
         self.build_ui()
 
     def build_ui(self) -> None:
@@ -105,8 +107,9 @@ class SettingsDialog(QDialog):
         tabs = QTabWidget()
         _res = tabs.addTab(self._build_general_tab(), _("General"))
         _res = tabs.addTab(self._build_formats_tab(), _("Formats"))
-        _res = tabs.addTab(self._build_about_tab(), _("About"))
+        self._about_index = tabs.addTab(self._build_about_tab(), _("About"))
         layout.addWidget(tabs)
+        _res = tabs.currentChanged.connect(self._on_tab_changed)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         _res = buttons.rejected.connect(self.close)
@@ -409,7 +412,6 @@ class SettingsDialog(QDialog):
         self._about_env_label = QLabel()
         self._about_env_label.setWordWrap(True)
         self._about_env_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self._about_env_label.setText(self._env_text())
         layout.addWidget(self._about_env_label)
 
         copy_button = QPushButton(_("Copy Environment"))
@@ -419,14 +421,23 @@ class SettingsDialog(QDialog):
 
         layout.addStretch(1)
 
-        # Each probe deletes itself when done, so reopening the dialog while a
-        # previous probe is still running can't delete the newer worker.
+        return tab
+
+    def _on_tab_changed(self, index: int) -> None:
+        if index == self._about_index:
+            self._populate_about()
+
+    def _populate_about(self) -> None:
+        if self._about_populated:
+            return
+        self._about_populated = True
+        # System/static info is cheap and synchronous; tool versions spawn
+        # subprocesses, so probe them off the UI thread.
+        self._about_env_label.setText(self._env_text())
         worker = VersionProbeWorker()
         _res = worker.versions_ready.connect(self._on_about_versions)
         _res = worker.finished.connect(lambda: worker.deleteLater())
         worker.start()
-
-        return tab
 
     def _env_text(self) -> str:
         lines: list[str] = []
