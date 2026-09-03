@@ -9,3 +9,4 @@ build/
 dist/
 node-*.tar.xz
 src/imslim/bin/*
+,assets/
