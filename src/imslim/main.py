@@ -162,6 +162,7 @@ class SingleInstance(QObject):
         _res = self._conn_buffer.pop(conn, None)
         _res = self._conn_started.pop(conn, None)
         conn.disconnectFromServer()
+        conn.deleteLater()
         data = bytes(buffer)
         paths = data.decode("utf-8").split("\0") if data else []
         self._on_paths(paths)
