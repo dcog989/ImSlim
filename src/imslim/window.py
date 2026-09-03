@@ -188,6 +188,9 @@ class ImSlimWindow(QWidget):
         self.results_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.results_title.hide()
         header_layout.addWidget(self.clear_button)
+        self.header_left_spacer: QWidget = QWidget()
+        self.header_left_spacer.setFixedWidth(32)
+        header_layout.addWidget(self.header_left_spacer)
         header_layout.addStretch(1)
         header_layout.addWidget(self.results_title)
 
@@ -455,6 +458,7 @@ class ImSlimWindow(QWidget):
         self.combo_metadata.setVisible(show_options)
         self.combo_attributes.setVisible(show_options)
         self.settings_button.setVisible(show_options)
+        self.header_left_spacer.setVisible(show_options)
 
     def clear_results(self) -> None:
         self.show_view("home")
