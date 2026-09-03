@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.7.0 - 2026-09-03
+
+#### Features
+
+- (7080e55) add self-contained AppImage installer script - dcog989
+
+- (5b9177f) balance header so dropdowns center relative to window width - dcog989
+
+- (e00ad69) replace clear-results icon with chevron-left back button - dcog989
+
+- (50f485f) centre "Compression Results" title in the header - dcog989
+
+- (74a647f) hide settings dropdowns and gear icon on results page - dcog989
+
+#### Bug Fixes
+
+- (1d935c2) restore centred dropdowns on home view - dcog989
+- - -
+
 ## v0.6.0 - 2026-09-03
 
 #### Features
