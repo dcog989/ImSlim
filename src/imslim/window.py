@@ -232,13 +232,6 @@ class ImSlimWindow(QWidget):
         layout.setContentsMargins(40, _V_SPACING, 40, _V_SPACING)
         layout.setSpacing(_V_SPACING)
 
-        icon = QLabel()
-        bg = self.palette().color(self.palette().ColorRole.Window)
-        icon_color = QColor("#3a3a3a") if bg.lightness() < 128 else QColor("#d3d3d3")
-        icon.setPixmap(download_icon(icon_color, 240).pixmap(240))
-        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(icon)
-
         options_row = QHBoxLayout()
         options_row.setSpacing(12)
         options_row.addStretch(1)
@@ -271,6 +264,13 @@ class ImSlimWindow(QWidget):
         options_row.addStretch(1)
 
         layout.addLayout(options_row)
+
+        icon = QLabel()
+        bg = self.palette().color(self.palette().ColorRole.Window)
+        icon_color = QColor("#3a3a3a") if bg.lightness() < 128 else QColor("#d3d3d3")
+        icon.setPixmap(download_icon(icon_color, 240).pixmap(240))
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon)
 
         self.combo_compression.setCurrentIndex(0 if self.settings.lossy else 1)
         self.combo_metadata.setCurrentIndex(0 if self.settings.metadata else 1)
