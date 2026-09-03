@@ -17,6 +17,19 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail).
 - save output to new files or backup->overwrite originals.
 - recurse directories for batch compression.
 
+## Installation
+
+### AppImage (recommended)
+
+Download `ImSlim-*-linux-x86_64.AppImage` and `install_appimage.sh` from the
+[latest release](https://github.com/dcog989/ImSlim/releases/latest), then run:
+
+```sh
+bash install_appimage.sh ImSlim-*-linux-x86_64.AppImage
+```
+
+This copies the AppImage to `~/Applications`, adds ImSlim to your application menu, and registers it as the handler for the supported image types.
+
 ## Tech Stack
 
 Built with Python / PySide6. The compression libraries are built from source, latest releases, and statically linked so the bundled tools are self-contained (no distro package dependencies):

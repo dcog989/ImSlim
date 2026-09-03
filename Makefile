@@ -35,6 +35,9 @@ install:
 	@if command -v update-desktop-database >/dev/null 2>&1; then \
 		update-desktop-database $(HOME)/.local/share/applications; fi
 
+install-appimage:
+	./scripts/install_appimage.sh
+
 package-linux:
 	./scripts/package_linux.sh
 
