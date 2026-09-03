@@ -44,7 +44,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import __version__
 from ._i18n import _
 from ._logging import configure_logging
 from .batch_flow import BatchFlow
@@ -62,7 +61,6 @@ from .result_item import ResultItem
 from .result_item_row import ResultItemRow
 from .settings import SettingsDialog
 from .settings_manager import SettingsManager
-from .system_info import static_about_pairs, system_info_pairs
 from .widgets import (
     ResultsPage,
     apply_muted_palette,
@@ -71,10 +69,8 @@ from .widgets import (
     download_icon,
     gear_icon,
     imslim_icon,
-    info_icon,
     muted_color,
 )
-from .workers import VersionProbeWorker
 
 
 class _PasteFilter(QObject):
@@ -116,9 +112,6 @@ class ImSlimWindow(QWidget):
 
         self.settings: SettingsManager = SettingsManager()
         self.prefs_dialog: SettingsDialog | None = None
-        self._about_dialog: QMessageBox | None = None
-        self._about_static_pairs: list[tuple[str, str]] | None = None
-        self._about_tool_pairs: list[tuple[str, str]] | None = None
 
         self.paste_filter: _PasteFilter = _PasteFilter()
         _res = self.paste_filter.context_menu_requested.connect(self.on_context_menu)
@@ -174,9 +167,6 @@ class ImSlimWindow(QWidget):
 
         icon_color = self.palette().color(self.palette().ColorRole.WindowText)
 
-        self.about_button: QToolButton = self._make_icon_button(
-            info_icon(icon_color), _("About ImSlim"), self.on_about
-        )
         self.clear_button: QToolButton = self._make_icon_button(
             close_icon(icon_color),
             _("Clear results and return to the main window."),
@@ -189,8 +179,6 @@ class ImSlimWindow(QWidget):
         self.stop_button.setFixedHeight(32)
         self.stop_button.setStyleSheet("QToolButton { padding: 0 12px; }")
         _res = self.stop_button.clicked.connect(self.stop_compression)
-
-        header_layout.addWidget(self.about_button)
 
         header_layout.addStretch(1)
 
@@ -677,56 +665,3 @@ class ImSlimWindow(QWidget):
         # Log level / max size / backups apply immediately rather than at the
         # next restart; pass the live settings so unsynced edits are honored.
         configure_logging(self.settings)
-
-    def on_about(self) -> None:
-        static_pairs = static_about_pairs()
-        dialog = QMessageBox(
-            QMessageBox.Icon.NoIcon,
-            _("About ImSlim"),
-            self._about_message(),
-            parent=self,
-        )
-        dialog.setIconPixmap(imslim_icon().pixmap(96))
-        copy_button = dialog.addButton(_("Copy Environment"), QMessageBox.ButtonRole.ActionRole)
-        self._about_dialog = dialog
-        self._about_static_pairs = static_pairs
-        self._about_tool_pairs = []
-        _res = copy_button.clicked.connect(self._on_copy_environment)
-        worker = VersionProbeWorker()
-        _res = worker.versions_ready.connect(self._on_about_versions)
-        # Each probe deletes itself when done, so reopening the dialog while a
-        # previous probe is still running can't delete the newer worker.
-        _res = worker.finished.connect(lambda: worker.deleteLater())
-        worker.start()
-        _res = dialog.exec()
-        self._about_dialog = None
-        self._about_static_pairs = None
-        self._about_tool_pairs = None
-
-    @staticmethod
-    def _about_message() -> str:
-        return _(
-            "<div style='min-width: 360px;'>"
-            + "<div style='font-size: 18pt; font-weight: bold;'>ImSlim</div>"
-            + "<div style='font-size: 9pt; color: #808080;'>"
-            + "Version {version}</div>"
-            + "<div style='margin-top: 10px;'>"
-            + "Compress common image formats, lossless or lossy.</div>"
-            + "</div>"
-        ).format(version=__version__)
-
-    def _on_copy_environment(self) -> None:
-        lines: list[str] = []
-        if self._about_static_pairs is not None:
-            lines += [f"{key}: {value}" for key, value in self._about_static_pairs]
-        lines += [f"{key}: {value}" for key, value in system_info_pairs()]
-        qt_platform = QApplication.platformName()
-        if qt_platform:
-            lines.append(f"Qt Platform: {qt_platform}")
-        if self._about_tool_pairs is not None:
-            lines += [f"{key}: {value}" for key, value in self._about_tool_pairs]
-        clipboard = QApplication.clipboard()
-        clipboard.setText("\n".join(lines))
-
-    def _on_about_versions(self, tool_pairs: list[tuple[str, str]]) -> None:
-        self._about_tool_pairs = tool_pairs

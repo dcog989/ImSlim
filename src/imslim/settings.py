@@ -4,6 +4,7 @@ from typing import cast, override
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QCloseEvent, QPalette
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -25,9 +26,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from . import __version__
 from ._i18n import _
 from .settings_manager import SettingsManager, log_file_path
-from .widgets import apply_muted_palette, combo_stylesheet, input_background_color
+from .system_info import static_about_pairs, system_info_pairs
+from .widgets import apply_muted_palette, combo_stylesheet, imslim_icon, input_background_color
+from .workers import VersionProbeWorker
 
 _LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
 _LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
@@ -91,6 +95,7 @@ class SettingsDialog(QDialog):
         self.combo_log_level: QComboBox = QComboBox()
         self.spin_log_max_size: QSpinBox = QSpinBox()
         self.spin_log_backups: QSpinBox = QSpinBox()
+        self._about_tool_pairs: list[tuple[str, str]] = []
         self.build_ui()
 
     def build_ui(self) -> None:
@@ -100,6 +105,7 @@ class SettingsDialog(QDialog):
         tabs = QTabWidget()
         _res = tabs.addTab(self._build_general_tab(), _("General"))
         _res = tabs.addTab(self._build_formats_tab(), _("Formats"))
+        _res = tabs.addTab(self._build_about_tab(), _("About"))
         layout.addWidget(tabs)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
@@ -371,6 +377,73 @@ class SettingsDialog(QDialog):
         url = QUrl.fromLocalFile(log_file_path()).toString()
         label.setText('<a href="{}">{}</a>'.format(url, _("Open the latest log file")))
         return label
+
+    def _build_about_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(12)
+
+        icon = QLabel()
+        icon.setPixmap(imslim_icon().pixmap(64))
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon)
+
+        message = QLabel()
+        message.setTextFormat(Qt.TextFormat.RichText)
+        message.setOpenExternalLinks(True)
+        message.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        message.setText(
+            _(
+                "<div style='font-size: 18pt; font-weight: bold;'>ImSlim</div>"
+                + "<div style='font-size: 9pt; color: #808080;'>Version {version}</div>"
+                + "<div style='margin-top: 10px;'>"
+                + "Compress common image formats, lossless or lossy.</div>"
+                + "<div style='margin-top: 8px;'>"
+                + "<a href='{log_url}'>Open latest log file</a> · "
+                + "<a href='https://github.com/dcog989/ImSlim'>GitHub</a></div>"
+            ).format(version=__version__, log_url=QUrl.fromLocalFile(log_file_path()).toString())
+        )
+        layout.addWidget(message)
+
+        self._about_env_label = QLabel()
+        self._about_env_label.setWordWrap(True)
+        self._about_env_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._about_env_label.setText(self._env_text())
+        layout.addWidget(self._about_env_label)
+
+        copy_button = QPushButton(_("Copy Environment"))
+        copy_button.setFixedWidth(160)
+        _res = copy_button.clicked.connect(self._on_copy_environment)
+        layout.addWidget(copy_button, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        layout.addStretch(1)
+
+        # Each probe deletes itself when done, so reopening the dialog while a
+        # previous probe is still running can't delete the newer worker.
+        worker = VersionProbeWorker()
+        _res = worker.versions_ready.connect(self._on_about_versions)
+        _res = worker.finished.connect(lambda: worker.deleteLater())
+        worker.start()
+
+        return tab
+
+    def _env_text(self) -> str:
+        lines: list[str] = []
+        lines += [f"{key}: {value}" for key, value in static_about_pairs()]
+        lines += [f"{key}: {value}" for key, value in system_info_pairs()]
+        qt_platform = QApplication.platformName()
+        if qt_platform:
+            lines.append(f"Qt Platform: {qt_platform}")
+        lines += [f"{key}: {value}" for key, value in self._about_tool_pairs]
+        return "\n".join(lines)
+
+    def _on_about_versions(self, tool_pairs: list[tuple[str, str]]) -> None:
+        self._about_tool_pairs = tool_pairs
+        self._about_env_label.setText(self._env_text())
+
+    def _on_copy_environment(self) -> None:
+        QApplication.clipboard().setText(self._env_text())
 
     def _build_note_group(self, title: str, text: str) -> QWidget:
         group = QGroupBox(title)
