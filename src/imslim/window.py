@@ -162,7 +162,7 @@ class ImSlimWindow(QWidget):
         # Header
         header = QWidget()
         header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(8, 6, 8, 6)
+        header_layout.setContentsMargins(12, 18, 12, 18)
         header_layout.setSpacing(8)
 
         icon_color = self.palette().color(self.palette().ColorRole.WindowText)
@@ -180,17 +180,50 @@ class ImSlimWindow(QWidget):
         self.stop_button.setStyleSheet("QToolButton { padding: 0 12px; }")
         _res = self.stop_button.clicked.connect(self.stop_compression)
 
-        header_layout.addStretch(1)
-
         self.results_title: QLabel = QLabel(_("Compression Results"))
         title_font = self.results_title.font()
         title_font.setPointSize(15)
         title_font.setBold(True)
         self.results_title.setFont(title_font)
-        self.results_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.results_title.hide()
-        header_layout.addWidget(self.results_title, alignment=Qt.AlignmentFlag.AlignCenter)
+        header_layout.addWidget(self.results_title)
         header_layout.addWidget(self.clear_button)
+
+        header_layout.addStretch(1)
+
+        self.combo_compression = self._build_option_combo(
+            (_("Lossy"), _("Lossless")),
+            _(
+                "Compression method. Lossy produces much smaller files with some "
+                + "quality loss; lossless preserves the original pixels exactly."
+            ),
+        )
+        self.combo_metadata = self._build_option_combo(
+            (_("Keep metadata"), _("Remove metadata")),
+            _(
+                "Metadata retention. Keep or strip metadata such as EXIF, ICC "
+                + "profiles and comments from the compressed images."
+            ),
+        )
+        self.combo_attributes = self._build_option_combo(
+            (_("Keep attributes"), _("Reset attributes")),
+            _(
+                "File attributes. Keep the original timestamps and permissions on "
+                + "the output files, or reset them to the defaults."
+            ),
+        )
+
+        self.combo_compression.setCurrentIndex(0 if self.settings.lossy else 1)
+        self.combo_metadata.setCurrentIndex(0 if self.settings.metadata else 1)
+        self.combo_attributes.setCurrentIndex(0 if self.settings.file_attributes else 1)
+
+        _res = self.combo_compression.currentIndexChanged.connect(self.on_compression_changed)
+        _res = self.combo_metadata.currentIndexChanged.connect(self.on_metadata_changed)
+        _res = self.combo_attributes.currentIndexChanged.connect(self.on_attributes_changed)
+
+        header_layout.addWidget(self.combo_compression)
+        header_layout.addWidget(self.combo_metadata)
+        header_layout.addWidget(self.combo_attributes)
 
         header_layout.addStretch(1)
 
@@ -220,53 +253,12 @@ class ImSlimWindow(QWidget):
         layout.setContentsMargins(40, _V_SPACING, 40, _V_SPACING)
         layout.setSpacing(_V_SPACING)
 
-        options_row = QHBoxLayout()
-        options_row.setSpacing(12)
-        options_row.addStretch(1)
-
-        self.combo_compression = self._build_option_combo(
-            (_("Lossy"), _("Lossless")),
-            _(
-                "Compression method. Lossy produces much smaller files with some "
-                + "quality loss; lossless preserves the original pixels exactly."
-            ),
-        )
-        self.combo_metadata = self._build_option_combo(
-            (_("Keep metadata"), _("Remove metadata")),
-            _(
-                "Metadata retention. Keep or strip metadata such as EXIF, ICC "
-                + "profiles and comments from the compressed images."
-            ),
-        )
-        self.combo_attributes = self._build_option_combo(
-            (_("Keep attributes"), _("Reset attributes")),
-            _(
-                "File attributes. Keep the original timestamps and permissions on "
-                + "the output files, or reset them to the defaults."
-            ),
-        )
-
-        options_row.addWidget(self.combo_compression)
-        options_row.addWidget(self.combo_metadata)
-        options_row.addWidget(self.combo_attributes)
-        options_row.addStretch(1)
-
-        layout.addLayout(options_row)
-
         icon = QLabel()
         bg = self.palette().color(self.palette().ColorRole.Window)
         icon_color = QColor("#3a3a3a") if bg.lightness() < 128 else QColor("#d3d3d3")
         icon.setPixmap(download_icon(icon_color, 240).pixmap(240))
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
-
-        self.combo_compression.setCurrentIndex(0 if self.settings.lossy else 1)
-        self.combo_metadata.setCurrentIndex(0 if self.settings.metadata else 1)
-        self.combo_attributes.setCurrentIndex(0 if self.settings.file_attributes else 1)
-
-        _res = self.combo_compression.currentIndexChanged.connect(self.on_compression_changed)
-        _res = self.combo_metadata.currentIndexChanged.connect(self.on_metadata_changed)
-        _res = self.combo_attributes.currentIndexChanged.connect(self.on_attributes_changed)
 
         drop_label = QLabel(_("Drop or paste files or directory here to compress."))
         drop_font = drop_label.font()
