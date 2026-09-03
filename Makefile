@@ -9,7 +9,10 @@ check:
 	uv run basedpyright src/imslim
 
 clean:
-	rm -rf .venv dist src/*.egg-info && find . -name __pycache__ -type d -exec rm -rf {} +
+	rm -rf .venv dist build src/*.egg-info .ruff_cache src/imslim/bin/linux-x86_64 && find . -name __pycache__ -type d -exec rm -rf {} +
+
+distclean: clean
+	rm -rf .build
 
 format:
 	uv run ruff format .
