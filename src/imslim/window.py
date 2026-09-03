@@ -185,10 +185,11 @@ class ImSlimWindow(QWidget):
         title_font.setPointSize(15)
         title_font.setBold(True)
         self.results_title.setFont(title_font)
+        self.results_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.results_title.hide()
-        header_layout.addWidget(self.results_title)
         header_layout.addWidget(self.clear_button)
-
+        header_layout.addStretch(1)
+        header_layout.addWidget(self.results_title)
         header_layout.addStretch(1)
 
         self.combo_compression = self._build_option_combo(
