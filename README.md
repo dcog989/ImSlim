@@ -56,16 +56,6 @@ make install        # install locally (installs even if version unchanged)
 > [!NOTE]
 > `make install`: installs the app into the user's home (via `uv tool install`), registers it as a handler for supported image types, and refreshes the desktop menu cache with whatever tool the distro provides (`kbuildsycoca` on KDE, `update-desktop-database` on freedesktop-based DEs). It runs `kbuildsycoca6`/`kbuildsycoca5` or `update-desktop-database` when present, so it works across KDE, GNOME, XFCE, and others.
 
-## Release
-
-Releases are built as a standalone Linux **AppImage** via GitHub Actions. Pushing a version tag (e.g. `0.5.1`, no `v` prefix) runs `.github/workflows/release.yml`, which:
-
-1. builds the compression tools (`scripts/build_tools.sh`),
-2. packages the app with PyInstaller (`imslim.spec`) into an AppImage,
-3. attaches the artifact to the GitHub release.
-
-The tools in `src/imslim/bin/linux-x86_64/` are bundled into the AppImage. Compression codec libraries (aom, dav1d, libjpeg-turbo, libpng, zlib, brotli, highway, lcms2) are built from source and linked statically into the tools, so the AppImage runs on any distro without relying on system packages. The wheel and sdist are still published through `uv build` for pip installs (which requires the compression tools on PATH outside Linux x86_64).
-
 ---
 
 ## License
