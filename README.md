@@ -64,6 +64,7 @@ make fix            # auto fix lint issues
 make run            # runs the app
 make bump           # bump version + changelog via cog (cocogitto)
 make install        # install locally (installs even if version unchanged)
+make uninstall      # remove the uv tool, desktop entry, icon and AppImage
 ```
 
 > [!NOTE]

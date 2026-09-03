@@ -23,17 +23,29 @@ fix:
 init:
 	uv sync
 
+DATA_HOME = $(or $(XDG_DATA_HOME),$(HOME)/.local/share)
+
 install:
 	uv tool install . --force
-	mkdir -p $(HOME)/.local/share/applications $(HOME)/.local/share/icons/hicolor/scalable/apps
+	mkdir -p $(DATA_HOME)/applications $(DATA_HOME)/icons/hicolor/scalable/apps
 	@BIN=$$(command -v imslim 2>/dev/null || echo $(HOME)/.local/bin/imslim); \
 	sed "s|^Exec=.*|Exec=$$BIN %F|" assets/imslim.desktop | \
-		install -Dm644 /dev/stdin $(HOME)/.local/share/applications/imslim.desktop
-	install -Dm644 src/imslim/assets/imslim.svg $(HOME)/.local/share/icons/hicolor/scalable/apps/imslim.svg
+		install -Dm644 /dev/stdin $(DATA_HOME)/applications/imslim.desktop
+	install -Dm644 src/imslim/assets/imslim.svg $(DATA_HOME)/icons/hicolor/scalable/apps/imslim.svg
 	@if command -v kbuildsycoca6 >/dev/null 2>&1; then kbuildsycoca6; \
 	elif command -v kbuildsycoca5 >/dev/null 2>&1; then kbuildsycoca5; fi
 	@if command -v update-desktop-database >/dev/null 2>&1; then \
-		update-desktop-database $(HOME)/.local/share/applications; fi
+		update-desktop-database $(DATA_HOME)/applications; fi
+
+uninstall:
+	uv tool uninstall imslim || true
+	rm -f $(DATA_HOME)/applications/imslim.desktop
+	rm -f $(DATA_HOME)/icons/hicolor/scalable/apps/imslim.svg
+	rm -f $(HOME)/Applications/ImSlim.AppImage
+	@if command -v kbuildsycoca6 >/dev/null 2>&1; then kbuildsycoca6; \
+	elif command -v kbuildsycoca5 >/dev/null 2>&1; then kbuildsycoca5; fi
+	@if command -v update-desktop-database >/dev/null 2>&1; then \
+		update-desktop-database $(DATA_HOME)/applications 2>/dev/null || true; fi
 
 install-appimage:
 	./scripts/install_appimage.sh
