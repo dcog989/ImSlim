@@ -3,6 +3,35 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.6.0 - 2026-09-03
+
+#### Features
+
+- (682147c) lazily collect environment info on about tab open - dcog989
+
+- (bcf8a13) move about page into a settings tab, drop header icon - dcog989
+
+- (104eb89) expose lossy, metadata and attribute options as home-page dropdowns - dcog989
+
+#### Bug Fixes
+
+- (d9e348a) annotate _about_env_label in __init__ - dcog989
+
+- (721ad61) use smooth transformation for AppImage icons - dcog989
+
+- (d14e711) re-extract node when working tree is missing - dcog989
+
+- (efdb0c7) remove TOCTOU exists+getsize race - dcog989
+
+- (69df91a) delete finished single-instance sockets - dcog989
+
+#### Refactoring
+
+- (113dc42) refine main window layout - dcog989
+
+- (2455e7e) move main page dropdowns to top of window - dcog989
+- - -
+
 ## v0.5.6 - 2026-08-25
 
 #### Features

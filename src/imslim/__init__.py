@@ -1,3 +1,3 @@
 """ImSlim — the image compressor."""
 
-__version__ = "0.5.6"
+__version__ = "0.6.0"
