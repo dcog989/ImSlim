@@ -450,6 +450,11 @@ class ImSlimWindow(QWidget):
         self.stack.setCurrentIndex(index)
         self.clear_button.setVisible(show_clear)
         self.results_title.setVisible(view == "results")
+        show_options = view != "results"
+        self.combo_compression.setVisible(show_options)
+        self.combo_metadata.setVisible(show_options)
+        self.combo_attributes.setVisible(show_options)
+        self.settings_button.setVisible(show_options)
 
     def clear_results(self) -> None:
         self.show_view("home")
