@@ -20,10 +20,12 @@ class OutputWriter:
     def finalize(self, result_item: ResultItem) -> None:
         """Copy the compressed temp file to its destination and restore file
         attributes. Marks the item skipped/error as appropriate."""
-        if not os.path.exists(result_item.tmp_filename):
-            raise FileNotFoundError(f"Missing compressed output: {result_item.tmp_filename}")
-
-        result_item.new_size = os.path.getsize(result_item.tmp_filename)
+        try:
+            result_item.new_size = os.path.getsize(result_item.tmp_filename)
+        except OSError as err:
+            raise FileNotFoundError(
+                f"Missing compressed output: {result_item.tmp_filename}"
+            ) from err
 
         if result_item.new_size >= result_item.size:
             # Output is larger (or equal) than input; keep the original.
