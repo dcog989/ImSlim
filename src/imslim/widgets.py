@@ -162,19 +162,24 @@ def info_icon(color: QColor, size: int = 20) -> QIcon:
     return _painted_icon(size, draw)
 
 
-def close_icon(color: QColor, size: int = 20) -> QIcon:
-    """A circle with an X, matching info_icon()'s stroke weight."""
+def chevron_left_icon(color: QColor, size: int = 20) -> QIcon:
+    """A left-pointing chevron (Lucide 'chevron-left'), matching the other icons' stroke."""
 
     def draw(painter: QPainter, s: float) -> None:
         pen = max(1.8, s * 0.09)
-        inset = pen
-        rect = QRectF(inset, inset, s - 2 * inset, s - 2 * inset)
-        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        painter.setPen(
+            QPen(
+                color,
+                pen,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
+            )
+        )
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(rect)
-        pad = s * 0.30
-        painter.drawLine(QPointF(pad, pad), QPointF(s - pad, s - pad))
-        painter.drawLine(QPointF(s - pad, pad), QPointF(pad, s - pad))
+        # M15 18l-6-6 6-6
+        painter.drawLine(QPointF(s * 0.625, s * 0.75), QPointF(s * 0.375, s * 0.5))
+        painter.drawLine(QPointF(s * 0.375, s * 0.5), QPointF(s * 0.625, s * 0.25))
 
     return _painted_icon(size, draw)
 

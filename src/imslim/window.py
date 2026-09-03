@@ -64,7 +64,7 @@ from .settings_manager import SettingsManager
 from .widgets import (
     ResultsPage,
     apply_muted_palette,
-    close_icon,
+    chevron_left_icon,
     combo_stylesheet,
     download_icon,
     gear_icon,
@@ -168,8 +168,8 @@ class ImSlimWindow(QWidget):
         icon_color = self.palette().color(self.palette().ColorRole.WindowText)
 
         self.clear_button: QToolButton = self._make_icon_button(
-            close_icon(icon_color),
-            _("Clear results and return to the main window."),
+            chevron_left_icon(icon_color),
+            _("Return to main window"),
             self.clear_results,
         )
 
