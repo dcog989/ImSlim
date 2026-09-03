@@ -5,7 +5,8 @@ A Linux-first image compressor for common image formats. Built on top of gold st
 Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
 ![screen-1](assets/screen-1.webp)
-![screen-2](assets/screen-2.webp) ![screen-3](assets/screen-3.webp) ![screen-4](assets/screen-4.webp)
+![screen-2](assets/screen-2.webp) ![screen-3](assets/screen-3.webp)
+![screen-4](assets/screen-4.webp) ![screen-5](assets/screen-5.webp)
 
 ## Features
 
