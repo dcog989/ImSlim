@@ -1,12 +1,10 @@
 *.egg-info/
 *.pyc
+.assets/
 .build/
 .docs/
 .ruff_cache/
 .venv/
 __pycache__/
-build/
 dist/
-node-*.tar.xz
 src/imslim/bin/*
-,assets/
