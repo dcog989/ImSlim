@@ -662,7 +662,7 @@ class ImSlimWindow(QWidget):
 
     # ------------------------------------------------------------- active settings
     @staticmethod
-    def _build_option_combo(items: tuple[str, str], tooltip: str) -> QComboBox:
+    def _build_option_combo(items: tuple[str, ...], tooltip: str) -> QComboBox:
         combo = QComboBox()
         combo.addItems([_(item) for item in items])
         combo.setStyleSheet(combo_stylesheet())
