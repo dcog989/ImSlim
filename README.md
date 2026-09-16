@@ -1,6 +1,6 @@
 # ImSlim
 
-A Linux-first image compressor for common image formats. Built on top of gold standard image processing libraries using Python / PySide6.
+A Linux image compressor / converter for all common image formats. Lossless or lossy, individually or in batch.
 
 Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
@@ -11,8 +11,9 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail).
 ## Features
 
 - compress common image formats (PNG, JPEG, GIF, WebP, AVIF, JXL, SVG) lossless or lossy.
-- BMP + TIFF are always encoded to WebP (as per selected settings).
+- BMP + TIFF are always encoded to WebP.
 - animated GIFs are always compressed losslessly.
+- convert any input format to any supported output format.
 - optionally strip metadata (EXIF/XMP/JUMBF), reset file attributes.
 - save output to new files or backup->overwrite originals.
 - recurse directories for batch compression.
