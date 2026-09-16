@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.8.0 - 2026-09-16
+
+#### Features
+
+- (7e78212) add batch image conversion to a single target format - dcog989
+
+- (bbb27ac) add uninstall target - dcog989
+
+#### Bug Fixes
+
+- (b7416e9) accept variable-length tuples in _build_option_combo - dcog989
+- - -
+
 ## v0.7.0 - 2026-09-03
 
 #### Features
