@@ -20,7 +20,7 @@ class PNGCompressor(Compressor):
             pngquant = tokens(t"{resolve_tool('pngquant')} {quality_flag} -f")
             if not self.settings.metadata:
                 pngquant.append("--strip")
-            pngquant += [result_item.filename, "--output", result_item.tmp_filename]
+            pngquant += [result_item.input_path, "--output", result_item.tmp_filename]
             commands.append(Command(pngquant))
 
         oxipng = tokens(t"{resolve_tool('oxipng')} -o {self.settings.png_lossless_level} -i 1")
@@ -32,7 +32,7 @@ class PNGCompressor(Compressor):
         if self.settings.lossy:
             oxipng += [result_item.tmp_filename, "--out", result_item.tmp_filename]
         else:  # lossless compression
-            oxipng += [result_item.filename, "--out", result_item.tmp_filename]
+            oxipng += [result_item.input_path, "--out", result_item.tmp_filename]
 
         commands.append(Command(oxipng))
         return commands

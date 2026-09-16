@@ -10,6 +10,7 @@ from string.templatelib import Interpolation, Template
 from typing import IO, NamedTuple, cast
 
 from ._i18n import _
+from .conversion import decode_to_png, is_converting, native_inputs
 from .format import savings_percent
 from .output_writer import OutputWriter
 from .result_item import ResultItem
@@ -119,6 +120,29 @@ class Compressor(ABC):
     def _png_intermediate_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".png"
 
+    def _conversion_intermediate_path(self, result_item: ResultItem) -> str:
+        return result_item.tmp_filename + ".convert.png"
+
+    def _input_is_png(self, result_item: ResultItem) -> bool:
+        """True when the compressor will read a PNG (native source or a
+        pre-decoded conversion intermediate)."""
+        return (
+            result_item.input_path != result_item.filename or result_item.mime_type == "image/png"
+        )
+
+    def _conversion_commands(self, result_item: ResultItem) -> list[Command]:
+        """Pre-decode a non-native source to PNG when converting to another
+        format. Leaves `input_path` pointing at the source (or the file itself)
+        when no pre-decode is needed. Runs on the compression worker thread."""
+        target = self.settings.target_format
+        if not is_converting(target) or result_item.mime_type in native_inputs(target):
+            result_item.input_path = result_item.filename
+            return []
+        intermediate = self._conversion_intermediate_path(result_item)
+        result_item.input_path = intermediate
+        argv_lists = decode_to_png(result_item.mime_type, result_item.filename, intermediate)
+        return [Command(argv) for argv in argv_lists]
+
     @staticmethod
     def _remove_quietly(path: str) -> None:
         # Cleanup must never raise: it runs outside the error handlers in run().
@@ -160,7 +184,10 @@ class Compressor(ABC):
         c_update_result_item(result_item)
 
     def _cleanup_temp_files(self, result_item: ResultItem) -> None:
-        for path in [result_item.tmp_filename, *self.get_intermediate_files(result_item)]:
+        paths = [result_item.tmp_filename, *self.get_intermediate_files(result_item)]
+        if result_item.input_path != result_item.filename:
+            paths.append(result_item.input_path)
+        for path in paths:
             self._remove_quietly(path)
 
     def run(
@@ -208,7 +235,8 @@ class Compressor(ABC):
         ignore_errors are skipped instead of aborting the pipeline.
         """
         last_argv: list[str] | None = None
-        for command in self.build_command(result_item):
+        commands = self._conversion_commands(result_item) + self.build_command(result_item)
+        for command in commands:
             argv = self.adapt_command(command.argv, result_item)
             last_argv = argv
             logger.debug("Running %s for %s", argv, result_item.filename)

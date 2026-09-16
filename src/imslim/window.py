@@ -55,6 +55,7 @@ from .compressors.jxl_compressor import JXLCompressor
 from .compressors.png_compressor import PNGCompressor
 from .compressors.svg_compressor import SVGCompressor
 from .compressors.webp_compressor import WEBPCompressor
+from .conversion import KEEP_FORMAT, TARGET_FORMATS, is_converting
 from .format import savings_percent, sizeof_fmt
 from .image_utils import image_filter
 from .result_item import ResultItem
@@ -124,7 +125,9 @@ class ImSlimWindow(QWidget):
         self.combo_compression: QComboBox = QComboBox()
         self.combo_metadata: QComboBox = QComboBox()
         self.combo_attributes: QComboBox = QComboBox()
+        self.combo_format: QComboBox = QComboBox()
         self.summary_label: QLabel = QLabel()
+        self.reduced_label: QLabel = QLabel()
         self.build_ui()
         self.show_view("home")
 
@@ -194,6 +197,20 @@ class ImSlimWindow(QWidget):
         header_layout.addStretch(1)
         header_layout.addWidget(self.results_title)
 
+        self.combo_format = self._build_option_combo(
+            (
+                _("Same as input"),
+                _("PNG"),
+                _("JPEG"),
+                _("WebP"),
+                _("AVIF"),
+                _("JXL"),
+            ),
+            _(
+                "Output format. Convert every input to the selected format, or "
+                + "keep each file's original format."
+            ),
+        )
         self.combo_compression = self._build_option_combo(
             (_("Lossy"), _("Lossless")),
             _(
@@ -216,14 +233,17 @@ class ImSlimWindow(QWidget):
             ),
         )
 
+        self.combo_format.setCurrentIndex(self._target_index())
         self.combo_compression.setCurrentIndex(0 if self.settings.lossy else 1)
         self.combo_metadata.setCurrentIndex(0 if self.settings.metadata else 1)
         self.combo_attributes.setCurrentIndex(0 if self.settings.file_attributes else 1)
 
+        _res = self.combo_format.currentIndexChanged.connect(self.on_format_changed)
         _res = self.combo_compression.currentIndexChanged.connect(self.on_compression_changed)
         _res = self.combo_metadata.currentIndexChanged.connect(self.on_metadata_changed)
         _res = self.combo_attributes.currentIndexChanged.connect(self.on_attributes_changed)
 
+        header_layout.addWidget(self.combo_format)
         header_layout.addWidget(self.combo_compression)
         header_layout.addWidget(self.combo_metadata)
         header_layout.addWidget(self.combo_attributes)
@@ -365,15 +385,15 @@ class ImSlimWindow(QWidget):
         layout.setSpacing(8)
 
         image_label = QLabel(_("Image:"))
-        reduced_label = QLabel(_("Reduced by:"))
+        self.reduced_label = QLabel()
         header_font = image_label.font()
         header_font.setBold(True)
         image_label.setFont(header_font)
-        reduced_label.setFont(header_font)
+        self.reduced_label.setFont(header_font)
 
         layout.addWidget(image_label)
         layout.addStretch(1)
-        layout.addWidget(reduced_label)
+        layout.addWidget(self.reduced_label)
         return header
 
     def _build_summary_label(self) -> QLabel:
@@ -454,6 +474,7 @@ class ImSlimWindow(QWidget):
         self.clear_button.setVisible(show_clear)
         self.results_title.setVisible(view == "results")
         show_options = view != "results"
+        self.combo_format.setVisible(show_options)
         self.combo_compression.setVisible(show_options)
         self.combo_metadata.setVisible(show_options)
         self.combo_attributes.setVisible(show_options)
@@ -495,6 +516,8 @@ class ImSlimWindow(QWidget):
         self.flow.start(paths)
 
     def _show_items_ready(self) -> None:
+        converting = is_converting(self.settings.target_format)
+        self.reduced_label.setText(_("Size change:") if converting else _("Reduced by:"))
         self.show_view("results")
 
     def _on_analyze_no_files(self) -> None:
@@ -541,7 +564,8 @@ class ImSlimWindow(QWidget):
         result_item.updated.emit()
 
     def _update_summary(self) -> None:
-        self.summary_label.setText(self.flow.summary.text())
+        converting = is_converting(self.settings.target_format)
+        self.summary_label.setText(self.flow.summary.text(converting))
 
     # ----------------------------------------------------------------- file IO
     def on_context_menu(self, pos: QPoint) -> None:
@@ -644,6 +668,15 @@ class ImSlimWindow(QWidget):
         combo.setStyleSheet(combo_stylesheet())
         combo.setToolTip(f"<div style='width: 300px'>{html.escape(tooltip)}</div>")
         return combo
+
+    def _target_index(self) -> int:
+        target = self.settings.target_format
+        if target in TARGET_FORMATS:
+            return TARGET_FORMATS.index(target) + 1
+        return 0
+
+    def on_format_changed(self, index: int) -> None:
+        self.settings.target_format = KEEP_FORMAT if index <= 0 else TARGET_FORMATS[index - 1]
 
     def on_compression_changed(self, index: int) -> None:
         self.settings.lossy = index == 0

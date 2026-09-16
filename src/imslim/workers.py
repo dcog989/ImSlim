@@ -33,8 +33,9 @@ class BuildSettingsSnapshot:
     SettingsManager inside the analyze worker.
     """
 
-    def __init__(self, save_method: int, output_folder: str) -> None:
+    def __init__(self, save_method: int, target_format: str, output_folder: str) -> None:
         self.save_method: int = save_method
+        self.target_format: str = target_format
         self.output_folder: str = output_folder
 
 

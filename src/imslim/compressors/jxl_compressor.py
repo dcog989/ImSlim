@@ -22,14 +22,22 @@ class JXLCompressor(Compressor):
 
     @override
     def build_command(self, result_item: ResultItem) -> list[Command]:
-        intermediate = self._intermediate_path(result_item)
+        commands: list[Command] = []
+        encode_input = result_item.input_path
+        extracting_metadata = False
 
-        # cjxl can't read JXL input, so decode to a temporary PNG first
-        commands: list[Command] = [
-            Command(tokens(t"{resolve_tool('djxl')} {result_item.filename} {intermediate}"))
-        ]
+        # cjxl can't read JXL input, so decode to a temporary PNG first.
+        # PNG input (native PNG or a conversion intermediate) feeds cjxl directly;
+        # cross-format metadata sidecars can't be extracted, so they are skipped.
+        if not self._input_is_png(result_item):
+            intermediate = self._intermediate_path(result_item)
+            commands.append(
+                Command(tokens(t"{resolve_tool('djxl')} {result_item.filename} {intermediate}"))
+            )
+            encode_input = intermediate
+            extracting_metadata = self.settings.metadata
 
-        if self.settings.metadata:
+        if extracting_metadata:
             # djxl won't embed EXIF/XMP into the PNG, so extract sidecars and
             # re-inject them via cjxl -x. These are non-fatal: if extraction
             # fails (e.g. metadata absent), the sidecar stays missing and the
@@ -38,7 +46,8 @@ class JXLCompressor(Compressor):
                 commands.append(
                     Command(
                         tokens(
-                            t"{resolve_tool('djxl')} {result_item.filename} - --output_format {kind}"
+                            t"{resolve_tool('djxl')} {result_item.filename} - "
+                            + t"--output_format {kind}"
                         ),
                         stdout_path=self._sidecar_path(result_item, kind),
                         ignore_errors=True,
@@ -56,11 +65,11 @@ class JXLCompressor(Compressor):
         # effort (1-10, default 7): higher -> slower but better compression
         cjxl += tokens(t"-e {self.settings.jxl_lossless_level}")
 
-        if self.settings.metadata:
+        if extracting_metadata:
             for kind in _JXL_METADATA:
                 cjxl += ["-x", f"{kind}={self._sidecar_path(result_item, kind)}"]
 
-        cjxl += [intermediate, result_item.tmp_filename]
+        cjxl += [encode_input, result_item.tmp_filename]
         commands.append(Command(cjxl))
 
         return commands

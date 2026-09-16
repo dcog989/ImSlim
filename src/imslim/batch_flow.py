@@ -43,6 +43,7 @@ class BatchFlow(QObject):
         self._active = True
         snapshot = BuildSettingsSnapshot(
             self._settings.save_method,
+            self._settings.target_format,
             self._settings.output_folder,
         )
         worker = AnalyzeWorker(paths, self._settings.recursive, snapshot)

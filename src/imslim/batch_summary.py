@@ -32,14 +32,18 @@ class BatchSummary:
     def record_failed(self) -> None:
         self.failed += 1
 
-    def text(self) -> str:
-        text = (
-            _("%d of %d images done") % (self.done, self.total)
-            + " · "
-            + _("%d compressed") % self.compressed
-            + " · "
-            + _("%s saved") % sizeof_fmt(self.saved_bytes)
-        )
+    def text(self, converting: bool = False) -> str:
+        if converting:
+            text = _("%d of %d images done") % (self.done, self.total)
+            text += " · " + _("%d converted") % self.compressed
+        else:
+            text = (
+                _("%d of %d images done") % (self.done, self.total)
+                + " · "
+                + _("%d compressed") % self.compressed
+                + " · "
+                + _("%s saved") % sizeof_fmt(self.saved_bytes)
+            )
         if self.skipped:
             text += " · " + _("%d skipped") % self.skipped
         if self.failed:

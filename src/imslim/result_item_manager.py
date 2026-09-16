@@ -6,6 +6,7 @@ from PySide6.QtCore import QMimeDatabase
 
 from ._i18n import _
 from .compression_manager import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS
+from .conversion import TARGET_EXTENSIONS, is_converting
 from .format import sizeof_fmt
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE
@@ -22,6 +23,7 @@ class BuildSettings(Protocol):
     """
 
     save_method: int
+    target_format: str
     output_folder: str
 
 
@@ -70,6 +72,7 @@ class ResultItemManager:
         result_item.backup_filename = (
             self.create_backup_filename(result_item.filename, mime)
             if self.settings.save_method == SAVE_BACKUP_OVERWRITE
+            and not is_converting(self.settings.target_format)
             else ""
         )
 
@@ -81,6 +84,12 @@ class ResultItemManager:
         return result_item
 
     def create_new_filename(self, path: str, mime: str) -> str:
+        if is_converting(self.settings.target_format):
+            # Conversion always writes a new file in the target's format; it
+            # must never overwrite a source that may have a different extension.
+            return self._output_path(
+                path, "imslim", mime, TARGET_EXTENSIONS[self.settings.target_format]
+            )
         if self.settings.save_method == SAVE_BACKUP_OVERWRITE and mime not in OUTPUT_EXTENSIONS:
             return path
         return self._output_path(path, "imslim", mime)
@@ -93,10 +102,16 @@ class ResultItemManager:
             return self.settings.output_folder
         return os.path.dirname(path)
 
-    def _output_path(self, path: str, marker: str, mime: str) -> str:
+    def _output_path(
+        self, path: str, marker: str, mime: str, extension_override: str | None = None
+    ) -> str:
         basename = os.path.basename(path)
         stem, extension = os.path.splitext(basename)
-        extension = OUTPUT_EXTENSIONS.get(mime, extension)
+        extension = (
+            extension_override
+            if extension_override is not None
+            else OUTPUT_EXTENSIONS.get(mime, extension)
+        )
         timestamp = time.strftime("%Y%m%d%H%M%S")
         parent = self._output_parent(path)
         base = os.path.join(parent, f"{stem}.{marker}.{timestamp}")

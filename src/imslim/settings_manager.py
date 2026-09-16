@@ -5,6 +5,8 @@ from typing import Protocol, TypeVar, cast, final
 
 from PySide6.QtCore import QSettings, QStandardPaths
 
+from .conversion import KEEP_FORMAT
+
 _LOG_FILE_NAME = "imslim.log"
 
 _T = TypeVar("_T")
@@ -58,6 +60,7 @@ SAVE_BACKUP_OVERWRITE = 1
 
 DEFAULTS: dict[str, str | int | bool] = {
     "save-method": SAVE_NEW_FILE,
+    "target-format": KEEP_FORMAT,
     "output-folder": "",
     "default-open-dialog-directory": "",
     "recursive": True,
@@ -120,6 +123,7 @@ class SettingsManager:
             self.set_string(key, cast(str, value))
 
     save_method = _setting("save-method", int)
+    target_format = _setting("target-format", str)
     output_folder = _setting("output-folder", str)
     default_open_dialog_directory = _setting("default-open-dialog-directory", str)
     lossy = _setting("lossy", bool)

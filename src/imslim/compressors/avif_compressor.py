@@ -16,10 +16,17 @@ class AVIFCompressor(Compressor):
 
     @override
     def build_command(self, result_item: ResultItem) -> list[Command]:
-        intermediate = self._intermediate_path(result_item)
+        commands: list[Command] = []
+        encode_input = result_item.input_path
 
-        # avifenc can't read AVIF input, so decode to a temporary PNG first
-        avifdec = tokens(t"{resolve_tool('avifdec')} {result_item.filename} {intermediate}")
+        # avifenc can't read AVIF input, so decode to a temporary PNG first.
+        # PNG input (native PNG or a conversion intermediate) feeds avifenc directly.
+        if not self._input_is_png(result_item):
+            intermediate = self._intermediate_path(result_item)
+            commands.append(
+                Command(tokens(t"{resolve_tool('avifdec')} {result_item.filename} {intermediate}"))
+            )
+            encode_input = intermediate
 
         avifenc = [resolve_tool("avifenc")]
 
@@ -37,9 +44,10 @@ class AVIFCompressor(Compressor):
 
         # higher effort -> slower but better compression (speed 0-10, default 6)
         avifenc += tokens(t"--speed {10 - self.settings.avif_lossless_level}")
-        avifenc += [intermediate, result_item.tmp_filename]
+        avifenc += [encode_input, result_item.tmp_filename]
 
-        return [Command(avifdec), Command(avifenc)]
+        commands.append(Command(avifenc))
+        return commands
 
     @override
     def get_intermediate_files(self, result_item: ResultItem) -> list[str]:

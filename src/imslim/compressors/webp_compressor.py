@@ -18,12 +18,14 @@ class WEBPCompressor(Compressor):
         return result_item.tmp_filename + ".src.png"
 
     def _needs_conversion(self, result_item: ResultItem) -> bool:
-        return result_item.mime_type in _CONVERTED_MIME_TYPES
+        return result_item.mime_type in _CONVERTED_MIME_TYPES and not self._input_is_png(
+            result_item
+        )
 
     @override
     def build_command(self, result_item: ResultItem) -> list[Command]:
         commands: list[Command] = []
-        input_path = result_item.filename
+        input_path = result_item.input_path
 
         # cwebp can't read BMP and this build has no TIFF support, so decode
         # either to a temporary PNG with Qt before feeding it to cwebp.

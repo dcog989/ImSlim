@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 from ._i18n import _
+from .conversion import is_converting
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE, SettingsManager
 
@@ -27,8 +28,11 @@ class OutputWriter:
                 f"Missing compressed output: {result_item.tmp_filename}"
             ) from err
 
-        if result_item.new_size >= result_item.size:
+        if result_item.new_size >= result_item.size and not is_converting(
+            self.settings.target_format
+        ):
             # Output is larger (or equal) than input; keep the original.
+            # Conversion always keeps its output, even when it grows.
             result_item.skipped = True
             return
 

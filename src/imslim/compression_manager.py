@@ -6,6 +6,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 
 from ._i18n import _
 from .compressor import CompressionContext, Compressor
+from .conversion import is_converting
 from .result_item import ResultItem
 from .settings_manager import SettingsManager
 
@@ -63,12 +64,18 @@ class CompressionManager:
             f"No compressor registered for configured types: {', '.join(unregistered)}"
         )
 
+    def _compressor_for(self, result_item: ResultItem) -> Compressor | None:
+        """Resolve the compressor for one item: the conversion target when
+        converting, otherwise the compressor matching the source format."""
+        target = self.settings.target_format
+        if is_converting(target):
+            return self.compressors.get(target)
+        return self.compressors.get(self.mime_type_to_compressor_type(result_item.mime_type) or "")
+
     def _collect_used_compressors(self, result_items: list[ResultItem]) -> set[Compressor]:
         used: set[Compressor] = set()
         for result_item in result_items:
-            compressor = self.compressors.get(
-                self.mime_type_to_compressor_type(result_item.mime_type) or ""
-            )
+            compressor = self._compressor_for(result_item)
             if compressor is not None:
                 used.add(compressor)
         return used
@@ -115,8 +122,7 @@ class CompressionManager:
                     if context.cancelled:
                         break_index = index
                         break
-                    compressor_type = self.mime_type_to_compressor_type(result_item.mime_type)
-                    compressor = self.compressors.get(compressor_type or "")
+                    compressor = self._compressor_for(result_item)
                     if compressor is None:
                         result_item.set_error(_("Format of this file is not supported."))
                         c_update_result_item(result_item)
