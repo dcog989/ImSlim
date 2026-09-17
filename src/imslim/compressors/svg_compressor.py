@@ -43,7 +43,16 @@ class SVGCompressor(Compressor):
 
     @override
     def prepare_batch(self, result_items: list[ResultItem]) -> None:
-        """Write the svgo config once per batch instead of once per file."""
+        """Write the svgo config once per batch instead of once per file.
+
+        `_shared_config_path` is plain instance state on this singleton
+        compressor, so it is only safe because CompressionManager/BatchFlow
+        never run two batches concurrently. If that ever changes, this needs
+        real synchronization instead of the assert below.
+        """
+        assert self._shared_config_path is None, (
+            "prepare_batch() called while a previous batch's config is still active"
+        )
         for result_item in result_items:
             if result_item.mime_type != "image/svg+xml":
                 continue
