@@ -22,8 +22,7 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
 ### AppImage (recommended)
 
-Download `ImSlim-*-linux-x86_64.AppImage` and `install_appimage.sh` from the
-[latest release](https://github.com/dcog989/ImSlim/releases/latest), then run:
+Download `ImSlim-*-linux-x86_64.AppImage` and `install_appimage.sh` from the [latest release](https://github.com/dcog989/ImSlim/releases/latest), then run:
 
 ```sh
 bash install_appimage.sh ImSlim-*-linux-x86_64.AppImage
