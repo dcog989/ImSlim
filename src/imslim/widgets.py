@@ -140,28 +140,6 @@ def _painted_icon(size: int, draw: Callable[[QPainter, float], None]) -> QIcon:
     return QIcon(pixmap)
 
 
-def info_icon(color: QColor, size: int = 20) -> QIcon:
-    """An 'i' inside a circle, sharing gear_icon()'s stroke weight."""
-
-    def draw(painter: QPainter, s: float) -> None:
-        pen = max(1.8, s * 0.09)
-        cx, cy = s / 2, s / 2
-        inset = pen
-        rect = QRectF(inset, inset, s - 2 * inset, s - 2 * inset)
-        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawEllipse(rect)
-        r = (s - 2 * inset) / 2
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(color)
-        painter.drawEllipse(QPointF(cx, cy - r * 0.48), pen * 0.8, pen * 0.8)
-        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.drawLine(QPointF(cx, cy - r * 0.18), QPointF(cx, cy + r * 0.45))
-
-    return _painted_icon(size, draw)
-
-
 def chevron_left_icon(color: QColor, size: int = 20) -> QIcon:
     """A left-pointing chevron (Lucide 'chevron-left'), matching the other icons' stroke."""
 
@@ -185,7 +163,7 @@ def chevron_left_icon(color: QColor, size: int = 20) -> QIcon:
 
 
 def circle_off_icon(color: QColor, size: int = 20) -> QIcon:
-    """A circle with a diagonal slash, matching info_icon()'s stroke weight."""
+    """A circle with a diagonal slash, matching the other icons' stroke weight."""
 
     def draw(painter: QPainter, s: float) -> None:
         pen = max(1.8, s * 0.09)
@@ -200,7 +178,7 @@ def circle_off_icon(color: QColor, size: int = 20) -> QIcon:
 
 
 def shield_alert_icon(color: QColor, size: int = 20) -> QIcon:
-    """A shield with an exclamation mark, matching info_icon()'s stroke weight."""
+    """A shield with an exclamation mark, matching the other icons' stroke weight."""
 
     def draw(painter: QPainter, s: float) -> None:
         pen = max(1.8, s * 0.09)
@@ -226,8 +204,8 @@ def shield_alert_icon(color: QColor, size: int = 20) -> QIcon:
 
 
 def gear_icon(color: QColor, size: int = 20) -> QIcon:
-    """A simple gear: an outlined ring with eight teeth, matching info_icon()'s
-    stroke weight so the header icons look consistent."""
+    """A simple gear: an outlined ring with eight teeth, matching the other
+    icons' stroke weight so the header icons look consistent."""
 
     def draw(painter: QPainter, s: float) -> None:
         pen = max(1.8, s * 0.09)

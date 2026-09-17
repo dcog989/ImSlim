@@ -1,19 +1,12 @@
 import os
 from typing import override
 
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QThread, Signal
 
 from .image_utils import get_image_paths_from_folder
 from .result_item import ResultItem
 from .result_item_manager import ResultItemManager
 from .system_info import tool_version_pairs
-
-
-class Bridge(QObject):
-    """Cross-thread signal bridge from compression workers to the UI thread."""
-
-    result_updated: Signal = Signal(ResultItem)
-    compression_enabled: Signal = Signal(bool)
 
 
 class VersionProbeWorker(QThread):
