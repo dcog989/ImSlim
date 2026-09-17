@@ -48,6 +48,7 @@ class ResultItemManager:
 
     def build(self, path: str) -> ResultItem:
         result_item = ResultItem()
+        result_item.filename = path
 
         try:
             stat = os.stat(path)
@@ -55,7 +56,6 @@ class ResultItemManager:
             result_item.set_error(_("This file doesn't exist."))
             return result_item
 
-        result_item.filename = path
         result_item.atime = float(stat.st_atime)
         result_item.mtime = float(stat.st_mtime)
         result_item.size = stat.st_size
