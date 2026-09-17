@@ -6,6 +6,8 @@ from ..image_convert import to_png
 from ..result_item import ResultItem
 
 _CONVERTED_MIME_TYPES = ("image/bmp", "image/tiff")
+# maximum cpu power for lossless
+_LOSSLESS_QUALITY = 100
 
 
 class WEBPCompressor(Compressor):
@@ -48,7 +50,7 @@ class WEBPCompressor(Compressor):
             quality = self.settings.webp_lossy_level
         else:
             cwebp.append("-lossless")
-            quality = 100  # maximum cpu power for lossless
+            quality = _LOSSLESS_QUALITY
 
         # multithreaded, (lossless) compression mode, quality, output
         cwebp += tokens(

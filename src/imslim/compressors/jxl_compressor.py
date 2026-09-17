@@ -6,6 +6,8 @@ from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
 
 _JXL_METADATA = ("exif", "xmp", "jumbf")
+# cjxl v0.12: -q 100 is lossless (the -q 100/--lossless flag was removed).
+_LOSSLESS_QUALITY = "100"
 
 
 class JXLCompressor(Compressor):
@@ -53,11 +55,10 @@ class JXLCompressor(Compressor):
 
         cjxl = [resolve_tool("cjxl")]
 
-        # cjxl v0.12: -q 100 is lossless (the -q 100/--lossless flag was removed).
         if self.settings.lossy:
             cjxl += tokens(t"-q {self.settings.jxl_lossy_level}")
         else:
-            cjxl += ["-q", "100"]
+            cjxl += ["-q", _LOSSLESS_QUALITY]
 
         # effort (1-10, default 7): higher -> slower but better compression
         cjxl += tokens(t"-e {self.settings.jxl_lossless_level}")

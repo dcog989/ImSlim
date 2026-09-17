@@ -4,6 +4,11 @@ from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
 
+# tune=iq + 10-bit depth is the best quality/size operating point for libaom.
+_ENCODE_BIT_DEPTH = 10
+# avifenc --speed range is 0-10 (slowest/best to fastest/worst).
+_MAX_SPEED = 10
+
 
 class AVIFCompressor(Compressor):
     @override
@@ -34,13 +39,14 @@ class AVIFCompressor(Compressor):
             avifenc += ["--ignore-exif", "--ignore-xmp"]
 
         if self.settings.lossy:
-            # tune=iq + 10-bit depth is the best quality/size operating point for libaom
-            avifenc += tokens(t"-q {self.settings.avif_lossy_level} -a tune=iq -d 10")
+            avifenc += tokens(
+                t"-q {self.settings.avif_lossy_level} -a tune=iq -d {_ENCODE_BIT_DEPTH}"
+            )
         else:
             avifenc.append("--lossless")
 
         # higher effort -> slower but better compression (speed 0-10, default 6)
-        avifenc += tokens(t"--speed {10 - self.settings.avif_lossless_level}")
+        avifenc += tokens(t"--speed {_MAX_SPEED - self.settings.avif_lossless_level}")
         avifenc += [encode_input, result_item.tmp_filename]
 
         commands.append(Command(avifenc))
