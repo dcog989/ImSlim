@@ -16,6 +16,7 @@ class WEBPCompressor(Compressor):
     def get_file_type(cls) -> str:
         return "webp"
 
+    @override
     def _intermediate_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".src.png"
 
