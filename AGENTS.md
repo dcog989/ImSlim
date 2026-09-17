@@ -10,7 +10,7 @@
 
 - `src/imslim/main.py` — entry point / application bootstrap
 - `src/imslim/window.py` — main window UI, mode toggle, home/results views
-- `src/imslim/settings.py` — settings dialog
+- `src/imslim/settings/` — settings dialog: `dialog.py` hosts the tabbed `SettingsDialog`, with one widget per tab (`general_tab.py`, `formats_tab.py`, `about_tab.py`), a shared `SettingsTab` base in `tab.py` and shared styling in `style.py`
 - `src/imslim/settings_manager.py` — persistent settings/state store
 - `src/imslim/compressor.py` — base compressor + run logic
 - `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools
@@ -43,7 +43,7 @@
 
 ### Common Patterns
 
-- Add a setting: Add key + accessors in `src/imslim/settings_manager.py`, expose it in `src/imslim/settings.py`, and consume it in the relevant compressor under `src/imslim/compressors/`.
+- Add a setting: Add key + accessors in `src/imslim/settings_manager.py`, expose it in the relevant tab under `src/imslim/settings/`, and consume it in the relevant compressor under `src/imslim/compressors/`.
 - Add a format: Create a compressor subclass in `src/imslim/compressors/`, register it in `src/imslim/window.py` (`manager.register_compressor(...)`) and `compression_manager.py` (`mime_type_to_compressor_type`), and add its extensions to `_IMAGE_EXTENSIONS`/`image_filter()` in `src/imslim/image_utils.py`.
 - Compressor pipeline: override `build_command()` to return `list[Command]` (a `NamedTuple` of `argv: list[str]`, `stdout_path: str | None`, `ignore_errors: bool`, defined in `src/imslim/compressor.py`); implement `get_intermediate_files()` and `get_file_type()` as needed.
 - State access: Read/write mode and settings through `SettingsManager` (exposed on the window as `self.settings`).
