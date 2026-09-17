@@ -200,11 +200,11 @@ class ImSlimWindow(QWidget):
         self.combo_format = self._build_option_combo(
             (
                 _("Same as input"),
-                _("PNG"),
-                _("JPEG"),
-                _("WebP"),
                 _("AVIF"),
+                _("JPEG"),
                 _("JXL"),
+                _("PNG"),
+                _("WebP"),
             ),
             _(
                 "Output format. Convert every input to the selected format, or "
