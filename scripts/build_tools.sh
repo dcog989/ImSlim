@@ -44,7 +44,7 @@ JOBS="${JOBS:-$(nproc)}"
 PREFIX="$WORK/prefix"
 VERSIONS="$WORK/.versions"
 LOCK="$ROOT/tools.lock"
-CONFIG_HASH_FILE="$WORK/.config-hash"
+CONFIG_HASHES="$WORK/.config-hashes"
 FORCE=0
 UPDATE_LOCK=0
 CHECK=0
@@ -52,7 +52,9 @@ NO_DEPS=0
 
 # Hash the build script's configuration so changing build flags invalidates the
 # incremental-build cache even when pinned versions are unchanged. Hashing the
-# whole script is coarse but correct: any build-affecting edit forces a rebuild.
+# whole script is coarse but correct: any edit forces a rebuild. The hash is
+# recorded per tool (see record_version) so a changed script rebuilds each tool
+# once per run rather than on every time a shared dep is pulled in.
 script_config_hash() {
     # $BASH_SOURCE may be relative; hash the canonical path so the result is
     # independent of the current directory (build steps cd into $WORK).
@@ -239,11 +241,19 @@ recorded_version() {
     awk -v t="$1" '$1 == t { print $2 }' "$VERSIONS" 2>/dev/null | tail -n 1
 }
 
+recorded_config_hash() {
+    awk -v t="$1" '$1 == t { print $2 }' "$CONFIG_HASHES" 2>/dev/null | tail -n 1
+}
+
 record_version() {
     if [[ -f "$VERSIONS" ]]; then
         sed -i "/^$1 /d" "$VERSIONS"
     fi
     printf '%s %s\n' "$1" "$2" >> "$VERSIONS"
+    if [[ -f "$CONFIG_HASHES" ]]; then
+        sed -i "/^$1 /d" "$CONFIG_HASHES"
+    fi
+    printf '%s %s\n' "$1" "$(script_config_hash)" >> "$CONFIG_HASHES"
 }
 
 need_build() {
@@ -255,7 +265,9 @@ need_build() {
         return 0
     fi
     if [[ "$(recorded_version "$tool")" == "$version" && -f "$artifact" ]]; then
-        if [[ "$(cat "$CONFIG_HASH_FILE" 2>/dev/null)" == "$(script_config_hash)" ]]; then
+        # A missing hash counts as stale, so a fresh checkout or an upgrade from
+        # the old global-hash scheme rebuilds the tool once, then records it.
+        if [[ "$(recorded_config_hash "$tool")" == "$(script_config_hash)" ]]; then
             log "$tool: already up to date ($version), skipping"
             return 1
         fi
@@ -694,13 +706,6 @@ main() {
 
     [[ ${#groups[@]} -eq 0 ]] && groups=("${BUILD_GROUPS[@]}")
 
-    # Seed the config hash on a fresh checkout so shared deps built more than
-    # once in a single run (e.g. zlib for pngquant and cwebp) compare against
-    # the current script instead of a missing file and rebuild needlessly.
-    if [[ ! -s "$CONFIG_HASH_FILE" ]]; then
-        script_config_hash > "$CONFIG_HASH_FILE"
-    fi
-
     if [[ "$NO_DEPS" -eq 0 ]]; then
         install_deps
     fi
@@ -708,7 +713,6 @@ main() {
         log "checking $group"
         ( "build_$group" )
     done
-    script_config_hash > "$CONFIG_HASH_FILE"
 
     if [[ "$UPDATE_LOCK" -eq 1 ]]; then
         cp "$VERSIONS" "$LOCK"
