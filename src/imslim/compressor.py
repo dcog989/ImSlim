@@ -117,7 +117,7 @@ class Compressor(ABC):
     def finish_batch(self) -> None:
         """Hook invoked once per batch after all items have finished."""
 
-    def _png_intermediate_path(self, result_item: ResultItem) -> str:
+    def _intermediate_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".png"
 
     def _conversion_intermediate_path(self, result_item: ResultItem) -> str:

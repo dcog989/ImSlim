@@ -11,9 +11,6 @@ class AVIFCompressor(Compressor):
     def get_file_type(cls) -> str:
         return "avif"
 
-    def _intermediate_path(self, result_item: ResultItem) -> str:
-        return self._png_intermediate_path(result_item)
-
     @override
     def build_command(self, result_item: ResultItem) -> list[Command]:
         commands: list[Command] = []

@@ -14,9 +14,6 @@ class JXLCompressor(Compressor):
     def get_file_type(cls) -> str:
         return "jxl"
 
-    def _intermediate_path(self, result_item: ResultItem) -> str:
-        return self._png_intermediate_path(result_item)
-
     def _sidecar_path(self, result_item: ResultItem, kind: str) -> str:
         return result_item.tmp_filename + "." + kind
 
