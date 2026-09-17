@@ -133,21 +133,54 @@ locked_version() {
     awk -v t="$1" '$1 == t { print $2 }' "$LOCK" 2>/dev/null | tail -n 1
 }
 
+# Single source of truth for the tool list: upstream location and how each
+# tool's latest version is resolved. Adding a tool means adding an entry here
+# plus its build_<tool> function.
+declare -A TOOL_KIND=(
+    [zlib]=tag
+    [libpng]=tag
+    [lcms2]=lcms2
+    [libjxl]=tag
+    [jpegli]=commit
+    [mozjpeg]=tag
+    [oxipng]=tag
+    [pngquant]=tag
+    [webp]=tag
+    [avif]=tag
+    [gifsicle]=tag
+    [node]=node
+    [svgo]=svgo
+)
+declare -A TOOL_URL=(
+    [zlib]=https://github.com/madler/zlib.git
+    [libpng]=https://github.com/pnggroup/libpng.git
+    [libjxl]=https://github.com/libjxl/libjxl.git
+    [jpegli]=https://github.com/google/jpegli.git
+    [mozjpeg]=https://github.com/mozilla/mozjpeg.git
+    [oxipng]=https://github.com/shssoichiro/oxipng.git
+    [pngquant]=https://github.com/kornelski/pngquant.git
+    [webp]=https://github.com/webmproject/libwebp.git
+    [avif]=https://github.com/AOMediaCodec/libavif.git
+    [gifsicle]=https://github.com/kohler/gifsicle.git
+)
+declare -A TOOL_REF=([jpegli]=main)
+
+# Built by default, in this order: shared static dependencies first so the
+# tools that link them (cwebp, pngquant) find them. node is excluded because
+# svgo downloads it as its own dependency.
+BUILD_GROUPS=(zlib libpng lcms2 libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle svgo)
+# Tools whose pinned version is compared against upstream by --check.
+REPORT_TOOLS=(zlib libpng lcms2 libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle node svgo)
+
 latest_version() {
-    case "$1" in
-        libjxl)   latest_git_tag "https://github.com/libjxl/libjxl.git" ;;
-        jpegli)   latest_git_commit "https://github.com/google/jpegli.git" main ;;
-        mozjpeg)  latest_git_tag "https://github.com/mozilla/mozjpeg.git" ;;
-        oxipng)   latest_git_tag "https://github.com/shssoichiro/oxipng.git" ;;
-        pngquant) latest_git_tag "https://github.com/kornelski/pngquant.git" ;;
-        webp)     latest_git_tag "https://github.com/webmproject/libwebp.git" ;;
-        avif)     latest_git_tag "https://github.com/AOMediaCodec/libavif.git" ;;
-        gifsicle) latest_git_tag "https://github.com/kohler/gifsicle.git" ;;
-        node)     latest_node_version ;;
-        svgo)     latest_svgo_version ;;
-        zlib)     latest_git_tag "https://github.com/madler/zlib.git" ;;
-        libpng)   latest_git_tag "https://github.com/pnggroup/libpng.git" ;;
-        lcms2)    latest_lcms2_version ;;
+    local tool="$1"
+    case "${TOOL_KIND[$tool]:-}" in
+        tag)    latest_git_tag "${TOOL_URL[$tool]}" ;;
+        commit) latest_git_commit "${TOOL_URL[$tool]}" "${TOOL_REF[$tool]}" ;;
+        node)   latest_node_version ;;
+        svgo)   latest_svgo_version ;;
+        lcms2)  latest_lcms2_version ;;
+        *)      printf 'no version resolver for tool: %s\n' "$tool" >&2; return 1 ;;
     esac
 }
 
@@ -181,7 +214,7 @@ target_version() {
 
 check_lock() {
     local tool latest locked stale=0
-    for tool in zlib libpng lcms2 libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle node svgo; do
+    for tool in "${REPORT_TOOLS[@]}"; do
         latest="$(latest_version "$tool")"
         locked="$(locked_version "$tool")"
         if [[ -z "$locked" ]]; then
@@ -256,6 +289,24 @@ ensure_commit() {
 }
 
 # ---------------------------------------------------------------------------
+# Build helpers
+# ---------------------------------------------------------------------------
+
+# Configure, compile and install a CMake project into <prefix>, applying the
+# Release/Ninja defaults shared by every bundled CMake tool. Extra -D flags are
+# forwarded verbatim. Runs in the caller's (subshell) working directory.
+cmake_release_build() {
+    local prefix="$1"; shift
+    cmake -E remove_directory build
+    cmake -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX="$prefix" \
+        "$@"
+    cmake --build build -j"$JOBS"
+    cmake --install build
+}
+
+# ---------------------------------------------------------------------------
 # Shared static dependencies
 # Built from source into $PREFIX so the bundled tools link them statically and
 # do not depend on distro-provided shared libraries at runtime.
@@ -268,16 +319,11 @@ build_zlib() {
     ensure_repo "$WORK/zlib" "$url" "$tag"
     cd "$WORK/zlib"
 
-    cmake -E remove_directory build
-    cmake -B build -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+    cmake_release_build "$PREFIX" \
         -DBUILD_SHARED_LIBS=OFF \
         -DZLIB_BUILD_SHARED=OFF \
         -DZLIB_BUILD_STATIC=ON \
         -DZLIB_BUILD_TESTING=OFF
-    cmake --build build -j"$JOBS"
-    cmake --install build
 
     record_version zlib "$tag"
 }
@@ -289,17 +335,12 @@ build_libpng() {
     ensure_repo "$WORK/libpng" "$url" "$tag"
     cd "$WORK/libpng"
 
-    cmake -E remove_directory build
-    cmake -B build -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+    cmake_release_build "$PREFIX" \
         -DCMAKE_PREFIX_PATH="$PREFIX" \
         -DPNG_SHARED=OFF \
         -DPNG_STATIC=ON \
         -DPNG_TESTS=OFF \
         -DPNG_TOOLS=OFF
-    cmake --build build -j"$JOBS"
-    cmake --install build
 
     record_version libpng "$tag"
 }
@@ -338,11 +379,8 @@ build_libjxl() {
     # Install into a private prefix so libjxl's bundled deps (zlib 1.3.1,
     # brotli, hwy) do not clobber the shared $PREFIX zlib/libpng/lcms2 that
     # pngquant and cwebp link against.
-    cmake -E remove_directory build
     cmake -E remove_directory "$WORK/install-libjxl"
-    cmake -B build -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$WORK/install-libjxl" \
+    cmake_release_build "$WORK/install-libjxl" \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_TESTING=OFF \
         -DJPEGXL_ENABLE_TOOLS=ON \
@@ -362,8 +400,6 @@ build_libjxl() {
         -DJPEGXL_FORCE_SYSTEM_LCMS2=OFF \
         -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \
         -DCMAKE_DISABLE_FIND_PACKAGE_GIF=TRUE
-    cmake --build build -j"$JOBS"
-    cmake --install build
 
     cp "$WORK/install-libjxl/bin/cjxl" "$OUT/cjxl"
     cp "$WORK/install-libjxl/bin/djxl" "$OUT/djxl"
@@ -389,11 +425,8 @@ build_jpegli() {
     # Install into a private prefix so jpegli's bundled deps (zlib 1.3.1,
     # hwy) do not clobber the shared $PREFIX zlib/libpng/lcms2 that pngquant
     # and cwebp link against.
-    cmake -E remove_directory build
     cmake -E remove_directory "$WORK/install-jpegli"
-    cmake -B build -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$WORK/install-jpegli" \
+    cmake_release_build "$WORK/install-jpegli" \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_TESTING=OFF \
         -DJPEGLI_ENABLE_TOOLS=ON \
@@ -408,8 +441,6 @@ build_jpegli() {
         -DJPEGLI_FORCE_SYSTEM_LCMS2=OFF \
         -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \
         -DCMAKE_DISABLE_FIND_PACKAGE_GIF=TRUE
-    cmake --build build -j"$JOBS"
-    cmake --install build
 
     for tool in cjpegli djpegli; do
         cp "$WORK/install-jpegli/bin/$tool" "$OUT/$tool"
@@ -429,17 +460,12 @@ build_mozjpeg() {
     ensure_repo "$WORK/mozjpeg" "$url" "$tag"
     cd "$WORK/mozjpeg"
 
-    cmake -E remove_directory build
-    cmake -B build -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+    cmake_release_build "$PREFIX" \
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DENABLE_STATIC=ON \
         -DENABLE_SHARED=OFF \
         -DWITH_JPEG8=ON \
         -DPNG_SUPPORTED=OFF
-    cmake --build build -j"$JOBS"
-    cmake --install build
 
     cp "$PREFIX/bin/jpegtran" "$OUT/jpegtran"
     chmod +x "$OUT/jpegtran"
@@ -502,10 +528,7 @@ build_webp() {
     ensure_repo "$WORK/libwebp" "$url" "$tag"
     cd "$WORK/libwebp"
 
-    cmake -E remove_directory build
-    cmake -B build -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+    cmake_release_build "$PREFIX" \
         -DCMAKE_PREFIX_PATH="$PREFIX" \
         -DBUILD_SHARED_LIBS=OFF \
         -DWEBP_LINK_STATIC=ON \
@@ -518,8 +541,6 @@ build_webp() {
         -DWEBP_BUILD_WEBPINFO=OFF \
         -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \
         -DCMAKE_DISABLE_FIND_PACKAGE_GIF=TRUE
-    cmake --build build -j"$JOBS"
-    cmake --install build
 
     cp "$PREFIX/bin/cwebp" "$OUT/cwebp"
     chmod +x "$OUT/cwebp"
@@ -537,10 +558,7 @@ build_avif() {
     ensure_repo "$WORK/libavif" "$url" "$tag"
     cd "$WORK/libavif"
 
-    cmake -E remove_directory build
-    cmake -B build -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+    cmake_release_build "$PREFIX" \
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DBUILD_SHARED_LIBS=OFF \
         -DAVIF_BUILD_APPS=ON \
@@ -551,8 +569,6 @@ build_avif() {
         -DAVIF_JPEG=LOCAL \
         -DAVIF_ZLIBPNG=LOCAL \
         -DAVIF_ENABLE_WERROR=OFF
-    cmake --build build -j"$JOBS"
-    cmake --install build
 
     for tool in avifenc avifdec; do
         cp "$PREFIX/bin/$tool" "$OUT/$tool"
@@ -676,7 +692,7 @@ main() {
         exit $?
     fi
 
-    [[ ${#groups[@]} -eq 0 ]] && groups=(zlib libpng lcms2 libjxl jpegli mozjpeg oxipng pngquant webp avif gifsicle svgo)
+    [[ ${#groups[@]} -eq 0 ]] && groups=("${BUILD_GROUPS[@]}")
 
     # Seed the config hash on a fresh checkout so shared deps built more than
     # once in a single run (e.g. zlib for pngquant and cwebp) compare against
