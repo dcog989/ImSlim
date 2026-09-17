@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.8.1 - 2026-09-17
+
+#### Bug Fixes
+
+- (c3961f0) mark webp _intermediate_path as override - dcog989
+
+- (0386bb7) set filename before stat lookup - dcog989
+
+#### Refactoring
+
+- (a501c11) alphabetise image formats - dcog989
+
+- (9ef66c1) name magic numbers in avif/jxl/webp - dcog989
+
+- (f225ea7) document and guard single-batch assumption - dcog989
+
+- (d4aa6d2) dedupe _intermediate_path across compressors - dcog989
+
+- (4e1aa47) remove dead code - dcog989
+- - -
+
 ## v0.8.0 - 2026-09-16
 
 #### Features
