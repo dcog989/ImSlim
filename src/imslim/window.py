@@ -405,7 +405,7 @@ class ImSlimWindow(QWidget):
 
     # ----------------------------------------------------------------- actions
     def create_actions(self) -> None:
-        self.act_select: QAction = QAction(_("Browse Files"), self)
+        self.act_select: QAction = QAction(_("Select Files"), self)
         self.act_select.setShortcut(QKeySequence("Ctrl+O"))
         _res = self.act_select.triggered.connect(self.on_select)
 
@@ -413,7 +413,7 @@ class ImSlimWindow(QWidget):
         self.act_paste.setShortcut(QKeySequence.StandardKey.Paste)
         _res = self.act_paste.triggered.connect(self.on_paste)
 
-        self.act_select_folder: QAction = QAction(_("Browse Directory"), self)
+        self.act_select_folder: QAction = QAction(_("Select Directory"), self)
         _res = self.act_select_folder.triggered.connect(self.on_select_folder)
 
         self.act_clear: QAction = QAction(_("Clear Results"), self)
