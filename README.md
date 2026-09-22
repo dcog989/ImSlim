@@ -5,8 +5,10 @@ A Linux image compressor / converter for all common image formats. Lossless or l
 Inspired by [Curtail](https://github.com/Huluti/Curtail).
 
 ![screen-1](assets/screen-1.webp)
-![screen-2](assets/screen-2.webp) ![screen-3](assets/screen-3.webp)
-![screen-4](assets/screen-4.webp) ![screen-5](assets/screen-5.webp)
+![screen-2](assets/screen-2.webp)
+![screen-3](assets/screen-3.webp)
+![screen-4](assets/screen-4.webp)
+![screen-5](assets/screen-5.webp)
 
 ## Features
 
@@ -35,7 +37,7 @@ This copies the AppImage to `~/Applications`, adds ImSlim to your application me
 Built with Python / PySide6. The compression libraries are built from source, latest releases, and statically linked so the bundled tools are self-contained (no distro package dependencies):
 
 - [libjxl](https://github.com/libjxl/libjxl) (`cjxl`/`djxl`)
-- [jpegli](https://github.com/google/jpegli) (`cjpegli`/`djpegli`)
+- [Jpegli](https://github.com/google/jpegli) (`cjpegli`/`djpegli`)
 - [mozjpeg](https://github.com/mozilla/mozjpeg) (`jpegtran`)
 - [oxipng](https://github.com/shssoichiro/oxipng)
 - [pngquant](https://pngquant.org)
