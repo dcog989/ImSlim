@@ -103,7 +103,7 @@ dependencies = [
     { name = "macholib", marker = "sys_platform == 'darwin'" },
     { name = "packaging" },
     { name = "pefile", marker = "sys_platform == 'win32'" },
-    { name = "pyinstaller-hooks-contrib" },
+    { name = "ruff-hooks-contrib" },
     { name = "pywin32-ctypes", marker = "sys_platform == 'win32'" },
     { name = "setuptools" },
 ]

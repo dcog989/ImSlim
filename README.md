@@ -53,20 +53,20 @@ Built with Python / PySide6. The compression libraries are built from source, la
 See `Makefile` for details:
 
 ```sh
-make init           # runs uv sync, installs deps
 make build          # package / build the app
-make upgrade        # refresh dependency lockfile to newest versions
-make tools          # runs build / update script for image libraries
-make package-linux  # build the Linux AppImage
+make bump           # bump version + changelog via cog (cocogitto)
 make check          # runs ruff check + basedpyright
 make clean          # remove all build artifacts
 make distclean      # remove build tools - expensive!
-make format         # runs ruff format
 make fix            # auto fix lint issues
-make run            # runs the app
-make bump           # bump version + changelog via cog (cocogitto)
+make format         # runs ruff format
+make init           # runs uv sync, installs deps
 make install        # install locally (installs even if version unchanged)
+make package-linux  # build the Linux AppImage
+make run            # runs the app
+make tools          # runs build / update script for image libraries
 make uninstall      # remove the uv tool, desktop entry, icon and AppImage
+make upgrade        # refresh dependency lockfile to newest versions
 ```
 
 > [!NOTE]
