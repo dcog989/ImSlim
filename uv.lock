@@ -43,9 +43,9 @@ requires-dist = [{ name = "pyside6", specifier = ">=6.11" }]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "basedpyright", specifier = ">=1.39.10" },
+    { name = "basedpyright", specifier = ">=1.40" },
     { name = "pyinstaller", specifier = ">=6.22" },
-    { name = "ruff", specifier = ">=0.16.4" },
+    { name = "ruff", specifier = ">=0.16" },
 ]
 
 [[package]]
@@ -103,7 +103,7 @@ dependencies = [
     { name = "macholib", marker = "sys_platform == 'darwin'" },
     { name = "packaging" },
     { name = "pefile", marker = "sys_platform == 'win32'" },
-    { name = "ruff-hooks-contrib" },
+    { name = "pyinstaller-hooks-contrib" },
     { name = "pywin32-ctypes", marker = "sys_platform == 'win32'" },
     { name = "setuptools" },
 ]
