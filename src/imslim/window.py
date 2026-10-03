@@ -47,8 +47,7 @@ from PySide6.QtWidgets import (
 from ._i18n import _
 from ._logging import configure_logging
 from .batch_flow import BatchFlow
-from .compression_manager import CompressionManager
-from .compressors import ALL_COMPRESSORS
+from .compression_manager import create_compression_manager
 from .conversion import is_converting
 from .format import savings_percent
 from .formats import TARGET_SPECS, Format, image_filter
@@ -107,10 +106,7 @@ class ImSlimWindow(QWidget):
         self.build_ui()
         self.show_view(View.HOME)
 
-        self.manager: CompressionManager = CompressionManager()
-        for compressor in ALL_COMPRESSORS:
-            self.manager.register_compressor(compressor)
-        self.manager.validate_configured_compressors()
+        self.manager = create_compression_manager()
 
         self.flow: BatchFlow = BatchFlow(self.settings, self.manager)
         _res = self.flow.item_added.connect(self.add_row)

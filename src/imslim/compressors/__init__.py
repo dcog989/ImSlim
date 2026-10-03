@@ -1,7 +1,7 @@
 """Compressor registry.
 
-Add a new format's compressor here alongside its `FormatSpec` entry; the window
-registers everything in `ALL_COMPRESSORS`.
+Add a new format's compressor here alongside its `FormatSpec` entry;
+`create_compression_manager()` registers everything in `ALL_COMPRESSORS`.
 """
 
 from ..compressor import Compressor

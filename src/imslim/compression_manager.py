@@ -8,6 +8,7 @@ from ._i18n import _
 from .batch_options import BatchOptions
 from .command_runner import CompressionContext
 from .compressor import Compressor
+from .compressors import ALL_COMPRESSORS
 from .conversion import is_converting
 from .formats import (
     CONFIGURED_COMPRESSOR_TYPES,
@@ -142,3 +143,16 @@ class CompressionManager:
         finally:
             c_enable_compression(True)
         logger.info("Compression batch finished")
+
+
+def create_compression_manager() -> CompressionManager:
+    """Build a CompressionManager wired with every registered compressor.
+
+    Composition root: callers depend on the manager, not on concrete
+    compressor classes.
+    """
+    manager = CompressionManager()
+    for compressor in ALL_COMPRESSORS:
+        manager.register_compressor(compressor)
+    manager.validate_configured_compressors()
+    return manager
