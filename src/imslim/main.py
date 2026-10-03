@@ -127,14 +127,15 @@ class SingleInstance(QObject):
             _res = self._server.newConnection.connect(self._on_new_connection)
             self._sweep_timer.start()
 
-    def send_paths(self, paths: list[str]) -> None:
+    def send_paths(self, paths: list[str]) -> bool:
         socket = QLocalSocket()
         socket.connectToServer(self._name)
         if not socket.waitForConnected(_CONNECT_TIMEOUT_MS):
-            return
+            return False
         _res = socket.write("\0".join(paths).encode("utf-8"))
         _res = socket.waitForBytesWritten(_WRITE_TIMEOUT_MS)
         socket.disconnectFromServer()
+        return True
 
     def _on_new_connection(self) -> None:
         if self._server is None:
@@ -191,10 +192,9 @@ class ImSlimApp(QApplication):
     def run(self) -> int:
         paths = _local_paths()
         single = SingleInstance(SOCKET_NAME, self._on_foreign_paths)
-        single.become_primary()
-        if not single.is_primary:
-            single.send_paths(paths)
+        if single.send_paths(paths):
             return 0
+        single.become_primary()
 
         self.win = ImSlimWindow(self)
         self.win.show()
