@@ -4,7 +4,7 @@ from collections.abc import Callable
 from enum import Enum, auto
 from typing import override
 
-from PySide6.QtCore import QDir, QObject, QSize, Qt
+from PySide6.QtCore import QDir, QSize, Qt
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
@@ -476,14 +476,15 @@ class ImSlimWindow(QWidget):
         # until it is destroyed, accumulating one per open.
         dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         _res = dialog.settings_changed.connect(self._reconfigure_logging)
-        _res = dialog.destroyed.connect(self._on_prefs_dialog_destroyed)
+        # Clear on finished, not destroyed: finished fires synchronously inside
+        # close() (before deleteLater), so the reference is never left dangling
+        # and a reopen can't call close() on the already-deleted wrapper.
+        _res = dialog.finished.connect(self._on_prefs_dialog_finished)
         self.prefs_dialog = dialog
         dialog.show()
 
-    def _on_prefs_dialog_destroyed(self, obj: QObject) -> None:
-        # A stale dialog being deleted must not clear a newer reference.
-        if self.prefs_dialog is obj:
-            self.prefs_dialog = None
+    def _on_prefs_dialog_finished(self, _result: int) -> None:
+        self.prefs_dialog = None
 
     def _reconfigure_logging(self) -> None:
         # Log level / max size / backups apply immediately rather than at the
