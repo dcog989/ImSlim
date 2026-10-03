@@ -38,16 +38,11 @@ from .clipboard_intake import ClipboardIntake, urls_to_paths
 from .composition import AppContext
 from .conversion import is_converting
 from .formats import TARGET_SPECS, Format, image_filter
+from .icons import chevron_left_icon, download_icon, gear_icon, imslim_icon
 from .results_view import ResultsView
 from .settings import SettingsDialog
 from .settings_manager import SettingsManager
-from .widgets import (
-    chevron_left_icon,
-    combo_stylesheet,
-    download_icon,
-    gear_icon,
-    imslim_icon,
-)
+from .theme import combo_stylesheet
 
 _V_SPACING = 16
 

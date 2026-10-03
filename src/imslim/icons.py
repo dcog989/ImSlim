@@ -1,84 +1,19 @@
 import math
 import os
 from collections.abc import Callable
-from typing import override
 
-from PySide6.QtCore import QPointF, QRectF, Qt, QTimer
+from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QColor,
     QIcon,
     QPainter,
     QPainterPath,
-    QPaintEvent,
-    QPalette,
     QPen,
     QPixmap,
     QPolygonF,
-    QResizeEvent,
 )
-from PySide6.QtWidgets import QApplication, QToolButton, QVBoxLayout, QWidget
 
 IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
-
-
-def input_background_color() -> str:
-    """Background for input fields, lifted just above the window color.
-
-    Some dark schemes give input fields a Base darker than the surrounding
-    window, which renders as near-black holes. Those fields are lifted above
-    the window color so text stays readable; light themes keep their Base.
-    """
-    palette = QApplication.palette()
-    base = palette.color(QPalette.ColorRole.Base)
-    window = palette.color(QPalette.ColorRole.Window)
-    if base.lightness() < window.lightness():
-        return window.lighter(115).name()
-    return base.name()
-
-
-def combo_stylesheet() -> str:
-    """QComboBox styling shared by the settings form and the home page.
-
-    Setting a background color forces the stylesheet renderer to draw the
-    combo, which is required for the internal padding to shift the text.
-    """
-    return (
-        f"QComboBox {{ padding: 3px 12px 5px 12px; background-color: {input_background_color()}; }}"
-    )
-
-
-def muted_color(fg: QColor, bg: QColor, factor: float = 0.5) -> QColor:
-    """Blend the foreground color `factor` toward `bg`.
-
-    Used for muted but readable text on both light and dark themes instead of
-    a hardcoded gray. `factor` is the weight given to `bg`; 0.0 keeps `fg`
-    unchanged, 1.0 yields `bg` exactly.
-    """
-    return QColor(
-        round(fg.red() * (1.0 - factor) + bg.red() * factor),
-        round(fg.green() * (1.0 - factor) + bg.green() * factor),
-        round(fg.blue() * (1.0 - factor) + bg.blue() * factor),
-    )
-
-
-def apply_muted_palette(
-    widget: QWidget,
-    factor: float = 0.5,
-    *,
-    fg_role: QPalette.ColorRole = QPalette.ColorRole.Text,
-    bg_role: QPalette.ColorRole = QPalette.ColorRole.Base,
-) -> None:
-    """Recolor a widget's text roles to a muted blend of its own palette.
-
-    Muted but readable on both light and dark themes instead of a hardcoded
-    gray. Blends `fg_role` toward `bg_role` and applies the result to the
-    Text and WindowText roles.
-    """
-    palette = widget.palette()
-    muted = muted_color(palette.color(fg_role), palette.color(bg_role), factor)
-    palette.setColor(QPalette.ColorRole.Text, muted)
-    palette.setColor(QPalette.ColorRole.WindowText, muted)
-    widget.setPalette(palette)
 
 
 def imslim_icon() -> QIcon:
@@ -107,6 +42,19 @@ def _apply_icon_stroke(painter: QPainter, color: QColor, size: float) -> float:
     return width
 
 
+def _painted_icon(size: int, draw: Callable[[QPainter, float], None]) -> QIcon:
+    """Render a monochrome icon with QPainter on a transparent, HiDPI-safe pixmap."""
+    scale = 2.0
+    pixmap = QPixmap(int(size * scale), int(size * scale))
+    pixmap.setDevicePixelRatio(scale)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    draw(painter, float(size))
+    _res = painter.end()
+    return QIcon(pixmap)
+
+
 def download_icon(color: QColor, size: int = 20) -> QIcon:
     """A down arrow into a tray (Lucide 'import'), matching the other icons' stroke."""
 
@@ -132,19 +80,6 @@ def download_icon(color: QColor, size: int = 20) -> QIcon:
         painter.drawPath(tray)
 
     return _painted_icon(size, draw)
-
-
-def _painted_icon(size: int, draw: Callable[[QPainter, float], None]) -> QIcon:
-    """Render a monochrome icon with QPainter on a transparent, HiDPI-safe pixmap."""
-    scale = 2.0
-    pixmap = QPixmap(int(size * scale), int(size * scale))
-    pixmap.setDevicePixelRatio(scale)
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    draw(painter, float(size))
-    _res = painter.end()
-    return QIcon(pixmap)
 
 
 def chevron_left_icon(color: QColor, size: int = 20) -> QIcon:
@@ -234,80 +169,3 @@ def gear_icon(color: QColor, size: int = 20) -> QIcon:
         painter.drawEllipse(QPointF(cx, cy), hub_r, hub_r)
 
     return _painted_icon(size, draw)
-
-
-class Spinner(QWidget):
-    """A rotating arc used as a busy indicator."""
-
-    def __init__(self, size: int = 120, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setFixedSize(size, size)
-        self._angle: int = 0
-        self._timer: QTimer = QTimer(self)
-        self._timer.setInterval(16)
-        _res = self._timer.timeout.connect(self._advance)
-
-    def start(self) -> None:
-        self._timer.start()
-
-    def stop(self) -> None:
-        self._timer.stop()
-
-    def _advance(self) -> None:
-        self._angle = (self._angle + 6) % 360
-        self.update()
-
-    @override
-    def paintEvent(self, event: QPaintEvent) -> None:
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        color = self.palette().color(self.palette().ColorRole.Text)
-        pen = QPen(
-            color,
-            6,
-            Qt.PenStyle.SolidLine,
-            Qt.PenCapStyle.RoundCap,
-            Qt.PenJoinStyle.RoundJoin,
-        )
-        painter.setPen(pen)
-        painter.drawArc(
-            QRectF(6, 6, self.width() - 12, self.height() - 12),
-            -self._angle * 16,
-            100 * 16,
-        )
-        _res = painter.end()
-
-
-class ResultsPage(QWidget):
-    """Results list covered by a spinner overlay while compressing."""
-
-    def __init__(self, stop_button: QToolButton, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.overlay: QWidget = QWidget(self)
-        self.overlay.setObjectName("processingOverlay")
-        self.overlay.setStyleSheet(
-            "QWidget#processingOverlay { background-color: rgba(128, 128, 128, 150); }"
-        )
-        layout = QVBoxLayout(self.overlay)
-        layout.addStretch(1)
-        self.spinner: Spinner = Spinner(120)
-        layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(stop_button, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addStretch(1)
-        self.overlay.hide()
-
-    def show_overlay(self) -> None:
-        self.overlay.setGeometry(self.rect())
-        self.overlay.raise_()
-        self.overlay.show()
-        self.spinner.start()
-
-    def hide_overlay(self) -> None:
-        self.overlay.hide()
-        self.spinner.stop()
-
-    @override
-    def resizeEvent(self, event: QResizeEvent) -> None:
-        if self.overlay.isVisible():
-            self.overlay.setGeometry(self.rect())
-        super().resizeEvent(event)

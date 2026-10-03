@@ -26,9 +26,9 @@ from PySide6.QtWidgets import (
 
 from ._i18n import _
 from .format import sizeof_fmt
+from .icons import circle_off_icon, shield_alert_icon, triangle_alert_icon
 from .image_utils import create_thumbnail_qimage
 from .result_item import ResultItem, ResultState
-from .widgets import circle_off_icon, shield_alert_icon, triangle_alert_icon
 from .workers import Task
 
 # Shared, bounded pool: a batch of hundreds of rows must not spawn a thread per

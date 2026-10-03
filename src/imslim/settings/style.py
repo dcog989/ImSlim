@@ -3,7 +3,7 @@
 from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QFrame, QLabel, QSizePolicy
 
-from ..widgets import apply_muted_palette, combo_stylesheet, input_background_color
+from ..theme import apply_muted_palette, combo_stylesheet, input_background_color
 
 
 def separator() -> QFrame:

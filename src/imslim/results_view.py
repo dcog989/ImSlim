@@ -1,6 +1,9 @@
 """Results list: chunked rows, per-item updates and the busy overlay."""
 
+from typing import override
+
 from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -14,7 +17,8 @@ from ._i18n import _
 from .format import savings_percent
 from .result_item import ResultItem, ResultState
 from .result_item_row import ResultItemRow
-from .widgets import ResultsPage, apply_muted_palette, muted_color
+from .spinner import Spinner
+from .theme import apply_muted_palette, muted_color
 
 # Rows are built in small timer-driven chunks so a huge batch does not block the
 # UI thread building thousands of widgets in one event-loop iteration.
@@ -28,6 +32,41 @@ def _make_stop_button() -> QToolButton:
     button.setFixedHeight(32)
     button.setStyleSheet("QToolButton { padding: 0 12px; }")
     return button
+
+
+class ResultsPage(QWidget):
+    """Results list covered by a spinner overlay while compressing."""
+
+    def __init__(self, stop_button: QToolButton, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.overlay: QWidget = QWidget(self)
+        self.overlay.setObjectName("processingOverlay")
+        self.overlay.setStyleSheet(
+            "QWidget#processingOverlay { background-color: rgba(128, 128, 128, 150); }"
+        )
+        layout = QVBoxLayout(self.overlay)
+        layout.addStretch(1)
+        self.spinner: Spinner = Spinner(120)
+        layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(stop_button, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addStretch(1)
+        self.overlay.hide()
+
+    def show_overlay(self) -> None:
+        self.overlay.setGeometry(self.rect())
+        self.overlay.raise_()
+        self.overlay.show()
+        self.spinner.start()
+
+    def hide_overlay(self) -> None:
+        self.overlay.hide()
+        self.spinner.stop()
+
+    @override
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        if self.overlay.isVisible():
+            self.overlay.setGeometry(self.rect())
+        super().resizeEvent(event)
 
 
 class ResultsView(ResultsPage):

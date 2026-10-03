@@ -3,9 +3,9 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QW
 
 from .. import __version__
 from .._i18n import _
+from ..icons import imslim_icon
 from ..settings_manager import log_file_path
 from ..system_info import static_about_pairs, system_info_pairs
-from ..widgets import imslim_icon
 from ..workers import VersionProbeTask, start_task
 
 
