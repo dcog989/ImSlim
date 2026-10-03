@@ -141,7 +141,6 @@ class SingleInstance(QObject):
         self.is_primary = self._server.listen(self._socket)
         if self.is_primary:
             _res = self._server.newConnection.connect(self._on_new_connection)
-            self._sweep_timer.start()
 
     def send_paths(self, paths: list[str]) -> bool:
         socket = QLocalSocket()
@@ -163,6 +162,10 @@ class SingleInstance(QObject):
         self._conn_started[conn] = time.monotonic()
         _res = conn.readyRead.connect(lambda: self._read_more(conn))
         _res = conn.readChannelFinished.connect(lambda: self._finish(conn))
+        # Sweep only while connections are pending, so an idle primary holds no
+        # recurring timer.
+        if not self._sweep_timer.isActive():
+            self._sweep_timer.start()
         self._read_more(conn)
 
     def _read_more(self, conn: QLocalSocket) -> None:
@@ -180,6 +183,8 @@ class SingleInstance(QObject):
         _res = self._conn_started.pop(conn, None)
         conn.disconnectFromServer()
         conn.deleteLater()
+        if not self._conn_started:
+            self._sweep_timer.stop()
         data = bytes(buffer)
         paths = data.decode("utf-8").split("\0") if data else []
         self._on_paths(paths)
@@ -193,6 +198,8 @@ class SingleInstance(QObject):
             _res = self._conn_started.pop(conn, None)
             conn.disconnectFromServer()
             conn.deleteLater()
+        if not self._conn_started:
+            self._sweep_timer.stop()
 
 
 class ImSlimApp(QApplication):
