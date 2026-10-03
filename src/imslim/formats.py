@@ -243,21 +243,12 @@ MIME_TO_FORMAT: dict[str, FormatSpec] = {
 
 ALLOWED_MIME_TYPES: frozenset[str] = frozenset(MIME_TO_FORMAT)
 
-# MIME -> (compressor type, output extension override). Re-encoded formats
-# (BMP/TIFF -> WebP) carry an override; every other format keeps its own.
-MIME_TO_COMPRESSOR: dict[str, tuple[CompressorType, str | None]] = {
-    mime: (
-        spec.compressor_key,
-        spec.output_extension if spec.compressor_key.value != spec.key.value else None,
-    )
-    for spec in FORMAT_SPECS
-    for mime in spec.source_mimes
-}
-
+# Source MIME -> output extension, only where the encoder writes a different
+# extension than the source (re-encoded formats such as BMP/TIFF -> WebP).
 OUTPUT_EXTENSIONS: dict[str, str] = {
-    mime: extension
-    for mime, (_compressor, extension) in MIME_TO_COMPRESSOR.items()
-    if extension is not None
+    mime: spec.output_extension
+    for mime, spec in MIME_TO_FORMAT.items()
+    if spec.compressor_key.value != spec.key.value
 }
 
 CONFIGURED_COMPRESSOR_TYPES: frozenset[CompressorType] = frozenset(

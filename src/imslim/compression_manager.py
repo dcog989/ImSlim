@@ -13,7 +13,7 @@ from .conversion import is_converting
 from .formats import (
     CONFIGURED_COMPRESSOR_TYPES,
     FORMAT_BY_KEY,
-    MIME_TO_COMPRESSOR,
+    MIME_TO_FORMAT,
     CompressorType,
 )
 from .pipeline import CompressionPipeline
@@ -34,12 +34,13 @@ class CompressionManager:
         self._thread: threading.Thread | None = None
 
     def mime_type_to_compressor_type(self, mime_type: str) -> CompressorType | None:
-        return MIME_TO_COMPRESSOR.get(mime_type, (None, None))[0]
+        spec = MIME_TO_FORMAT.get(mime_type)
+        return None if spec is None else spec.compressor_key
 
     def register_compressor(self, ConcreteCompressor: type[Compressor]) -> None:
         file_type = ConcreteCompressor.get_file_type()
         if file_type not in CONFIGURED_COMPRESSOR_TYPES:
-            raise ValueError(f"Compressor '{file_type}' is not referenced in MIME_TO_COMPRESSOR")
+            raise ValueError(f"Compressor '{file_type}' is not referenced in FORMAT_SPECS")
         if file_type not in self.compressors:
             self.compressors[file_type] = ConcreteCompressor()
 
