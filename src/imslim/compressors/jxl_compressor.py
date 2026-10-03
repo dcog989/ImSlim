@@ -34,7 +34,8 @@ class JXLCompressor(Compressor):
         if not self._input_is_png(result_item):
             intermediate = self._intermediate_path(result_item)
             decode = decoder_argv(result_item.mime_type, result_item.filename, intermediate)
-            assert decode is not None, "no bundled decoder for non-PNG JXL source"
+            if decode is None:
+                raise RuntimeError("no bundled decoder for non-PNG JXL source")
             commands.append(Command(decode))
             encode_input = intermediate
             extracting_metadata = options.metadata

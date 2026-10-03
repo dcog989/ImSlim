@@ -34,17 +34,17 @@ class CompressionManager:
 
     def register_compressor(self, ConcreteCompressor: type[Compressor]) -> None:
         file_type = ConcreteCompressor.get_file_type()
-        assert file_type in CONFIGURED_COMPRESSOR_TYPES, (
-            f"Compressor '{file_type}' is not referenced in MIME_TO_COMPRESSOR"
-        )
+        if file_type not in CONFIGURED_COMPRESSOR_TYPES:
+            raise ValueError(f"Compressor '{file_type}' is not referenced in MIME_TO_COMPRESSOR")
         if file_type not in self.compressors:
             self.compressors[file_type] = ConcreteCompressor()
 
     def validate_configured_compressors(self) -> None:
         unregistered = sorted(CONFIGURED_COMPRESSOR_TYPES - set(self.compressors))
-        assert not unregistered, (
-            f"No compressor registered for configured types: {', '.join(unregistered)}"
-        )
+        if unregistered:
+            raise RuntimeError(
+                f"No compressor registered for configured types: {', '.join(unregistered)}"
+            )
 
     def _compressor_for(self, result_item: ResultItem, options: BatchOptions) -> Compressor | None:
         """Resolve the compressor for one item: the conversion target when

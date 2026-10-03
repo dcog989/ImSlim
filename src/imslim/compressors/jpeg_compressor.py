@@ -49,7 +49,8 @@ class JPEGCompressor(Compressor):
         if result_item.mime_type == "image/jpeg" and not self._input_is_png(result_item):
             intermediate = self._intermediate_path(result_item)
             decode = decoder_argv(result_item.mime_type, result_item.filename, intermediate)
-            assert decode is not None, "no bundled decoder for JPEG source"
+            if decode is None:
+                raise RuntimeError("no bundled decoder for JPEG source")
             commands.append(Command(decode))
             encode_input = intermediate
 

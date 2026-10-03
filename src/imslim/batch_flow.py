@@ -94,7 +94,8 @@ class BatchFlow(QObject):
         if self._shutting_down:
             return
         options = self._options
-        assert options is not None, "items arrived before a batch was started"
+        if options is None:
+            raise RuntimeError("items arrived before a batch was started")
         for result_item in result_items:
             self.summary.record_added()
             self.item_added.emit(result_item)
