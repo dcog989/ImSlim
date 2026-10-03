@@ -728,9 +728,19 @@ class ImSlimWindow(QWidget):
     def on_settings(self) -> None:
         if self.prefs_dialog is not None:
             _res = self.prefs_dialog.close()
-        self.prefs_dialog = SettingsDialog(self.settings, self)
-        _res = self.prefs_dialog.settings_changed.connect(self._reconfigure_logging)
-        self.prefs_dialog.show()
+        dialog = SettingsDialog(self.settings, self)
+        # Without this the parented dialog would be kept alive by the window
+        # until it is destroyed, accumulating one per open.
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        _res = dialog.settings_changed.connect(self._reconfigure_logging)
+        _res = dialog.destroyed.connect(self._on_prefs_dialog_destroyed)
+        self.prefs_dialog = dialog
+        dialog.show()
+
+    def _on_prefs_dialog_destroyed(self, obj: QObject) -> None:
+        # A stale dialog being deleted must not clear a newer reference.
+        if self.prefs_dialog is obj:
+            self.prefs_dialog = None
 
     def _reconfigure_logging(self) -> None:
         # Log level / max size / backups apply immediately rather than at the
