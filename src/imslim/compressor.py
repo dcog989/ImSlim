@@ -25,9 +25,6 @@ class Compressor(ABC):
         self, result_item: ResultItem, options: BatchOptions, input_path: str
     ) -> list[Command]: ...
 
-    def adapt_command(self, argv: list[str], _result_item: ResultItem) -> list[str]:
-        return argv
-
     def _intermediate_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".png"
 

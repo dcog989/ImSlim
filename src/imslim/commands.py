@@ -16,6 +16,7 @@ class Command(NamedTuple):
     stdout_path: str | None = None
     ignore_errors: bool = False
     temp_files: tuple[str, ...] = ()
+    adapt: Callable[[list[str]], list[str]] | None = None
 
 
 def tokens(template: Template) -> list[str]:

@@ -44,7 +44,7 @@ class JXLCompressor(Compressor):
             # djxl won't embed EXIF/XMP into the PNG, so extract sidecars and
             # re-inject them via cjxl -x. These are non-fatal: if extraction
             # fails (e.g. metadata absent), the sidecar stays missing and the
-            # matching -x argument is pruned in adapt_command().
+            # matching -x argument is pruned in _prune_metadata_hints().
             for kind in _JXL_METADATA:
                 sidecar = self._sidecar_path(result_item, kind)
                 commands.append(
@@ -73,15 +73,17 @@ class JXLCompressor(Compressor):
                 cjxl += ["-x", f"{kind}={self._sidecar_path(result_item, kind)}"]
 
         cjxl += [encode_input, result_item.tmp_filename]
-        commands.append(Command(cjxl, temp_files=(result_item.tmp_filename,)))
+        commands.append(
+            Command(
+                cjxl,
+                temp_files=(result_item.tmp_filename,),
+                adapt=self._prune_metadata_hints,
+            )
+        )
 
         return commands
 
-    @override
-    def adapt_command(self, argv: list[str], result_item: ResultItem) -> list[str]:
-        if not argv or argv[0] != resolve_tool("cjxl"):
-            return argv
-
+    def _prune_metadata_hints(self, argv: list[str]) -> list[str]:
         # Prune -x hint args whose sidecar wasn't produced so a missing file
         # can't turn into a hard error.
         pruned: list[str] = []

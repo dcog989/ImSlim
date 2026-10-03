@@ -105,9 +105,7 @@ class CompressionPipeline:
             last_argv: list[str] | None = None
             try:
                 commands = compressor.commands(result_item, options)
-                last_argv = self._execute_commands(
-                    compressor, commands, result_item, context, options
-                )
+                last_argv = self._execute_commands(commands, result_item, context, options)
             except CancelledError:
                 result_item.state = ResultState.CANCELLED
             except Exception as err:
@@ -130,7 +128,6 @@ class CompressionPipeline:
 
     def _execute_commands(
         self,
-        compressor: Compressor,
         commands: list[Command],
         result_item: ResultItem,
         context: CompressionContext,
@@ -143,14 +140,13 @@ class CompressionPipeline:
         """
         last_argv: list[str] | None = None
         for command in commands:
-            argv = self._run_one(compressor, command, result_item, context, options)
+            argv = self._run_one(command, result_item, context, options)
             if argv is not None:
                 last_argv = argv
         return last_argv
 
     def _run_one(
         self,
-        compressor: Compressor,
         command: Command,
         result_item: ResultItem,
         context: CompressionContext,
@@ -167,7 +163,9 @@ class CompressionPipeline:
                 raise
             return None
 
-        argv = compressor.adapt_command(command.argv or [], result_item)
+        argv = command.argv or []
+        if command.adapt is not None:
+            argv = command.adapt(argv)
         logger.debug("Running %s for %s", argv, result_item.filename)
         try:
             if command.stdout_path is not None:
