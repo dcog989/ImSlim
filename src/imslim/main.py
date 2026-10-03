@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import sysconfig
@@ -9,9 +10,15 @@ from PySide6.QtCore import QObject, QStandardPaths, QTimer, QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
+from . import __version__
 from ._logging import configure_logging
+from .binary_resolver import KNOWN_TOOLS, resolve_tool
 from .composition import build_app_context
+from .settings_manager import log_file_path
+from .system_info import static_about_pairs, system_info_pairs
 from .window import ImSlimWindow
+
+logger = logging.getLogger(__name__)
 
 # Native-desktop integration comes from a Qt platform theme plugin read during
 # QApplication construction, so pick one before the app object is built.
@@ -43,6 +50,23 @@ def _configure_platform_theme() -> None:
     if not os.environ.get("XDG_CURRENT_DESKTOP"):
         return
     os.environ[_PLATFORM_THEME_ENV] = _PORTAL_THEME
+
+
+def _log_startup() -> None:
+    """Record a session opener so the log is never empty just from launching."""
+    logger.info("ImSlim %s starting", __version__)
+    logger.info("Log file: %s", log_file_path())
+    if not logger.isEnabledFor(logging.DEBUG):
+        return
+    for label, value in (*static_about_pairs(), *system_info_pairs()):
+        logger.debug("%s: %s", label, value)
+    for tool in KNOWN_TOOLS:
+        try:
+            path = resolve_tool(tool)
+        except OSError as err:
+            logger.debug("%s: unavailable (%s)", tool, err)
+        else:
+            logger.debug("%s: %s", tool, path)
 
 
 def _system_plugin_roots() -> list[str]:
@@ -223,6 +247,7 @@ class ImSlimApp(QApplication):
         # Only the primary process owns the log file; a forwarded launch must
         # not open (or rotate) the same file out from under it.
         configure_logging()
+        _log_startup()
 
         self.win = ImSlimWindow(self, build_app_context())
         self.win.show()
