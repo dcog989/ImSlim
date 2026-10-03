@@ -7,7 +7,6 @@ from PySide6.QtCore import QMimeDatabase
 from ._i18n import _
 from .batch_options import BatchOptions
 from .conversion import is_converting
-from .format import sizeof_fmt
 from .formats import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS, TARGET_EXTENSIONS
 from .image_utils import is_animated_image
 from .result_item import ResultItem
@@ -70,8 +69,6 @@ class ResultItemManager:
         if mime not in ALLOWED_MIME_TYPES or result_item.size <= 0:
             result_item.set_error(_("Format of this file is not supported."))
             return result_item
-
-        result_item.subtitle_label = sizeof_fmt(result_item.size)
 
         if is_converting(self.options.target_format) and is_animated_image(path, mime):
             result_item.warning_message = _("Animation will be lost: only the first frame is kept.")

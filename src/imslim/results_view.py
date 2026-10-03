@@ -14,8 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from ._i18n import _
-from .format import savings_percent
-from .result_item import ResultItem, ResultState
+from .result_item import ResultItem
 from .result_item_row import ResultItemRow
 from .spinner import Spinner
 from .theme import apply_muted_palette, muted_color
@@ -180,18 +179,6 @@ class ResultsView(ResultsPage):
         row.setAutoFillBackground(True)
 
     def update_item(self, result_item: ResultItem) -> None:
-        if result_item.state is ResultState.RUNNING:
-            self._refresh_row(result_item)
-            return
-        match result_item.state:
-            case ResultState.CANCELLED | ResultState.ERROR | ResultState.SKIPPED:
-                result_item.savings = ""
-            case _:
-                if result_item.size > 0:
-                    savings = savings_percent(result_item.size, result_item.new_size)
-                else:
-                    savings = 0
-                result_item.savings = str(savings) + "%"
         self._refresh_row(result_item)
 
     def _refresh_row(self, result_item: ResultItem) -> None:

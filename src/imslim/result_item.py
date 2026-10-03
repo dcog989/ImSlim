@@ -24,8 +24,6 @@ class ResultItem:
     atime: float = -1.0
     mtime: float = -1.0
     mode: int = -1
-    subtitle_label: str = ""
-    savings: str = ""
     state: ResultState = ResultState.IDLE
     error_message: str = ""
     error_details_message: str = ""
@@ -35,7 +33,6 @@ class ResultItem:
         self.state = ResultState.ERROR
         self.error_message = error
         self.error_details_message = details
-        self.savings = ""
 
     @override
     def __repr__(self) -> str:

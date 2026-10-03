@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from ._i18n import _
-from .format import sizeof_fmt
+from .format import savings_percent, sizeof_fmt
 from .icons import circle_off_icon, shield_alert_icon, triangle_alert_icon
 from .image_utils import create_thumbnail_qimage
 from .result_item import ResultItem, ResultState
@@ -72,6 +72,14 @@ def _info_icons(color: QColor) -> tuple[QIcon, QIcon, QIcon]:
         )
         _INFO_ICONS[key] = icons
     return icons
+
+
+def _savings_text(item: ResultItem) -> str:
+    """Format the per-item saving; blank for states that have no saving."""
+    if item.state in (ResultState.CANCELLED, ResultState.ERROR, ResultState.SKIPPED):
+        return ""
+    percent = savings_percent(item.size, item.new_size) if item.size > 0 else 0
+    return f"{percent}%"
 
 
 class _ClickableThumbnail(QLabel):
@@ -186,11 +194,11 @@ class ResultItemRow(QWidget):
             case ResultState.ERROR:
                 subtitle = item.error_message
             case ResultState.DONE:
-                subtitle = item.subtitle_label + " → " + sizeof_fmt(item.new_size)
+                subtitle = sizeof_fmt(item.size) + " → " + sizeof_fmt(item.new_size)
             case _:
-                subtitle = item.subtitle_label
+                subtitle = sizeof_fmt(item.size)
         self.subtitle_label.setText(subtitle)
-        self.savings_label.setText(item.savings)
+        self.savings_label.setText(_savings_text(item))
         self.savings_label.setVisible(not running)
 
         self.skipped_button.setVisible(item.state is ResultState.SKIPPED)
