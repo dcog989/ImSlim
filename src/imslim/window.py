@@ -120,6 +120,7 @@ class ImSlimWindow(QWidget):
         header_layout.addStretch(1)
         header_layout.addWidget(self.results_title)
 
+        self.label_format: QLabel = QLabel(_("Output format:"))
         self.combo_format = self._build_option_combo(
             (_("Same as input"), *(_(spec.display) for spec in TARGET_SPECS)),
             _(
@@ -159,6 +160,7 @@ class ImSlimWindow(QWidget):
         _res = self.combo_metadata.currentIndexChanged.connect(self.on_metadata_changed)
         _res = self.combo_attributes.currentIndexChanged.connect(self.on_attributes_changed)
 
+        header_layout.addWidget(self.label_format)
         header_layout.addWidget(self.combo_format)
         header_layout.addWidget(self.combo_compression)
         header_layout.addWidget(self.combo_metadata)
@@ -335,6 +337,7 @@ class ImSlimWindow(QWidget):
         self.clear_button.setVisible(is_results)
         self.results_title.setVisible(is_results)
         show_options = not is_results
+        self.label_format.setVisible(show_options)
         self.combo_format.setVisible(show_options)
         self.combo_compression.setVisible(show_options)
         self.combo_metadata.setVisible(show_options)
