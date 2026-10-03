@@ -5,7 +5,7 @@ import time
 from collections.abc import Callable
 from typing import cast
 
-from PySide6.QtCore import QObject, QTimer, QUrl
+from PySide6.QtCore import QObject, QStandardPaths, QTimer, QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
@@ -96,6 +96,22 @@ def _local_paths() -> list[str]:
     return paths
 
 
+def _socket_name(name: str) -> str:
+    """Resolve the single-instance socket to a per-user private location.
+
+    Prefer $XDG_RUNTIME_DIR (mode 0700) over a predictable file in shared /tmp.
+    When it is unavailable, fall back to the temp dir with the uid in the name
+    so different users cannot collide. Windows named pipes keep the plain name.
+    """
+    if sys.platform == "win32":
+        return name
+    runtime = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.RuntimeLocation)
+    if runtime:
+        return os.path.join(runtime, name)
+    temp = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.TempLocation)
+    return os.path.join(temp, f"{name}-{os.getuid()}")
+
+
 class SingleInstance(QObject):
     """Single-instance gate over a local socket.
 
@@ -108,7 +124,7 @@ class SingleInstance(QObject):
 
     def __init__(self, name: str, on_paths: Callable[[list[str]], None]) -> None:
         super().__init__()
-        self._name: str = name
+        self._socket: str = _socket_name(name)
         self._on_paths: Callable[[list[str]], None] = on_paths
         self._server: QLocalServer | None = None
         self._conn_buffer: dict[QLocalSocket, bytearray] = {}
@@ -121,15 +137,15 @@ class SingleInstance(QObject):
 
     def become_primary(self) -> None:
         self._server = QLocalServer()
-        _res = self._server.removeServer(self._name)
-        self.is_primary = self._server.listen(self._name)
+        _res = self._server.removeServer(self._socket)
+        self.is_primary = self._server.listen(self._socket)
         if self.is_primary:
             _res = self._server.newConnection.connect(self._on_new_connection)
             self._sweep_timer.start()
 
     def send_paths(self, paths: list[str]) -> bool:
         socket = QLocalSocket()
-        socket.connectToServer(self._name)
+        socket.connectToServer(self._socket)
         if not socket.waitForConnected(_CONNECT_TIMEOUT_MS):
             return False
         _res = socket.write("\0".join(paths).encode("utf-8"))

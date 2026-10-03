@@ -13,9 +13,13 @@ _T = TypeVar("_T")
 
 
 def log_file_path() -> str:
-    """Absolute path of the app's rotating log file."""
+    """Absolute path of the app's rotating log file.
+
+    Logs are state, not data, so they follow $XDG_STATE_HOME (~/.local/state)
+    where available, falling back to the home directory.
+    """
     base = QStandardPaths.writableLocation(
-        QStandardPaths.StandardLocation.GenericDataLocation
+        QStandardPaths.StandardLocation.GenericStateLocation
     ) or QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
     return os.path.join(base, "ImSlim", _LOG_FILE_NAME)
 
