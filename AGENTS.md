@@ -12,7 +12,9 @@
 - `src/imslim/window.py` — main window UI, mode toggle, home/results views
 - `src/imslim/settings/` — settings dialog: `dialog.py` hosts the tabbed `SettingsDialog`, with one widget per tab (`general_tab.py`, `formats_tab.py`, `about_tab.py`), a shared `SettingsTab` base in `tab.py` and shared styling in `style.py`
 - `src/imslim/settings_manager.py` — persistent settings/state store
-- `src/imslim/compressor.py` — base compressor + run logic
+- `src/imslim/compressor.py` — command strategy: `Command`, `tokens`, and the `Compressor` ABC subclasses implement
+- `src/imslim/command_runner.py` — `CommandRunner` (killable subprocess execution) and `CompressionContext` (batch cancellation)
+- `src/imslim/pipeline.py` — `CompressionPipeline`: runs a compressor's commands, finalizes output, cleans up and reports errors
 - `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools
 - `src/imslim/image_convert.py` — Qt-based decode-to-PNG helper (BMP/TIFF → cwebp input)
 - `src/imslim/compressors/` — per-format compressors (png, jpeg, webp, avif, jxl, svg)

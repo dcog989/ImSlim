@@ -1,26 +1,11 @@
-import logging
-import subprocess
-import threading
-import time
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from pathlib import Path
 from string.templatelib import Interpolation, Template
-from typing import IO, NamedTuple, cast
+from typing import NamedTuple, cast
 
-from ._i18n import _
 from .batch_options import BatchOptions
 from .conversion import decode_to_png, is_converting, native_inputs
-from .format import savings_percent
 from .formats import CompressorType
-from .output_writer import OutputWriter
-from .result_item import ResultItem, ResultState
-
-logger = logging.getLogger(__name__)
-
-
-class CancelledError(Exception):
-    """Raised to abort a compression when the batch is cancelled."""
+from .result_item import ResultItem
 
 
 class Command(NamedTuple):
@@ -45,64 +30,7 @@ def tokens(template: Template) -> list[str]:
     return result
 
 
-_KILL_GRACE_SECONDS = 0.5
-
-
-class CompressionContext:
-    """Shared cancellation state for one compression batch."""
-
-    def __init__(self) -> None:
-        self._cancel_event: threading.Event = threading.Event()
-        self._processes: list[subprocess.Popen[bytes]] = []
-        self._lock: threading.Lock = threading.Lock()
-
-    @property
-    def cancelled(self) -> bool:
-        return self._cancel_event.is_set()
-
-    def register_process(self, process: subprocess.Popen[bytes]) -> None:
-        with self._lock:
-            if not self._cancel_event.is_set():
-                self._processes.append(process)
-                return
-        try:
-            process.terminate()
-        except OSError:
-            pass
-
-    def unregister_process(self, process: subprocess.Popen[bytes]) -> None:
-        with self._lock:
-            if process in self._processes:
-                self._processes.remove(process)
-
-    def cancel(self) -> None:
-        if self._cancel_event.is_set():
-            return
-        self._cancel_event.set()
-        with self._lock:
-            processes = list(self._processes)
-        deadline = time.monotonic() + _KILL_GRACE_SECONDS
-        for process in processes:
-            try:
-                process.terminate()
-            except OSError:
-                pass
-        for process in processes:
-            try:
-                remaining = max(0.0, deadline - time.monotonic())
-                _res = process.wait(timeout=remaining)
-            except subprocess.TimeoutExpired, OSError:
-                try:
-                    process.kill()
-                except OSError:
-                    pass
-
-
 class Compressor(ABC):
-    def __init__(self) -> None:
-        super().__init__()
-        self._output_writer: OutputWriter = OutputWriter()
-
     @classmethod
     @abstractmethod
     def get_file_type(cls) -> CompressorType: ...
@@ -129,10 +57,10 @@ class Compressor(ABC):
             result_item.input_path != result_item.filename or result_item.mime_type == "image/png"
         )
 
-    def _conversion_commands(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
+    def conversion_commands(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
         """Pre-decode a non-native source to PNG when converting to another
         format. Leaves `input_path` pointing at the source (or the file itself)
-        when no pre-decode is needed. Runs on the compression worker thread."""
+        when no pre-decode is needed."""
         target = options.target_format
         if not is_converting(target) or result_item.mime_type in native_inputs(target):
             result_item.input_path = result_item.filename
@@ -141,169 +69,3 @@ class Compressor(ABC):
         result_item.input_path = intermediate
         argv_lists = decode_to_png(result_item.mime_type, result_item.filename, intermediate)
         return [Command(argv) for argv in argv_lists]
-
-    @staticmethod
-    def _remove_quietly(path: str) -> None:
-        # Cleanup must never raise: it runs outside the error handlers in run().
-        try:
-            Path(path).unlink(missing_ok=True)
-        except OSError:
-            pass
-
-    def _run_command(
-        self,
-        argv: list[str],
-        context: CompressionContext,
-        stdout: int | IO[bytes] | None,
-        options: BatchOptions,
-    ) -> None:
-        """Run one tool invocation as a killable subprocess."""
-        process: subprocess.Popen[bytes] = subprocess.Popen(
-            argv, stdout=stdout, stderr=subprocess.PIPE
-        )
-        context.register_process(process)
-        try:
-            try:
-                stdout_data, stderr_data = process.communicate(timeout=options.compression_timeout)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                _res = process.communicate()
-                raise
-        finally:
-            context.unregister_process(process)
-        if context.cancelled:
-            raise CancelledError
-        if process.returncode != 0:
-            raise subprocess.CalledProcessError(process.returncode, argv, stdout_data, stderr_data)
-
-    def _cleanup_temp_files(self, result_item: ResultItem, options: BatchOptions) -> None:
-        paths = [result_item.tmp_filename, *self.get_intermediate_files(result_item, options)]
-        if result_item.input_path != result_item.filename:
-            paths.append(result_item.input_path)
-        for path in paths:
-            self._remove_quietly(path)
-
-    def run(
-        self,
-        result_item: ResultItem,
-        c_update_result_item: Callable[..., None],
-        context: CompressionContext,
-        options: BatchOptions,
-    ) -> None:
-        try:
-            if context.cancelled:
-                result_item.state = ResultState.CANCELLED
-                return
-
-            # Mark the item as running only once a worker actually picks it up,
-            # so queued items don't show a busy spinner before their turn.
-            result_item.state = ResultState.RUNNING
-            result_item.updated.emit()
-
-            last_argv: list[str] | None = None
-            try:
-                last_argv = self._execute_commands(result_item, context, options)
-            except CancelledError:
-                result_item.state = ResultState.CANCELLED
-            except Exception as err:
-                self._report_command_error(result_item, err, options)
-
-            if context.cancelled:
-                result_item.state = ResultState.CANCELLED
-            elif result_item.state is ResultState.RUNNING:
-                try:
-                    self._output_writer.finalize(result_item, options)
-                except FileNotFoundError:
-                    logger.error("Command produced no output file: %s", last_argv)
-                    result_item.set_error(_("Can't find the compressed file"))
-
-                if result_item.state is not ResultState.ERROR:
-                    self._log_outcome(result_item)
-        finally:
-            self._finish(result_item, c_update_result_item, options)
-
-    def _execute_commands(
-        self, result_item: ResultItem, context: CompressionContext, options: BatchOptions
-    ) -> list[str] | None:
-        """Run every command in the pipeline, returning the last argv run.
-
-        Per-command failures clean up their sidecar output; commands marked
-        ignore_errors are skipped instead of aborting the pipeline.
-        """
-        last_argv: list[str] | None = None
-        commands = self._conversion_commands(result_item, options) + self.build_command(
-            result_item, options
-        )
-        for command in commands:
-            argv = self.adapt_command(command.argv, result_item)
-            last_argv = argv
-            logger.debug("Running %s for %s", argv, result_item.filename)
-            try:
-                if command.stdout_path is not None:
-                    # Stream stdout straight to the sidecar file instead of
-                    # buffering the whole payload in memory first.
-                    with open(command.stdout_path, "wb") as fp:
-                        self._run_command(argv, context, stdout=fp, options=options)
-                else:
-                    self._run_command(argv, context, stdout=subprocess.PIPE, options=options)
-            except CancelledError:
-                raise
-            except Exception:
-                if command.stdout_path is not None:
-                    self._remove_quietly(command.stdout_path)
-                if command.ignore_errors:
-                    logger.warning("Optional command failed, ignoring: %s", argv)
-                    continue
-                raise
-        return last_argv
-
-    def _report_command_error(
-        self, result_item: ResultItem, err: Exception, options: BatchOptions
-    ) -> None:
-        """Translate a pipeline exception into a result-item error."""
-        if isinstance(err, subprocess.TimeoutExpired):
-            logger.error(str(err))
-            result_item.set_error(
-                _("Compression has reached the configured timeout of %s seconds.")
-                % options.compression_timeout
-            )
-            return
-        if isinstance(err, subprocess.CalledProcessError):
-            details = str(err)
-            stderr = cast("bytes | None", err.stderr)
-            stdout = cast("bytes | None", err.stdout)
-            tool_output = stderr or stdout
-            if tool_output:
-                decoded_output = tool_output.decode(errors="replace").strip()
-                details += "\n" + decoded_output
-            result_item.set_error(_("Compression failed."), details)
-            logger.error(result_item.error_details_message)
-            return
-        if isinstance(err, OSError):
-            result_item.set_error(_("An error has occurred."), str(err))
-            logger.error(result_item.error_details_message)
-            return
-        result_item.set_error(_("An unknown error has occurred."), str(err))
-        logger.error(result_item.error_details_message)
-
-    def _log_outcome(self, result_item: ResultItem) -> None:
-        if result_item.state is ResultState.SKIPPED:
-            logger.info("Skipped %s: output not smaller than input", result_item.filename)
-        elif result_item.size > 0:
-            savings = savings_percent(result_item.size, result_item.new_size)
-            logger.info(
-                "Compressed %s: %d -> %d bytes (%d%% saved)",
-                result_item.filename,
-                result_item.size,
-                result_item.new_size,
-                savings,
-            )
-
-    def _finish(
-        self,
-        result_item: ResultItem,
-        c_update_result_item: Callable[..., None],
-        options: BatchOptions,
-    ) -> None:
-        self._cleanup_temp_files(result_item, options)
-        c_update_result_item(result_item)

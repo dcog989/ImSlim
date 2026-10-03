@@ -6,7 +6,8 @@ from concurrent.futures import Future, ThreadPoolExecutor
 
 from ._i18n import _
 from .batch_options import BatchOptions
-from .compressor import CompressionContext, Compressor
+from .command_runner import CompressionContext
+from .compressor import Compressor
 from .conversion import is_converting
 from .formats import (
     CONFIGURED_COMPRESSOR_TYPES,
@@ -14,6 +15,7 @@ from .formats import (
     MIME_TO_COMPRESSOR,
     CompressorType,
 )
+from .pipeline import CompressionPipeline
 from .result_item import ResultItem, ResultState
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,7 @@ _SHUTDOWN_TIMEOUT_SECONDS = 5.0
 class CompressionManager:
     def __init__(self) -> None:
         self.compressors: dict[CompressorType, Compressor] = {}
+        self._pipeline: CompressionPipeline = CompressionPipeline()
         self._context: CompressionContext | None = None
         self._thread: threading.Thread | None = None
 
@@ -116,7 +119,12 @@ class CompressionManager:
                         continue
                     futures.append(
                         executor.submit(
-                            compressor.run, result_item, c_update_result_item, context, options
+                            self._pipeline.run,
+                            compressor,
+                            result_item,
+                            c_update_result_item,
+                            context,
+                            options,
                         )
                     )
 
