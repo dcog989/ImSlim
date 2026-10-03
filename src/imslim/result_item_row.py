@@ -175,11 +175,14 @@ class ResultItemRow(QWidget):
         )
 
     def _show_error_info(self) -> None:
-        _res = QMessageBox.warning(
-            self,
-            _("Error"),
-            self.result_item.error_details_message,
-        )
+        # Raw tool output can contain characters AutoText would treat as markup,
+        # so force plain text instead of HTML-escaping the stored details.
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle(_("Error"))
+        box.setTextFormat(Qt.TextFormat.PlainText)
+        box.setText(self.result_item.error_details_message)
+        _res = box.exec()
 
     @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:

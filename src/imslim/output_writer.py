@@ -1,4 +1,3 @@
-import html
 import logging
 import os
 import shutil
@@ -41,7 +40,7 @@ class OutputWriter:
                 # Path.copy() drops metadata, so keep copy2 for a faithful backup.
                 _res = shutil.copy2(result_item.filename, result_item.backup_filename)
             except OSError as err:
-                result_item.set_error(_("Can't backup the original file"), html.escape(str(err)))
+                result_item.set_error(_("Can't backup the original file"), str(err))
                 logger.error(result_item.error_details_message)
                 return
 
@@ -51,7 +50,7 @@ class OutputWriter:
             # same-filesystem rename instead of a copy+delete (double disk IO).
             _res = Path(result_item.tmp_filename).move(final_path)
         except OSError as err:
-            result_item.set_error(_("Can't write the compressed file"), html.escape(str(err)))
+            result_item.set_error(_("Can't write the compressed file"), str(err))
             logger.error(result_item.error_details_message)
             return
 

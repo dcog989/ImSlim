@@ -1,4 +1,3 @@
-import html
 import logging
 import subprocess
 import threading
@@ -295,14 +294,14 @@ class Compressor(ABC):
             if tool_output:
                 decoded_output = tool_output.decode(errors="replace").strip()
                 details += "\n" + decoded_output
-            result_item.set_error(_("Compression failed."), html.escape(details))
+            result_item.set_error(_("Compression failed."), details)
             logger.error(result_item.error_details_message)
             return
         if isinstance(err, OSError):
-            result_item.set_error(_("An error has occurred."), html.escape(str(err)))
+            result_item.set_error(_("An error has occurred."), str(err))
             logger.error(result_item.error_details_message)
             return
-        result_item.set_error(_("An unknown error has occurred."), html.escape(str(err)))
+        result_item.set_error(_("An unknown error has occurred."), str(err))
         logger.error(result_item.error_details_message)
 
     def _log_outcome(self, result_item: ResultItem) -> None:
