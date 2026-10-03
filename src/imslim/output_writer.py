@@ -7,7 +7,7 @@ from pathlib import Path
 from ._i18n import _
 from .batch_options import BatchOptions
 from .conversion import is_converting
-from .result_item import ResultItem
+from .result_item import ResultItem, ResultState
 from .settings_manager import SAVE_BACKUP_OVERWRITE
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class OutputWriter:
         if result_item.new_size >= result_item.size and not is_converting(options.target_format):
             # Output is larger (or equal) than input; keep the original.
             # Conversion always keeps its output, even when it grows.
-            result_item.skipped = True
+            result_item.state = ResultState.SKIPPED
             return
 
         overwriting = (

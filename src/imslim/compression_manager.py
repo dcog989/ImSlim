@@ -9,7 +9,7 @@ from .batch_options import BatchOptions
 from .compressor import CompressionContext, Compressor
 from .conversion import is_converting
 from .formats import CONFIGURED_COMPRESSOR_TYPES, MIME_TO_COMPRESSOR
-from .result_item import ResultItem
+from .result_item import ResultItem, ResultState
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +116,7 @@ class CompressionManager:
 
                 if context.cancelled:
                     for result_item in result_items[break_index:]:
-                        result_item.cancelled = True
-                        result_item.running = False
+                        result_item.state = ResultState.CANCELLED
                         c_update_result_item(result_item)
         except Exception:
             # A compressor escaped its own error handling (e.g. BaseException

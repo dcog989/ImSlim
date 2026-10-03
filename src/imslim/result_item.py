@@ -1,6 +1,16 @@
+from enum import Enum, auto
 from typing import override
 
 from PySide6.QtCore import QObject, Signal
+
+
+class ResultState(Enum):
+    IDLE = auto()
+    RUNNING = auto()
+    DONE = auto()
+    SKIPPED = auto()
+    CANCELLED = auto()
+    ERROR = auto()
 
 
 class ResultItem(QObject):
@@ -21,12 +31,8 @@ class ResultItem(QObject):
         self.mode: int = -1
         self.subtitle_label: str = ""
         self.savings: str = ""
-        self.running: bool = False
-        self.skipped: bool = False
-        self.cancelled: bool = False
-        self.error: bool = False
+        self.state: ResultState = ResultState.IDLE
         self.error_message: str = ""
-        self.error_details: bool = False
         self.error_details_message: str = ""
         self.warning_message: str = ""
 
@@ -41,11 +47,9 @@ class ResultItem(QObject):
         self._input_path = value
 
     def set_error(self, error: str, details: str = "") -> None:
-        self.error = True
+        self.state = ResultState.ERROR
         self.error_message = error
-        self.error_details = bool(details)
         self.error_details_message = details
-        self.running = False
         self.savings = ""
 
     @override

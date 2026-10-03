@@ -5,7 +5,7 @@ from PySide6.QtCore import QObject, Signal
 from .batch_options import BatchOptions
 from .batch_summary import BatchSummary
 from .compression_manager import CompressionManager
-from .result_item import ResultItem
+from .result_item import ResultItem, ResultState
 from .settings_manager import SettingsManager
 from .workers import AnalyzeWorker
 
@@ -98,10 +98,10 @@ class BatchFlow(QObject):
         for result_item in result_items:
             self.summary.record_added()
             self.item_added.emit(result_item)
-            if result_item.error:
+            if result_item.state is ResultState.ERROR:
                 self.result_updated.emit(result_item)
 
-        result_items = [item for item in result_items if not item.error]
+        result_items = [item for item in result_items if item.state is not ResultState.ERROR]
 
         self.items_ready.emit()
         self.compression_enabled.emit(False)
@@ -120,17 +120,20 @@ class BatchFlow(QObject):
             self._compressing = False
 
     def _on_result_updated(self, result_item: ResultItem) -> None:
-        if result_item.error:
-            self.summary.record_failed()
-        elif result_item.skipped:
-            self.summary.record_skipped()
-        elif not result_item.cancelled:
-            saved_bytes = (
-                result_item.size - result_item.new_size
-                if result_item.size > result_item.new_size
-                else 0
-            )
-            self.summary.record_compressed(saved_bytes)
+        match result_item.state:
+            case ResultState.ERROR:
+                self.summary.record_failed()
+            case ResultState.SKIPPED:
+                self.summary.record_skipped()
+            case ResultState.CANCELLED:
+                pass
+            case _:
+                saved_bytes = (
+                    result_item.size - result_item.new_size
+                    if result_item.size > result_item.new_size
+                    else 0
+                )
+                self.summary.record_compressed(saved_bytes)
         self.summary.record_done()
         self.summary_changed.emit()
 

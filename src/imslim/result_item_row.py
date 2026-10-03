@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 
 from ._i18n import _
 from .image_utils import create_thumbnail_qimage
-from .result_item import ResultItem
+from .result_item import ResultItem, ResultState
 from .widgets import circle_off_icon, shield_alert_icon, triangle_alert_icon
 
 # Shared, bounded pool: a batch of hundreds of rows must not spawn a thread per
@@ -196,15 +196,18 @@ class ResultItemRow(QWidget):
 
     def refresh(self) -> None:
         item = self.result_item
-        self.spinner.setVisible(item.running)
+        running = item.state is ResultState.RUNNING
+        self.spinner.setVisible(running)
 
         self.subtitle_label.setText(item.subtitle_label)
         self.savings_label.setText(item.savings)
-        self.savings_label.setVisible(not item.running)
+        self.savings_label.setVisible(not running)
 
-        self.skipped_button.setVisible(item.skipped and not item.running)
-        self.error_button.setVisible(item.error and item.error_details)
-        self.warning_button.setVisible(bool(item.warning_message) and not item.running)
+        self.skipped_button.setVisible(item.state is ResultState.SKIPPED)
+        self.error_button.setVisible(
+            item.state is ResultState.ERROR and bool(item.error_details_message)
+        )
+        self.warning_button.setVisible(bool(item.warning_message) and not running)
 
     def _show_skipped_info(self) -> None:
         _res = QMessageBox.information(

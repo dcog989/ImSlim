@@ -13,7 +13,7 @@ from .batch_options import BatchOptions
 from .conversion import decode_to_png, is_converting, native_inputs
 from .format import savings_percent
 from .output_writer import OutputWriter
-from .result_item import ResultItem
+from .result_item import ResultItem, ResultState
 
 logger = logging.getLogger(__name__)
 
@@ -181,8 +181,7 @@ class Compressor(ABC):
         c_update_result_item: Callable[..., None],
         options: BatchOptions,
     ) -> None:
-        result_item.cancelled = True
-        result_item.running = False
+        result_item.state = ResultState.CANCELLED
         self._cleanup_temp_files(result_item, options)
         c_update_result_item(result_item)
 
@@ -206,7 +205,7 @@ class Compressor(ABC):
 
         # Mark the item as running only once a worker actually picks it up, so
         # queued items don't show a busy spinner before their turn.
-        result_item.running = True
+        result_item.state = ResultState.RUNNING
         result_item.updated.emit()
 
         last_argv: list[str] | None = None
@@ -222,7 +221,7 @@ class Compressor(ABC):
             self._mark_cancelled(result_item, c_update_result_item, options)
             return
 
-        if result_item.error:
+        if result_item.state is ResultState.ERROR:
             self._finish(result_item, c_update_result_item, options)
             return
 
@@ -232,7 +231,7 @@ class Compressor(ABC):
             logger.error("Command produced no output file: %s", last_argv)
             result_item.set_error(_("Can't find the compressed file"))
 
-        if result_item.error:
+        if result_item.state is ResultState.ERROR:
             self._finish(result_item, c_update_result_item, options)
             return
 
@@ -304,7 +303,7 @@ class Compressor(ABC):
         logger.error(result_item.error_details_message)
 
     def _log_outcome(self, result_item: ResultItem) -> None:
-        if result_item.skipped:
+        if result_item.state is ResultState.SKIPPED:
             logger.info("Skipped %s: output not smaller than input", result_item.filename)
         elif result_item.size > 0:
             savings = savings_percent(result_item.size, result_item.new_size)
