@@ -1,6 +1,7 @@
 import os
 from typing import override
 
+from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
@@ -20,7 +21,7 @@ class JXLCompressor(Compressor):
         return result_item.tmp_filename + "." + kind
 
     @override
-    def build_command(self, result_item: ResultItem) -> list[Command]:
+    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
         commands: list[Command] = []
         encode_input = result_item.input_path
         extracting_metadata = False
@@ -34,7 +35,7 @@ class JXLCompressor(Compressor):
                 Command(tokens(t"{resolve_tool('djxl')} {result_item.filename} {intermediate}"))
             )
             encode_input = intermediate
-            extracting_metadata = self.settings.metadata
+            extracting_metadata = options.metadata
 
         if extracting_metadata:
             # djxl won't embed EXIF/XMP into the PNG, so extract sidecars and
@@ -55,13 +56,13 @@ class JXLCompressor(Compressor):
 
         cjxl = [resolve_tool("cjxl")]
 
-        if self.settings.lossy:
-            cjxl += tokens(t"-q {self.settings.jxl_lossy_level}")
+        if options.lossy:
+            cjxl += tokens(t"-q {options.jxl_lossy_level}")
         else:
             cjxl += ["-q", _LOSSLESS_QUALITY]
 
         # effort (1-10, default 7): higher -> slower but better compression
-        cjxl += tokens(t"-e {self.settings.jxl_lossless_level}")
+        cjxl += tokens(t"-e {options.jxl_lossless_level}")
 
         if extracting_metadata:
             for kind in _JXL_METADATA:
@@ -92,8 +93,8 @@ class JXLCompressor(Compressor):
         return pruned
 
     @override
-    def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
+    def get_intermediate_files(self, result_item: ResultItem, options: BatchOptions) -> list[str]:
         paths = [self._intermediate_path(result_item)]
-        if self.settings.metadata:
+        if options.metadata:
             paths += [self._sidecar_path(result_item, kind) for kind in _JXL_METADATA]
         return paths

@@ -131,7 +131,7 @@ class ImSlimWindow(QWidget):
         self.build_ui()
         self.show_view("home")
 
-        self.manager: CompressionManager = CompressionManager(self.settings)
+        self.manager: CompressionManager = CompressionManager()
         self.manager.register_compressor(PNGCompressor)
         self.manager.register_compressor(JPEGCompressor)
         self.manager.register_compressor(WEBPCompressor)

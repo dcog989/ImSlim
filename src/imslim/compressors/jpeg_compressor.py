@@ -1,5 +1,6 @@
 from typing import override
 
+from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
@@ -15,27 +16,29 @@ class JPEGCompressor(Compressor):
         return result_item.tmp_filename + ".enc.jpg"
 
     @override
-    def build_command(self, result_item: ResultItem) -> list[Command]:
+    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
         # jpegtran only re-encodes JPEG losslessly; any other source (or a
         # pre-decoded conversion intermediate) must take the lossy cjpegli path.
-        if self.settings.lossy or self._input_is_png(result_item):
-            return self._build_lossy_command(result_item)
-        return self._build_lossless_command(result_item)
+        if options.lossy or self._input_is_png(result_item):
+            return self._build_lossy_command(result_item, options)
+        return self._build_lossless_command(result_item, options)
 
-    def _build_lossless_command(self, result_item: ResultItem) -> list[Command]:
+    def _build_lossless_command(
+        self, result_item: ResultItem, options: BatchOptions
+    ) -> list[Command]:
         jpegtran = tokens(t"{resolve_tool('jpegtran')} -optimize")
 
-        if self.settings.jpg_progressive:
+        if options.jpg_progressive:
             jpegtran.append("-progressive")
 
         # Keep the ICC profile when stripping metadata so colors still render correctly.
-        jpegtran += ["-copy", "all" if self.settings.metadata else "icc"]
+        jpegtran += ["-copy", "all" if options.metadata else "icc"]
 
         jpegtran += ["-outfile", result_item.tmp_filename, result_item.input_path]
 
         return [Command(jpegtran)]
 
-    def _build_lossy_command(self, result_item: ResultItem) -> list[Command]:
+    def _build_lossy_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
         commands: list[Command] = []
         encode_input = result_item.input_path
 
@@ -49,20 +52,20 @@ class JPEGCompressor(Compressor):
             encode_input = intermediate
 
         output = result_item.tmp_filename
-        if not self.settings.metadata:
+        if not options.metadata:
             output = self._encoded_path(result_item)
 
         cjpegli = tokens(
             t"{resolve_tool('cjpegli')} {encode_input} {output} "
-            + t"--quality {self.settings.jpg_lossy_level}"
+            + t"--quality {options.jpg_lossy_level}"
         )
         cjpegli.append(
-            "--progressive_level=2" if self.settings.jpg_progressive else "--progressive_level=0"
+            "--progressive_level=2" if options.jpg_progressive else "--progressive_level=0"
         )
 
         commands.append(Command(cjpegli))
 
-        if not self.settings.metadata:
+        if not options.metadata:
             # jpegli carries ICC/EXIF/XMP from the PNG; strip all but the ICC profile
             jpegtran = tokens(
                 t"{resolve_tool('jpegtran')} -copy icc -outfile {result_item.tmp_filename} "
@@ -73,8 +76,8 @@ class JPEGCompressor(Compressor):
         return commands
 
     @override
-    def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
+    def get_intermediate_files(self, result_item: ResultItem, options: BatchOptions) -> list[str]:
         files = [self._intermediate_path(result_item)]
-        if not self.settings.metadata:
+        if not options.metadata:
             files.append(self._encoded_path(result_item))
         return files

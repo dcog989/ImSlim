@@ -5,9 +5,10 @@ import shutil
 from pathlib import Path
 
 from ._i18n import _
+from .batch_options import BatchOptions
 from .conversion import is_converting
 from .result_item import ResultItem
-from .settings_manager import SAVE_BACKUP_OVERWRITE, SettingsManager
+from .settings_manager import SAVE_BACKUP_OVERWRITE
 
 logger = logging.getLogger(__name__)
 
@@ -15,10 +16,7 @@ logger = logging.getLogger(__name__)
 class OutputWriter:
     """Move a compressed temp file into place, handling backups and attributes."""
 
-    def __init__(self, settings: SettingsManager) -> None:
-        self.settings: SettingsManager = settings
-
-    def finalize(self, result_item: ResultItem) -> None:
+    def finalize(self, result_item: ResultItem, options: BatchOptions) -> None:
         """Copy the compressed temp file to its destination and restore file
         attributes. Marks the item skipped/error as appropriate."""
         try:
@@ -28,16 +26,14 @@ class OutputWriter:
                 f"Missing compressed output: {result_item.tmp_filename}"
             ) from err
 
-        if result_item.new_size >= result_item.size and not is_converting(
-            self.settings.target_format
-        ):
+        if result_item.new_size >= result_item.size and not is_converting(options.target_format):
             # Output is larger (or equal) than input; keep the original.
             # Conversion always keeps its output, even when it grows.
             result_item.skipped = True
             return
 
         overwriting = (
-            self.settings.save_method == SAVE_BACKUP_OVERWRITE
+            options.save_method == SAVE_BACKUP_OVERWRITE
             and result_item.filename == result_item.new_filename
         )
         if overwriting:
@@ -59,10 +55,12 @@ class OutputWriter:
             logger.error(result_item.error_details_message)
             return
 
-        self._restore_attributes(result_item, final_path)
+        self._restore_attributes(result_item, final_path, options)
 
-    def _restore_attributes(self, result_item: ResultItem, final_path: str) -> None:
-        if self.settings.file_attributes and result_item.atime > 0 and result_item.mtime > 0:
+    def _restore_attributes(
+        self, result_item: ResultItem, final_path: str, options: BatchOptions
+    ) -> None:
+        if options.file_attributes and result_item.atime > 0 and result_item.mtime > 0:
             try:
                 os.utime(final_path, (result_item.atime, result_item.mtime))
             except OSError:

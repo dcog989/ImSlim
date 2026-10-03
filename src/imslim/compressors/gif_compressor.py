@@ -2,6 +2,7 @@ from typing import override
 
 from PySide6.QtGui import QImageReader
 
+from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
 from ..result_item import ResultItem
@@ -21,20 +22,20 @@ class GIFCompressor(Compressor):
         return frame_count != 1
 
     @override
-    def build_command(self, result_item: ResultItem) -> list[Command]:
+    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
         is_animated = self._is_animated(result_item)
 
         gifsicle = [
             resolve_tool("gifsicle"),
-            f"--optimize={self.settings.gif_lossless_level}",
+            f"--optimize={options.gif_lossless_level}",
         ]
 
         # gifsicle --lossy can visibly flicker/posterize complex animation,
         # so animated GIFs are always compressed losslessly
-        if self.settings.lossy and not is_animated:
-            gifsicle += [f"--lossy={self.settings.gif_lossy_level}"]
+        if options.lossy and not is_animated:
+            gifsicle += [f"--lossy={options.gif_lossy_level}"]
 
-        if not self.settings.metadata:
+        if not options.metadata:
             # --no-extensions would also strip the animation loop and frame
             # control, so it is limited to static GIFs
             if not is_animated:

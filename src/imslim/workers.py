@@ -3,6 +3,7 @@ from typing import override
 
 from PySide6.QtCore import QThread, Signal
 
+from .batch_options import BatchOptions
 from .image_utils import get_image_paths_from_folder
 from .result_item import ResultItem
 from .result_item_manager import ResultItemManager
@@ -19,19 +20,6 @@ class VersionProbeWorker(QThread):
         self.versions_ready.emit(tool_version_pairs())
 
 
-class BuildSettingsSnapshot:
-    """Plain values ResultItemManager needs, captured on the UI thread.
-
-    QSettings isn't thread-safe, so the snapshot replaces the live
-    SettingsManager inside the analyze worker.
-    """
-
-    def __init__(self, save_method: int, target_format: str, output_folder: str) -> None:
-        self.save_method: int = save_method
-        self.target_format: str = target_format
-        self.output_folder: str = output_folder
-
-
 class AnalyzeWorker(QThread):
     """Collects files and builds ResultItems off the UI thread.
 
@@ -43,11 +31,10 @@ class AnalyzeWorker(QThread):
     no_files: Signal = Signal()
     output_folder_error: Signal = Signal()
 
-    def __init__(self, paths: list[str], recursive: bool, settings: BuildSettingsSnapshot) -> None:
+    def __init__(self, paths: list[str], options: BatchOptions) -> None:
         super().__init__()
         self._paths: list[str] = paths
-        self._recursive: bool = recursive
-        self._settings: BuildSettingsSnapshot = settings
+        self._options: BatchOptions = options
         # The ResultItems are parentless QObjects built on this thread; the
         # queued items_ready delivery runs on the UI thread *after* run()
         # returns, so keep them referenced here until the consumer has them,
@@ -59,7 +46,7 @@ class AnalyzeWorker(QThread):
         final_files: list[str] = []
         for path in self._paths:
             if os.path.isdir(path):
-                final_files.extend(get_image_paths_from_folder(path, self._recursive))
+                final_files.extend(get_image_paths_from_folder(path, self._options.recursive))
             else:
                 final_files.append(path)
 
@@ -67,7 +54,7 @@ class AnalyzeWorker(QThread):
             self.no_files.emit()
             return
 
-        manager = ResultItemManager(self._settings)
+        manager = ResultItemManager(self._options)
         if not manager.begin_batch():
             self.output_folder_error.emit()
             return

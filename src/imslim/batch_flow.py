@@ -1,10 +1,11 @@
 from PySide6.QtCore import QObject, Signal
 
+from .batch_options import BatchOptions
 from .batch_summary import BatchSummary
 from .compression_manager import CompressionManager
 from .result_item import ResultItem
 from .settings_manager import SettingsManager
-from .workers import AnalyzeWorker, BuildSettingsSnapshot
+from .workers import AnalyzeWorker
 
 
 class BatchFlow(QObject):
@@ -30,6 +31,7 @@ class BatchFlow(QObject):
         self.summary: BatchSummary = BatchSummary()
         self._active: bool = False
         self._analyze_worker: AnalyzeWorker | None = None
+        self._options: BatchOptions | None = None
         _res = self.result_updated.connect(self._on_result_updated)
         # The manager emits this from its own thread; the queued connection
         # delivers _on_compression_enabled on the UI thread.
@@ -41,12 +43,8 @@ class BatchFlow(QObject):
 
     def start(self, paths: list[str]) -> None:
         self._active = True
-        snapshot = BuildSettingsSnapshot(
-            self._settings.save_method,
-            self._settings.target_format,
-            self._settings.output_folder,
-        )
-        worker = AnalyzeWorker(paths, self._settings.recursive, snapshot)
+        self._options = BatchOptions.from_settings(self._settings)
+        worker = AnalyzeWorker(paths, self._options)
         self._analyze_worker = worker
         _res = worker.items_ready.connect(self._on_items_ready)
         _res = worker.no_files.connect(self._on_no_files)
@@ -62,6 +60,8 @@ class BatchFlow(QObject):
         self.summary_changed.emit()
 
     def _on_items_ready(self, result_items: list[ResultItem]) -> None:
+        options = self._options
+        assert options is not None, "items arrived before a batch was started"
         for result_item in result_items:
             self.summary.record_added()
             self.item_added.emit(result_item)
@@ -79,6 +79,7 @@ class BatchFlow(QObject):
 
         self._manager.compress(
             result_items,
+            options,
             self.result_updated.emit,
             self.compression_enabled.emit,
         )

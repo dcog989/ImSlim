@@ -1,10 +1,10 @@
 import os
 import time
-from typing import Protocol
 
 from PySide6.QtCore import QMimeDatabase
 
 from ._i18n import _
+from .batch_options import BatchOptions
 from .compression_manager import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS
 from .conversion import TARGET_EXTENSIONS, is_converting
 from .format import sizeof_fmt
@@ -14,22 +14,9 @@ from .settings_manager import SAVE_BACKUP_OVERWRITE
 _mime_db = QMimeDatabase()
 
 
-class BuildSettings(Protocol):
-    """Settings surface ResultItemManager reads while building items.
-
-    Satisfied by SettingsManager on the main thread and by the lightweight
-    snapshot passed to a background worker, so QSettings is never touched
-    from a non-UI thread.
-    """
-
-    save_method: int
-    target_format: str
-    output_folder: str
-
-
 class ResultItemManager:
-    def __init__(self, settings_manager: BuildSettings) -> None:
-        self.settings: BuildSettings = settings_manager
+    def __init__(self, options: BatchOptions) -> None:
+        self.options: BatchOptions = options
         self._used_names: set[str] = set()
 
     def begin_batch(self) -> bool:
@@ -39,9 +26,9 @@ class ResultItemManager:
         should be aborted.
         """
         self._used_names.clear()
-        if self.settings.output_folder:
+        if self.options.output_folder:
             try:
-                os.makedirs(self.settings.output_folder, exist_ok=True)
+                os.makedirs(self.options.output_folder, exist_ok=True)
             except OSError:
                 return False
         return True
@@ -71,8 +58,8 @@ class ResultItemManager:
         result_item.new_filename = self.create_new_filename(result_item.filename, mime)
         result_item.backup_filename = (
             self.create_backup_filename(result_item.filename, mime)
-            if self.settings.save_method == SAVE_BACKUP_OVERWRITE
-            and not is_converting(self.settings.target_format)
+            if self.options.save_method == SAVE_BACKUP_OVERWRITE
+            and not is_converting(self.options.target_format)
             else ""
         )
 
@@ -84,13 +71,13 @@ class ResultItemManager:
         return result_item
 
     def create_new_filename(self, path: str, mime: str) -> str:
-        if is_converting(self.settings.target_format):
+        if is_converting(self.options.target_format):
             # Conversion always writes a new file in the target's format; it
             # must never overwrite a source that may have a different extension.
             return self._output_path(
-                path, "imslim", mime, TARGET_EXTENSIONS[self.settings.target_format]
+                path, "imslim", mime, TARGET_EXTENSIONS[self.options.target_format]
             )
-        if self.settings.save_method == SAVE_BACKUP_OVERWRITE and mime not in OUTPUT_EXTENSIONS:
+        if self.options.save_method == SAVE_BACKUP_OVERWRITE and mime not in OUTPUT_EXTENSIONS:
             return path
         return self._output_path(path, "imslim", mime)
 
@@ -98,8 +85,8 @@ class ResultItemManager:
         return self._output_path(path, "BAK", mime)
 
     def _output_parent(self, path: str) -> str:
-        if self.settings.output_folder:
-            return self.settings.output_folder
+        if self.options.output_folder:
+            return self.options.output_folder
         return os.path.dirname(path)
 
     def _output_path(

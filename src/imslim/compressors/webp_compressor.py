@@ -1,5 +1,6 @@
 from typing import override
 
+from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
 from ..image_convert import to_png
@@ -26,7 +27,7 @@ class WEBPCompressor(Compressor):
         )
 
     @override
-    def build_command(self, result_item: ResultItem) -> list[Command]:
+    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
         commands: list[Command] = []
         input_path = result_item.input_path
 
@@ -42,20 +43,20 @@ class WEBPCompressor(Compressor):
         # cwebp drops all metadata by default. When preserving metadata copy
         # everything; otherwise keep the ICC color profile so colors still
         # render correctly while the rest is stripped.
-        if self.settings.metadata:
+        if options.metadata:
             cwebp += ["-metadata", "all"]
         else:
             cwebp += ["-metadata", "icc"]
 
-        if self.settings.lossy:
-            quality = self.settings.webp_lossy_level
+        if options.lossy:
+            quality = options.webp_lossy_level
         else:
             cwebp.append("-lossless")
             quality = _LOSSLESS_QUALITY
 
         # multithreaded, (lossless) compression mode, quality, output
         cwebp += tokens(
-            t"-mt -m {self.settings.webp_lossless_level} -q {quality} "
+            t"-mt -m {options.webp_lossless_level} -q {quality} "
             + t"-o {result_item.tmp_filename} {input_path}"
         )
 
@@ -63,7 +64,7 @@ class WEBPCompressor(Compressor):
         return commands
 
     @override
-    def get_intermediate_files(self, result_item: ResultItem) -> list[str]:
+    def get_intermediate_files(self, result_item: ResultItem, _options: BatchOptions) -> list[str]:
         if self._needs_conversion(result_item):
             return [self._intermediate_path(result_item)]
         return []
