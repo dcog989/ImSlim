@@ -86,9 +86,9 @@ _SWEEP_INTERVAL_MS = 5000
 _IDLE_TIMEOUT_MS = 10000
 
 
-def _local_paths() -> list[str]:
+def _local_paths(argv: list[str]) -> list[str]:
     paths: list[str] = []
-    for arg in sys.argv[1:]:
+    for arg in argv:
         url = QUrl.fromUserInput(arg)
         path = url.toLocalFile() or arg
         if path:
@@ -206,7 +206,7 @@ class ImSlimApp(QApplication):
         self.win: ImSlimWindow | None = None
 
     def run(self) -> int:
-        paths = _local_paths()
+        paths = _local_paths(self.arguments()[1:])
         single = SingleInstance(SOCKET_NAME, self._on_foreign_paths)
         if single.send_paths(paths):
             return 0
