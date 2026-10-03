@@ -89,6 +89,8 @@ class ImSlimWindow(QWidget):
         self.loading_spinner: QProgressBar = QProgressBar()
         self.results_container: QWidget = QWidget()
         self.results_layout: QVBoxLayout = QVBoxLayout()
+        self.rows_container: QWidget = QWidget()
+        self.rows_layout: QVBoxLayout = QVBoxLayout()
         self.combo_compression: QComboBox = QComboBox()
         self.combo_metadata: QComboBox = QComboBox()
         self.combo_attributes: QComboBox = QComboBox()
@@ -328,6 +330,11 @@ class ImSlimWindow(QWidget):
         self.results_layout.setContentsMargins(12, 12, 12, 12)
         self.results_layout.setSpacing(2)
         self.results_layout.addWidget(self._build_results_header())
+        self.rows_container = QWidget()
+        self.rows_layout = QVBoxLayout(self.rows_container)
+        self.rows_layout.setContentsMargins(0, 0, 0, 0)
+        self.rows_layout.setSpacing(2)
+        self.results_layout.addWidget(self.rows_container)
         self.results_layout.addStretch(1)
         self.summary_label = self._build_summary_label()
         self.results_layout.addWidget(self.summary_label)
@@ -449,8 +456,8 @@ class ImSlimWindow(QWidget):
         self.show_view("home")
         self._pending_rows.clear()
         self._row_timer.stop()
-        while self.results_layout.count() > 3:
-            item = self.results_layout.takeAt(1)
+        while self.rows_layout.count():
+            item = self.rows_layout.takeAt(0)
             if item is None:
                 continue
             widget = item.widget()
@@ -512,9 +519,7 @@ class ImSlimWindow(QWidget):
             for result_item in batch:
                 row = ResultItemRow(result_item)
                 self._apply_row_alternation(row, self._row_count)
-                # Insert just above the trailing stretch (the summary label is
-                # last), so rows read top-to-bottom in the order they were added.
-                self.results_layout.insertWidget(self.results_layout.count() - 2, row)
+                self.rows_layout.addWidget(row)
                 self._row_count += 1
         finally:
             self.results_container.setUpdatesEnabled(True)
