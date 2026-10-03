@@ -23,7 +23,8 @@ class FormatsTab(SettingsTab):
         self._spins: list[tuple[QSpinBox, str]] = []
         self._checks: list[tuple[QCheckBox, str]] = []
         self._build()
-        self._load_values()
+        with self._suspend_signals():
+            self._load_values()
 
     def _build(self) -> None:
         grid = QGridLayout(self)

@@ -21,6 +21,7 @@ from .tab import SettingsTab
 
 _LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
 _LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
+_LOG_LEVEL_INDEX = {level: index for index, level in enumerate(_LOG_LEVELS)}
 
 
 class GeneralTab(SettingsTab):
@@ -40,7 +41,8 @@ class GeneralTab(SettingsTab):
         self.spin_log_max_size: QSpinBox = QSpinBox()
         self.spin_log_backups: QSpinBox = QSpinBox()
         self._build()
-        self._load_values()
+        with self._suspend_signals():
+            self._load_values()
 
     def _build(self) -> None:
         form = QFormLayout(self)
@@ -164,8 +166,9 @@ class GeneralTab(SettingsTab):
         self.entry_output_folder.setText(s.output_folder)
         self.entry_default_directory.setText(s.default_open_dialog_directory)
         self.spin_timeout.setValue(s.compression_timeout)
-        self.combo_log_level.setCurrentIndex(_LOG_LEVELS.index(s.log_level))
-        self._set_log_controls_state(s.log_level)
+        log_level = s.log_level if s.log_level in _LOG_LEVEL_INDEX else "INFO"
+        self.combo_log_level.setCurrentIndex(_LOG_LEVEL_INDEX[log_level])
+        self._set_log_controls_state(log_level)
         self.spin_log_max_size.setValue(s.log_max_size)
         self.spin_log_backups.setValue(s.log_backups)
 
