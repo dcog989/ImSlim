@@ -148,6 +148,7 @@ class ImSlimWindow(QWidget):
         _res = self.flow.summary_changed.connect(self._update_summary)
         _res = self.flow.no_files.connect(self._on_analyze_no_files)
         _res = self.flow.output_folder_error.connect(self._on_analyze_output_error)
+        _res = self.flow.analyze_failed.connect(self._on_analyze_failed)
         _res = self.flow.result_updated.connect(self.update_result_item)
 
         self.rows: list[ResultItemRow] = []
@@ -527,6 +528,12 @@ class ImSlimWindow(QWidget):
     def _on_analyze_output_error(self) -> None:
         self.show_view("home")
         _res = QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
+
+    def _on_analyze_failed(self) -> None:
+        self.show_view("home")
+        _res = QMessageBox.warning(
+            self, _("Error"), _("An unexpected error occurred while analyzing the images.")
+        )
 
     def add_row(self, result_item: ResultItem) -> None:
         row = ResultItemRow(result_item)

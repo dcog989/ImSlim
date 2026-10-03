@@ -22,6 +22,7 @@ class BatchFlow(QObject):
     summary_changed: Signal = Signal()
     no_files: Signal = Signal()
     output_folder_error: Signal = Signal()
+    analyze_failed: Signal = Signal()
     result_updated: Signal = Signal(ResultItem)
 
     def __init__(self, settings: SettingsManager, manager: CompressionManager) -> None:
@@ -30,6 +31,7 @@ class BatchFlow(QObject):
         self._manager: CompressionManager = manager
         self.summary: BatchSummary = BatchSummary()
         self._active: bool = False
+        self._compressing: bool = False
         self._analyze_worker: AnalyzeWorker | None = None
         self._options: BatchOptions | None = None
         _res = self.result_updated.connect(self._on_result_updated)
@@ -49,6 +51,7 @@ class BatchFlow(QObject):
         _res = worker.items_ready.connect(self._on_items_ready)
         _res = worker.no_files.connect(self._on_no_files)
         _res = worker.output_folder_error.connect(self._on_output_folder_error)
+        _res = worker.analysis_failed.connect(self._on_analyze_failed)
         _res = worker.finished.connect(self._on_analyze_finished)
         worker.start()
 
@@ -77,6 +80,7 @@ class BatchFlow(QObject):
             result_item.running = True
             result_item.updated.emit()
 
+        self._compressing = True
         self._manager.compress(
             result_items,
             options,
@@ -86,6 +90,8 @@ class BatchFlow(QObject):
 
     def _on_compression_enabled(self, enabled: bool) -> None:
         self._active = not enabled
+        if enabled:
+            self._compressing = False
 
     def _on_result_updated(self, result_item: ResultItem) -> None:
         if result_item.cancelled:
@@ -114,7 +120,13 @@ class BatchFlow(QObject):
         self._active = False
         self.output_folder_error.emit()
 
+    def _on_analyze_failed(self) -> None:
+        self._active = False
+        self.analyze_failed.emit()
+
     def _on_analyze_finished(self) -> None:
+        if not self._compressing:
+            self._active = False
         worker = self._analyze_worker
         self._analyze_worker = None
         if worker is not None:

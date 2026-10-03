@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import override
 
@@ -8,6 +9,8 @@ from .image_utils import get_image_paths_from_folder
 from .result_item import ResultItem
 from .result_item_manager import ResultItemManager
 from .system_info import tool_version_pairs
+
+logger = logging.getLogger(__name__)
 
 
 class VersionProbeWorker(QThread):
@@ -30,6 +33,7 @@ class AnalyzeWorker(QThread):
     items_ready: Signal = Signal(list)
     no_files: Signal = Signal()
     output_folder_error: Signal = Signal()
+    analysis_failed: Signal = Signal(str)
 
     def __init__(self, paths: list[str], options: BatchOptions) -> None:
         super().__init__()
@@ -43,21 +47,25 @@ class AnalyzeWorker(QThread):
 
     @override
     def run(self) -> None:
-        final_files: list[str] = []
-        for path in self._paths:
-            if os.path.isdir(path):
-                final_files.extend(get_image_paths_from_folder(path, self._options.recursive))
-            else:
-                final_files.append(path)
+        try:
+            final_files: list[str] = []
+            for path in self._paths:
+                if os.path.isdir(path):
+                    final_files.extend(get_image_paths_from_folder(path, self._options.recursive))
+                else:
+                    final_files.append(path)
 
-        if not final_files:
-            self.no_files.emit()
-            return
+            if not final_files:
+                self.no_files.emit()
+                return
 
-        manager = ResultItemManager(self._options)
-        if not manager.begin_batch():
-            self.output_folder_error.emit()
-            return
+            manager = ResultItemManager(self._options)
+            if not manager.begin_batch():
+                self.output_folder_error.emit()
+                return
 
-        self._result_items = [manager.build(path) for path in final_files]
-        self.items_ready.emit(self._result_items)
+            self._result_items = [manager.build(path) for path in final_files]
+            self.items_ready.emit(self._result_items)
+        except Exception as err:
+            logger.exception("Analyze failed unexpectedly")
+            self.analysis_failed.emit(str(err))
