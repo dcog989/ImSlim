@@ -41,21 +41,35 @@ class _ThumbnailTask(QObject, QRunnable):  # pyright: ignore[reportUnsafeMultipl
     """Decode a thumbnail image in a pooled worker thread; emits a value QImage."""
 
     loaded: Signal = Signal(object)
+    finished: Signal = Signal()
 
     def __init__(self, filename: str, size: int) -> None:
         QObject.__init__(self)
         QRunnable.__init__(self)
-        # Managed by the row/pool (tryTake + deleteLater), not auto-deleted.
+        # Managed by the in-flight registry (tryTake + deleteLater), not the pool.
         self.setAutoDelete(False)
         self._filename: str = filename
         self._size: int = size
+        # Queued onto the main thread, so it runs after any queued 'loaded'
+        # delivery and never while run() winds down.
+        _res = self.finished.connect(self._release)
 
     @override
     def run(self) -> None:
-        self.loaded.emit(create_thumbnail_qimage(self._filename, self._size, self._size))
-        # deleteLater() posts to the main thread (the object's affinity), so it
-        # runs after any queued 'loaded' delivery and never while run() winds down.
+        try:
+            self.loaded.emit(create_thumbnail_qimage(self._filename, self._size, self._size))
+        finally:
+            self.finished.emit()
+
+    def _release(self) -> None:
+        _ACTIVE_TASKS.discard(self)
         self.deleteLater()
+
+
+# Holds every started task until it finishes, so a running QRunnable is never
+# garbage-collected (and its C++ object destroyed) mid-run() when its row is
+# removed; _release drops it on the main thread after run() returns.
+_ACTIVE_TASKS: set[_ThumbnailTask] = set()
 
 
 class _ClickableThumbnail(QLabel):
@@ -125,9 +139,11 @@ class ResultItemRow(QWidget):
         layout.addWidget(self.warning_button)
         layout.addWidget(self.error_button)
 
-        self._thumbnail_task: _ThumbnailTask | None = _ThumbnailTask(result_item.filename, 48)
-        _res = self._thumbnail_task.loaded.connect(self._set_thumbnail)
-        _THUMBNAIL_POOL.start(self._thumbnail_task)
+        task = _ThumbnailTask(result_item.filename, 48)
+        self._thumbnail_task: _ThumbnailTask | None = task
+        _ACTIVE_TASKS.add(task)
+        _res = task.loaded.connect(self._set_thumbnail)
+        _THUMBNAIL_POOL.start(task)
 
         _res = result_item.updated.connect(self.refresh)
         self.refresh()
@@ -141,9 +157,13 @@ class ResultItemRow(QWidget):
     def stop_thumbnail_loader(self) -> None:
         task = self._thumbnail_task
         self._thumbnail_task = None
-        if task is not None and _THUMBNAIL_POOL.tryTake(task):
-            # Task was still queued; skip the decode entirely.
-            task.deleteLater()
+        if task is None or not _THUMBNAIL_POOL.tryTake(task):
+            # Already running: the registry keeps it alive and _release cleans
+            # it up once run() returns; never drop it mid-run.
+            return
+        # Still queued; skip the decode entirely.
+        _ACTIVE_TASKS.discard(task)
+        task.deleteLater()
 
     @staticmethod
     def _make_info_button(handler: Callable[..., None], icon: QIcon | None = None) -> QToolButton:
