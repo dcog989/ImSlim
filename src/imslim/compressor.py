@@ -210,6 +210,11 @@ class Compressor(ABC):
             self._mark_cancelled(result_item, c_update_result_item, options)
             return
 
+        # Mark the item as running only once a worker actually picks it up, so
+        # queued items don't show a busy spinner before their turn.
+        result_item.running = True
+        result_item.updated.emit()
+
         last_argv: list[str] | None = None
         try:
             last_argv = self._execute_commands(result_item, context, options)

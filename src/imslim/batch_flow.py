@@ -106,10 +106,6 @@ class BatchFlow(QObject):
         self.items_ready.emit()
         self.compression_enabled.emit(False)
 
-        for result_item in result_items:
-            result_item.running = True
-            result_item.updated.emit()
-
         self._compressing = True
         self._manager.compress(
             result_items,
