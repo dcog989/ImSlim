@@ -38,7 +38,7 @@ def configure_logging(settings: SettingsManager | None = None) -> None:
     _last_applied = config
 
     root = logging.getLogger()
-    for handler in root.handlers:
+    for handler in root.handlers[:]:
         root.removeHandler(handler)
         handler.close()
     root.setLevel(logging.WARNING)
