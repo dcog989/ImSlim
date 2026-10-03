@@ -36,6 +36,7 @@ from ._logging import configure_logging
 from .batch_flow import BatchFlow
 from .clipboard_intake import ClipboardIntake, urls_to_paths
 from .composition import AppContext
+from .compression_manager import CompressionManager
 from .conversion import is_converting
 from .formats import TARGET_SPECS, Format, image_filter
 from .icons import chevron_left_icon, download_icon, gear_icon, imslim_icon
@@ -58,7 +59,7 @@ class ImSlimWindow(QWidget):
         super().__init__()
         self.app: QApplication = app
         self.settings: SettingsManager = context.settings
-        self.manager = context.manager
+        self.manager: CompressionManager = context.manager
         self.flow: BatchFlow = context.flow
         self.clipboard: ClipboardIntake = ClipboardIntake(self.app.clipboard(), self)
         self.setWindowTitle("ImSlim")
@@ -121,28 +122,28 @@ class ImSlimWindow(QWidget):
         header_layout.addWidget(self.results_title)
 
         self.label_format: QLabel = QLabel(_("Output format:"))
-        self.combo_format = self._build_option_combo(
+        self.combo_format: QComboBox = self._build_option_combo(
             (_("Same as input"), *(_(spec.display) for spec in TARGET_SPECS)),
             _(
                 "Output format. Convert every input to the selected format, or "
                 + "keep each file's original format."
             ),
         )
-        self.combo_compression = self._build_option_combo(
+        self.combo_compression: QComboBox = self._build_option_combo(
             (_("Lossy"), _("Lossless")),
             _(
                 "Compression method. Lossy produces much smaller files with some "
                 + "quality loss; lossless preserves the original pixels exactly."
             ),
         )
-        self.combo_metadata = self._build_option_combo(
+        self.combo_metadata: QComboBox = self._build_option_combo(
             (_("Keep metadata"), _("Remove metadata")),
             _(
                 "Metadata retention. Keep or strip metadata such as EXIF, ICC "
                 + "profiles and comments from the compressed images."
             ),
         )
-        self.combo_attributes = self._build_option_combo(
+        self.combo_attributes: QComboBox = self._build_option_combo(
             (_("Keep attributes"), _("Reset attributes")),
             _(
                 "File attributes. Keep the original timestamps and permissions on "
@@ -179,6 +180,7 @@ class ImSlimWindow(QWidget):
         self.stack: QStackedWidget = QStackedWidget()
 
         self.home_page: QWidget = self._build_home_page()
+        self.loading_spinner: QProgressBar = QProgressBar()
         self.loading_page: QWidget = self._build_loading_page()
         self.results: ResultsView = ResultsView()
 
@@ -257,7 +259,6 @@ class ImSlimWindow(QWidget):
         page = QWidget()
         layout = QVBoxLayout(page)
         layout.addStretch(1)
-        self.loading_spinner = QProgressBar()
         self.loading_spinner.setRange(0, 0)
         self.loading_spinner.setTextVisible(False)
         self.loading_spinner.setFixedWidth(120)

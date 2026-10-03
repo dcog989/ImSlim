@@ -1,6 +1,6 @@
 """Shared helpers for the settings tabs."""
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from contextlib import ExitStack, contextmanager
 
 from PySide6.QtCore import QSignalBlocker
@@ -10,7 +10,7 @@ from ..settings_manager import SettingsManager
 
 
 @contextmanager
-def suspend_signals(widget: QWidget) -> Iterator[None]:
+def suspend_signals(widget: QWidget) -> Generator[None]:
     """Run a block with every child widget's signals blocked.
 
     Signals are connected while the widgets are built, so populating them
@@ -19,7 +19,7 @@ def suspend_signals(widget: QWidget) -> Iterator[None]:
     """
     with ExitStack() as stack:
         for child in widget.findChildren(QWidget):
-            stack.enter_context(QSignalBlocker(child))
+            _res = stack.enter_context(QSignalBlocker(child))
         yield
 
 

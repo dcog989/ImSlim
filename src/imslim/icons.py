@@ -59,7 +59,7 @@ def download_icon(color: QColor, size: int = 20) -> QIcon:
     """A down arrow into a tray (Lucide 'import'), matching the other icons' stroke."""
 
     def draw(painter: QPainter, s: float) -> None:
-        _apply_icon_stroke(painter, color, s)
+        _res = _apply_icon_stroke(painter, color, s)
         cx = s / 2
         # M12 3v12 / m8 11 4 4 4-4
         painter.drawLine(QPointF(cx, s * 0.125), QPointF(cx, s * 0.625))
@@ -86,7 +86,7 @@ def chevron_left_icon(color: QColor, size: int = 20) -> QIcon:
     """A left-pointing chevron (Lucide 'chevron-left'), matching the other icons' stroke."""
 
     def draw(painter: QPainter, s: float) -> None:
-        _apply_icon_stroke(painter, color, s)
+        _res = _apply_icon_stroke(painter, color, s)
         # M15 18l-6-6 6-6
         painter.drawLine(QPointF(s * 0.625, s * 0.75), QPointF(s * 0.375, s * 0.5))
         painter.drawLine(QPointF(s * 0.375, s * 0.5), QPointF(s * 0.625, s * 0.25))
@@ -124,7 +124,7 @@ def shield_alert_icon(color: QColor, size: int = 20) -> QIcon:
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(color)
         painter.drawEllipse(QPointF(s * 0.5, s * 0.72), pen * 0.8, pen * 0.8)
-        _apply_icon_stroke(painter, color, s)
+        _res = _apply_icon_stroke(painter, color, s)
         painter.drawLine(QPointF(s * 0.5, s * 0.28), QPointF(s * 0.5, s * 0.58))
 
     return _painted_icon(size, draw)
@@ -164,7 +164,7 @@ def gear_icon(color: QColor, size: int = 20) -> QIcon:
             angle = math.pi * i / teeth
             radius = tip_r if i % 2 == 0 else root_r
             points.append(QPointF(cx + radius * math.cos(angle), cy + radius * math.sin(angle)))
-        _apply_icon_stroke(painter, color, s)
+        _res = _apply_icon_stroke(painter, color, s)
         painter.drawPolygon(QPolygonF(points))
         painter.drawEllipse(QPointF(cx, cy), hub_r, hub_r)
 

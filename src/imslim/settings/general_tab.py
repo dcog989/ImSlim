@@ -56,13 +56,13 @@ class GeneralTab(QWidget):
         self.entry_output_folder.setPlaceholderText(_("Same folder as the original files"))
 
         self.btn_output_folder.setText(_("Browse…"))
-        self.btn_output_folder.clicked.connect(self._browse_output_folder)
+        _res = self.btn_output_folder.clicked.connect(self._browse_output_folder)
 
         self.btn_clear_output_folder.setText("✕")
         self.btn_clear_output_folder.setToolTip(_("Clear the output folder"))
         self.btn_clear_output_folder.setFixedWidth(36)
         self.btn_clear_output_folder.setStyleSheet("QPushButton { padding: 6px 10px; }")
-        self.btn_clear_output_folder.clicked.connect(self._clear_output_folder)
+        _res = self.btn_clear_output_folder.clicked.connect(self._clear_output_folder)
 
         output_row = QHBoxLayout()
         output_row.addWidget(self.entry_output_folder, 1)
@@ -72,13 +72,13 @@ class GeneralTab(QWidget):
         self.entry_default_directory.setPlaceholderText(_("User's home directory"))
 
         self.btn_default_directory.setText(_("Browse…"))
-        self.btn_default_directory.clicked.connect(self._browse_default_directory)
+        _res = self.btn_default_directory.clicked.connect(self._browse_default_directory)
 
         self.btn_clear_default_directory.setText("✕")
         self.btn_clear_default_directory.setToolTip(_("Clear the default open directory"))
         self.btn_clear_default_directory.setFixedWidth(36)
         self.btn_clear_default_directory.setStyleSheet("QPushButton { padding: 6px 10px; }")
-        self.btn_clear_default_directory.clicked.connect(self._clear_default_directory)
+        _res = self.btn_clear_default_directory.clicked.connect(self._clear_default_directory)
 
         default_directory_row = QHBoxLayout()
         default_directory_row.addWidget(self.entry_default_directory, 1)
@@ -86,7 +86,7 @@ class GeneralTab(QWidget):
         default_directory_row.addWidget(self.btn_clear_default_directory)
 
         self.check_recursive.setText(_("Compress sub-directories"))
-        self.check_recursive.toggled.connect(
+        _res = self.check_recursive.toggled.connect(
             bool_handler(self.settings, self.settings_changed.emit, "recursive")
         )
 
@@ -127,17 +127,17 @@ class GeneralTab(QWidget):
         form.addRow(_("Log Backups"), self.spin_log_backups)
         form.addRow(self._build_log_link())
 
-        self.combo_save_method.currentIndexChanged.connect(self._on_save_method_changed)
-        self.entry_output_folder.textChanged.connect(self._on_output_folder_changed)
-        self.entry_default_directory.textChanged.connect(self._on_default_directory_changed)
-        self.spin_timeout.valueChanged.connect(
+        _res = self.combo_save_method.currentIndexChanged.connect(self._on_save_method_changed)
+        _res = self.entry_output_folder.textChanged.connect(self._on_output_folder_changed)
+        _res = self.entry_default_directory.textChanged.connect(self._on_default_directory_changed)
+        _res = self.spin_timeout.valueChanged.connect(
             int_handler(self.settings, self.settings_changed.emit, "compression-timeout")
         )
-        self.combo_log_level.currentIndexChanged.connect(self._on_log_level_changed)
-        self.spin_log_max_size.valueChanged.connect(
+        _res = self.combo_log_level.currentIndexChanged.connect(self._on_log_level_changed)
+        _res = self.spin_log_max_size.valueChanged.connect(
             int_handler(self.settings, self.settings_changed.emit, "log-max-size")
         )
-        self.spin_log_backups.valueChanged.connect(
+        _res = self.spin_log_backups.valueChanged.connect(
             int_handler(self.settings, self.settings_changed.emit, "log-backups")
         )
 

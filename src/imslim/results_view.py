@@ -81,6 +81,7 @@ class ResultsView(ResultsPage):
         self.results_layout: QVBoxLayout = QVBoxLayout(self.results_container)
         self.results_layout.setContentsMargins(12, 12, 12, 12)
         self.results_layout.setSpacing(2)
+        self.reduced_label: QLabel = QLabel()
         self.results_layout.addWidget(self._build_results_header())
 
         self.rows_container: QWidget = QWidget()
@@ -120,7 +121,6 @@ class ResultsView(ResultsPage):
         layout.setSpacing(8)
 
         image_label = QLabel(_("Image:"))
-        self.reduced_label = QLabel()
         header_font = image_label.font()
         header_font.setBold(True)
         image_label.setFont(header_font)

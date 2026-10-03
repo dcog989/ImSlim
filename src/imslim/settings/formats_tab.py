@@ -60,7 +60,7 @@ class FormatsTab(QWidget):
                 layout.addLayout(self._spin_row(knob))
             else:
                 check = QCheckBox(knob.label)
-                check.toggled.connect(
+                _res = check.toggled.connect(
                     bool_handler(self.settings, self.settings_changed.emit, knob.key)
                 )
                 self._checks.append((check, knob.key))
@@ -99,7 +99,9 @@ class FormatsTab(QWidget):
         label_widget.setMinimumWidth(110)
         spin = QSpinBox()
         spin.setRange(knob.lower, knob.upper)
-        spin.valueChanged.connect(int_handler(self.settings, self.settings_changed.emit, knob.key))
+        _res = spin.valueChanged.connect(
+            int_handler(self.settings, self.settings_changed.emit, knob.key)
+        )
         self._spins.append((spin, knob.key))
         row.addWidget(label_widget)
         row.addStretch(1)

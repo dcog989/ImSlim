@@ -23,21 +23,21 @@ class SettingsDialog(QDialog):
 
         layout = QVBoxLayout(self)
         tabs = QTabWidget()
-        self.general_tab = GeneralTab(settings)
-        self.formats_tab = FormatsTab(settings)
-        self.about_tab = AboutTab()
-        tabs.addTab(self.general_tab, _("General"))
-        tabs.addTab(self.formats_tab, _("Formats"))
-        self._about_index = tabs.addTab(self.about_tab, _("About"))
-        tabs.currentChanged.connect(self._on_tab_changed)
+        self.general_tab: GeneralTab = GeneralTab(settings)
+        self.formats_tab: FormatsTab = FormatsTab(settings)
+        self.about_tab: AboutTab = AboutTab()
+        _res = tabs.addTab(self.general_tab, _("General"))
+        _res = tabs.addTab(self.formats_tab, _("Formats"))
+        self._about_index: int = tabs.addTab(self.about_tab, _("About"))
+        _res = tabs.currentChanged.connect(self._on_tab_changed)
         layout.addWidget(tabs)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        buttons.rejected.connect(self.close)
+        _res = buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
 
-        self.general_tab.settings_changed.connect(self.settings_changed.emit)
-        self.formats_tab.settings_changed.connect(self.settings_changed.emit)
+        _res = self.general_tab.settings_changed.connect(self.settings_changed.emit)
+        _res = self.formats_tab.settings_changed.connect(self.settings_changed.emit)
 
     def _on_tab_changed(self, index: int) -> None:
         if index == self._about_index:

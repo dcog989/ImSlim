@@ -13,7 +13,7 @@ class AboutTab(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._tool_pairs: list[tuple[str, str]] = []
-        self._populated = False
+        self._populated: bool = False
         self._probe_worker: VersionProbeTask | None = None
         self._env_label: QLabel = QLabel()
         self._build()
@@ -51,7 +51,7 @@ class AboutTab(QWidget):
 
         copy_button = QPushButton(_("Copy Environment"))
         copy_button.setFixedWidth(160)
-        copy_button.clicked.connect(self._copy_environment)
+        _res = copy_button.clicked.connect(self._copy_environment)
         layout.addWidget(copy_button, alignment=Qt.AlignmentFlag.AlignHCenter)
 
         layout.addStretch(1)
@@ -64,7 +64,7 @@ class AboutTab(QWidget):
         # subprocesses, so probe them off the UI thread.
         self._env_label.setText(self._env_text())
         worker = VersionProbeTask()
-        worker.versions_ready.connect(self._on_versions)
+        _res = worker.versions_ready.connect(self._on_versions)
         self._probe_worker = worker
         start_task(worker)
 

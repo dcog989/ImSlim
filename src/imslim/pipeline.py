@@ -122,7 +122,7 @@ class CompressionPipeline:
 
                 if result_item.state is ResultState.RUNNING:
                     result_item.state = ResultState.DONE
-                if result_item.state is not ResultState.ERROR:
+                if not result_item.error_message:
                     log_outcome(result_item)
         finally:
             cleanup_temp_files(commands)
