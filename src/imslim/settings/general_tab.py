@@ -1,7 +1,6 @@
-from typing import cast
-
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFileDialog,
     QFormLayout,
@@ -9,7 +8,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QRadioButton,
     QSpinBox,
     QWidget,
 )
@@ -27,7 +25,6 @@ _LOG_LEVEL_INDEX = {level: index for index, level in enumerate(LOG_LEVELS)}
 class GeneralTab(SettingsTab):
     def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
         super().__init__(settings, parent)
-        self._radio_pairs: list[tuple[QRadioButton, QRadioButton, str]] = []
         self.combo_save_method: QComboBox = QComboBox()
         self.entry_output_folder: QLineEdit = QLineEdit()
         self.btn_output_folder: QPushButton = QPushButton()
@@ -35,7 +32,7 @@ class GeneralTab(SettingsTab):
         self.entry_default_directory: QLineEdit = QLineEdit()
         self.btn_default_directory: QPushButton = QPushButton()
         self.btn_clear_default_directory: QPushButton = QPushButton()
-        self.radio_recursive: QWidget = QWidget()
+        self.check_recursive: QCheckBox = QCheckBox()
         self.spin_timeout: QSpinBox = QSpinBox()
         self.combo_log_level: QComboBox = QComboBox()
         self.spin_log_max_size: QSpinBox = QSpinBox()
@@ -85,9 +82,8 @@ class GeneralTab(SettingsTab):
         default_directory_row.addWidget(self.btn_default_directory)
         default_directory_row.addWidget(self.btn_clear_default_directory)
 
-        self.radio_recursive = self._radio_row(
-            _("Compress sub-directories"), _("Compress only root"), "recursive"
-        )
+        self.check_recursive.setText(_("Compress sub-directories"))
+        self.check_recursive.toggled.connect(self._bool_handler("recursive"))
 
         self.spin_timeout.setRange(1, 300)
         self.spin_timeout.setSuffix("s")
@@ -102,7 +98,7 @@ class GeneralTab(SettingsTab):
         form.addRow(_("Save Method"), self.combo_save_method)
         form.addRow(_("Output Folder"), output_row)
         form.addRow(_("Open Dialog Directory"), default_directory_row)
-        form.addRow(_("Directory Recurse"), self.radio_recursive)
+        form.addRow(_("Directory Recurse"), self.check_recursive)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
 
         form.addRow(separator())
@@ -134,23 +130,6 @@ class GeneralTab(SettingsTab):
         self.spin_log_max_size.valueChanged.connect(self._int_handler("log-max-size"))
         self.spin_log_backups.valueChanged.connect(self._int_handler("log-backups"))
 
-    def _radio_row(
-        self, true_label: str, false_label: str, key: str, reverse: bool = False
-    ) -> QWidget:
-        container = QWidget()
-        layout = QHBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(16)
-        true_radio = QRadioButton(true_label)
-        false_radio = QRadioButton(false_label)
-        true_radio.setChecked(True)
-        true_radio.toggled.connect(self._bool_handler(key))
-        self._radio_pairs.append((true_radio, false_radio, key))
-        first, second = (false_radio, true_radio) if reverse else (true_radio, false_radio)
-        layout.addWidget(first)
-        layout.addWidget(second)
-        return container
-
     @staticmethod
     def _build_log_link() -> QLabel:
         label = QLabel()
@@ -171,10 +150,7 @@ class GeneralTab(SettingsTab):
         self._set_log_controls_state(log_level)
         self.spin_log_max_size.setValue(s.log_max_size)
         self.spin_log_backups.setValue(s.log_backups)
-
-        for true_radio, false_radio, key in self._radio_pairs:
-            value = cast(bool, getattr(s, key.replace("-", "_")))
-            (true_radio if value else false_radio).setChecked(True)
+        self.check_recursive.setChecked(s.recursive)
 
     def _on_save_method_changed(self, index: int) -> None:
         self.settings.save_method = index
