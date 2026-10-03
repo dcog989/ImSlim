@@ -2,7 +2,8 @@ from typing import override
 
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor, tokens
+from ..commands import Command, tokens
+from ..compressor import Compressor
 from ..formats import CompressorType
 from ..image_utils import is_animated_image
 from ..result_item import ResultItem
@@ -18,7 +19,9 @@ class GIFCompressor(Compressor):
         return is_animated_image(result_item.filename, "image/gif")
 
     @override
-    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
+    def build_command(
+        self, result_item: ResultItem, options: BatchOptions, input_path: str
+    ) -> list[Command]:
         is_animated = self._is_animated(result_item)
 
         gifsicle = [
@@ -38,6 +41,6 @@ class GIFCompressor(Compressor):
                 gifsicle += ["--no-extensions"]
             gifsicle += ["--no-comments", "--no-names"]
 
-        gifsicle += tokens(t"-o {result_item.tmp_filename} {result_item.filename}")
+        gifsicle += tokens(t"-o {result_item.tmp_filename} {input_path}")
 
-        return [Command(gifsicle)]
+        return [Command(gifsicle, temp_files=(result_item.tmp_filename,))]

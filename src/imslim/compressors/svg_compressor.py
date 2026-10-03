@@ -3,7 +3,8 @@ from typing import override
 
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor, tokens
+from ..commands import Command, tokens
+from ..compressor import Compressor
 from ..formats import CompressorType
 from ..result_item import ResultItem
 
@@ -24,10 +25,12 @@ class SVGCompressor(Compressor):
         return CompressorType.SVG
 
     @override
-    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
+    def build_command(
+        self, result_item: ResultItem, options: BatchOptions, input_path: str
+    ) -> list[Command]:
         config = _SVGO_CONFIG_MAXIMUM if options.flag("svg-maximum-level") else _SVGO_CONFIG
         svgo = [resolve_tool("svgo")]
         svgo += tokens(t"--config {config}")
-        svgo += tokens(t"-i {result_item.filename} -o {result_item.tmp_filename}")
+        svgo += tokens(t"-i {input_path} -o {result_item.tmp_filename}")
 
-        return [Command(svgo)]
+        return [Command(svgo, temp_files=(result_item.tmp_filename,))]

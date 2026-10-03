@@ -2,7 +2,8 @@ from typing import override
 
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor, tokens
+from ..commands import Command, tokens
+from ..compressor import Compressor
 from ..formats import CompressorType
 from ..result_item import ResultItem
 
@@ -14,7 +15,9 @@ class PNGCompressor(Compressor):
         return CompressorType.PNG
 
     @override
-    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
+    def build_command(
+        self, result_item: ResultItem, options: BatchOptions, input_path: str
+    ) -> list[Command]:
         commands: list[Command] = []
 
         if options.lossy:  # lossy compression
@@ -22,8 +25,8 @@ class PNGCompressor(Compressor):
             pngquant = tokens(t"{resolve_tool('pngquant')} {quality_flag} -f")
             if not options.metadata:
                 pngquant.append("--strip")
-            pngquant += [result_item.input_path, "--output", result_item.tmp_filename]
-            commands.append(Command(pngquant))
+            pngquant += [input_path, "--output", result_item.tmp_filename]
+            commands.append(Command(pngquant, temp_files=(result_item.tmp_filename,)))
 
         # Deinterlace: Adam7 interlacing adds 25-50% to the file size, which is
         # the opposite of what a compressor wants.
@@ -36,7 +39,7 @@ class PNGCompressor(Compressor):
         if options.lossy:
             oxipng += [result_item.tmp_filename, "--out", result_item.tmp_filename]
         else:  # lossless compression
-            oxipng += [result_item.input_path, "--out", result_item.tmp_filename]
+            oxipng += [input_path, "--out", result_item.tmp_filename]
 
-        commands.append(Command(oxipng))
+        commands.append(Command(oxipng, temp_files=(result_item.tmp_filename,)))
         return commands

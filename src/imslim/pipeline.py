@@ -7,7 +7,8 @@ from typing import cast
 from ._i18n import _
 from .batch_options import BatchOptions
 from .command_runner import CancelledError, CommandRunner, CompressionContext
-from .compressor import Command, Compressor
+from .commands import Command
+from .compressor import Compressor
 from .format import savings_percent
 from .output_writer import OutputWriter
 from .result_item import ResultItem, ResultState
@@ -23,12 +24,8 @@ def remove_quietly(path: str) -> None:
         pass
 
 
-def cleanup_temp_files(
-    compressor: Compressor, result_item: ResultItem, options: BatchOptions
-) -> None:
-    paths = [result_item.tmp_filename, *compressor.get_intermediate_files(result_item, options)]
-    if result_item.input_path != result_item.filename:
-        paths.append(result_item.input_path)
+def cleanup_temp_files(commands: list[Command]) -> None:
+    paths = {path for command in commands for path in command.temp_files}
     for path in paths:
         remove_quietly(path)
 
@@ -94,6 +91,7 @@ class CompressionPipeline:
         context: CompressionContext,
         options: BatchOptions,
     ) -> None:
+        commands: list[Command] = []
         try:
             if context.cancelled:
                 result_item.state = ResultState.CANCELLED
@@ -106,7 +104,10 @@ class CompressionPipeline:
 
             last_argv: list[str] | None = None
             try:
-                last_argv = self._execute_commands(compressor, result_item, context, options)
+                commands = compressor.commands(result_item, options)
+                last_argv = self._execute_commands(
+                    compressor, commands, result_item, context, options
+                )
             except CancelledError:
                 result_item.state = ResultState.CANCELLED
             except Exception as err:
@@ -124,12 +125,13 @@ class CompressionPipeline:
                 if result_item.state is not ResultState.ERROR:
                     log_outcome(result_item)
         finally:
-            cleanup_temp_files(compressor, result_item, options)
+            cleanup_temp_files(commands)
             c_update_result_item(result_item)
 
     def _execute_commands(
         self,
         compressor: Compressor,
+        commands: list[Command],
         result_item: ResultItem,
         context: CompressionContext,
         options: BatchOptions,
@@ -140,11 +142,10 @@ class CompressionPipeline:
         ignore_errors are skipped instead of aborting the pipeline.
         """
         last_argv: list[str] | None = None
-        commands = compressor.conversion_commands(result_item, options) + compressor.build_command(
-            result_item, options
-        )
         for command in commands:
-            last_argv = self._run_one(compressor, command, result_item, context, options)
+            argv = self._run_one(compressor, command, result_item, context, options)
+            if argv is not None:
+                last_argv = argv
         return last_argv
 
     def _run_one(
@@ -154,8 +155,19 @@ class CompressionPipeline:
         result_item: ResultItem,
         context: CompressionContext,
         options: BatchOptions,
-    ) -> list[str]:
-        argv = compressor.adapt_command(command.argv, result_item)
+    ) -> list[str] | None:
+        if command.action is not None:
+            logger.debug("Running in-process command for %s", result_item.filename)
+            try:
+                command.action()
+            except Exception:
+                if command.ignore_errors:
+                    logger.warning("Optional in-process command failed, ignoring")
+                    return None
+                raise
+            return None
+
+        argv = compressor.adapt_command(command.argv or [], result_item)
         logger.debug("Running %s for %s", argv, result_item.filename)
         try:
             if command.stdout_path is not None:

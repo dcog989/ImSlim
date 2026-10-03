@@ -12,7 +12,8 @@
 - `src/imslim/window.py` — main window UI, mode toggle, home/results views
 - `src/imslim/settings/` — settings dialog: `dialog.py` hosts the tabbed `SettingsDialog`, with one widget per tab (`general_tab.py`, `formats_tab.py`, `about_tab.py`), a shared `SettingsTab` base in `tab.py` and shared styling in `style.py`
 - `src/imslim/settings_manager.py` — persistent settings/state store
-- `src/imslim/compressor.py` — command strategy: `Command`, `tokens`, and the `Compressor` ABC subclasses implement
+- `src/imslim/commands.py` — `Command` (`argv` or in-process `action`, plus `temp_files`) and `tokens`
+- `src/imslim/compressor.py` — `Compressor` ABC: subclasses produce pure command lists in `build_command()`
 - `src/imslim/command_runner.py` — `CommandRunner` (killable subprocess execution) and `CompressionContext` (batch cancellation)
 - `src/imslim/pipeline.py` — `CompressionPipeline`: runs a compressor's commands, finalizes output, cleans up and reports errors
 - `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools
@@ -47,7 +48,7 @@
 
 - Add a setting: Add key + accessors in `src/imslim/settings_manager.py`, expose it in the relevant tab under `src/imslim/settings/`, and consume it in the relevant compressor under `src/imslim/compressors/`.
 - Add a format: Create a compressor subclass in `src/imslim/compressors/`, register it in `src/imslim/window.py` (`manager.register_compressor(...)`) and `compression_manager.py` (`mime_type_to_compressor_type`), and add its extensions to `_IMAGE_EXTENSIONS`/`image_filter()` in `src/imslim/image_utils.py`.
-- Compressor pipeline: override `build_command()` to return `list[Command]` (a `NamedTuple` of `argv: list[str]`, `stdout_path: str | None`, `ignore_errors: bool`, defined in `src/imslim/compressor.py`); implement `get_intermediate_files()` and `get_file_type()` as needed.
+- Compressor pipeline: override `build_command(result_item, options, input_path)` to return a pure `list[Command]` (a `NamedTuple` of `argv: list[str] | None`, `action: Callable[[], None] | None`, `stdout_path: str | None`, `ignore_errors: bool`, `temp_files: tuple[str, ...]`, defined in `src/imslim/commands.py`). Declare every temporary file a command creates in `temp_files` so cleanup is derived; implement `get_file_type()` as needed. Pre-decode with `decode_commands()` rather than doing work in the builder.
 - State access: Read/write mode and settings through `SettingsManager` (exposed on the window as `self.settings`).
 
 ---

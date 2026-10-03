@@ -2,9 +2,10 @@ from typing import override
 
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor, tokens
+from ..commands import Command, tokens
+from ..compressor import Compressor
+from ..conversion import decode_commands
 from ..formats import CompressorType
-from ..image_convert import to_png
 from ..result_item import ResultItem
 
 _CONVERTED_MIME_TYPES = ("image/bmp", "image/tiff")
@@ -22,21 +23,22 @@ class WEBPCompressor(Compressor):
     def _intermediate_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".src.png"
 
-    def _needs_conversion(self, result_item: ResultItem) -> bool:
+    def _needs_conversion(self, result_item: ResultItem, input_path: str) -> bool:
         return result_item.mime_type in _CONVERTED_MIME_TYPES and not self._input_is_png(
-            result_item
+            result_item, input_path
         )
 
     @override
-    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
+    def build_command(
+        self, result_item: ResultItem, options: BatchOptions, input_path: str
+    ) -> list[Command]:
         commands: list[Command] = []
-        input_path = result_item.input_path
 
         # cwebp can't read BMP and this build has no TIFF support, so decode
         # either to a temporary PNG with Qt before feeding it to cwebp.
-        if self._needs_conversion(result_item):
+        if self._needs_conversion(result_item, input_path):
             intermediate = self._intermediate_path(result_item)
-            to_png(result_item.filename, intermediate)
+            commands += decode_commands(result_item.mime_type, input_path, intermediate)
             input_path = intermediate
 
         cwebp = [resolve_tool("cwebp")]
@@ -61,11 +63,5 @@ class WEBPCompressor(Compressor):
             + t"-o {result_item.tmp_filename} {input_path}"
         )
 
-        commands.append(Command(cwebp))
+        commands.append(Command(cwebp, temp_files=(result_item.tmp_filename,)))
         return commands
-
-    @override
-    def get_intermediate_files(self, result_item: ResultItem, _options: BatchOptions) -> list[str]:
-        if self._needs_conversion(result_item):
-            return [self._intermediate_path(result_item)]
-        return []

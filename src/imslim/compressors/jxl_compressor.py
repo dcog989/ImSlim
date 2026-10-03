@@ -3,8 +3,9 @@ from typing import override
 
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor, tokens
-from ..conversion import decoder_argv
+from ..commands import Command, tokens
+from ..compressor import Compressor
+from ..conversion import decode_commands
 from ..formats import CompressorType
 from ..result_item import ResultItem
 
@@ -23,20 +24,19 @@ class JXLCompressor(Compressor):
         return result_item.tmp_filename + "." + kind
 
     @override
-    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
+    def build_command(
+        self, result_item: ResultItem, options: BatchOptions, input_path: str
+    ) -> list[Command]:
         commands: list[Command] = []
-        encode_input = result_item.input_path
+        encode_input = input_path
         extracting_metadata = False
 
         # cjxl can't read JXL input, so decode to a temporary PNG first.
         # PNG input (native PNG or a conversion intermediate) feeds cjxl directly;
         # cross-format metadata sidecars can't be extracted, so they are skipped.
-        if not self._input_is_png(result_item):
+        if not self._input_is_png(result_item, input_path):
             intermediate = self._intermediate_path(result_item)
-            decode = decoder_argv(result_item.mime_type, result_item.filename, intermediate)
-            if decode is None:
-                raise RuntimeError("no bundled decoder for non-PNG JXL source")
-            commands.append(Command(decode))
+            commands += decode_commands(result_item.mime_type, input_path, intermediate)
             encode_input = intermediate
             extracting_metadata = options.metadata
 
@@ -46,14 +46,15 @@ class JXLCompressor(Compressor):
             # fails (e.g. metadata absent), the sidecar stays missing and the
             # matching -x argument is pruned in adapt_command().
             for kind in _JXL_METADATA:
+                sidecar = self._sidecar_path(result_item, kind)
                 commands.append(
                     Command(
                         tokens(
-                            t"{resolve_tool('djxl')} {result_item.filename} - "
-                            + t"--output_format {kind}"
+                            t"{resolve_tool('djxl')} {input_path} - " + t"--output_format {kind}"
                         ),
-                        stdout_path=self._sidecar_path(result_item, kind),
+                        stdout_path=sidecar,
                         ignore_errors=True,
+                        temp_files=(sidecar,),
                     )
                 )
 
@@ -72,7 +73,7 @@ class JXLCompressor(Compressor):
                 cjxl += ["-x", f"{kind}={self._sidecar_path(result_item, kind)}"]
 
         cjxl += [encode_input, result_item.tmp_filename]
-        commands.append(Command(cjxl))
+        commands.append(Command(cjxl, temp_files=(result_item.tmp_filename,)))
 
         return commands
 
@@ -94,10 +95,3 @@ class JXLCompressor(Compressor):
             pruned.append(argv[i])
             i += 1
         return pruned
-
-    @override
-    def get_intermediate_files(self, result_item: ResultItem, options: BatchOptions) -> list[str]:
-        paths = [self._intermediate_path(result_item)]
-        if options.metadata:
-            paths += [self._sidecar_path(result_item, kind) for kind in _JXL_METADATA]
-        return paths

@@ -2,8 +2,9 @@ from typing import override
 
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
-from ..compressor import Command, Compressor, tokens
-from ..conversion import decoder_argv
+from ..commands import Command, tokens
+from ..compressor import Compressor
+from ..conversion import decode_commands
 from ..formats import CompressorType
 from ..result_item import ResultItem
 
@@ -20,18 +21,17 @@ class AVIFCompressor(Compressor):
         return CompressorType.AVIF
 
     @override
-    def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
+    def build_command(
+        self, result_item: ResultItem, options: BatchOptions, input_path: str
+    ) -> list[Command]:
         commands: list[Command] = []
-        encode_input = result_item.input_path
+        encode_input = input_path
 
         # avifenc can't read AVIF input, so decode to a temporary PNG first.
         # PNG input (native PNG or a conversion intermediate) feeds avifenc directly.
-        if not self._input_is_png(result_item):
+        if not self._input_is_png(result_item, input_path):
             intermediate = self._intermediate_path(result_item)
-            decode = decoder_argv(result_item.mime_type, result_item.filename, intermediate)
-            if decode is None:
-                raise RuntimeError("no bundled decoder for non-PNG AVIF source")
-            commands.append(Command(decode))
+            commands += decode_commands(result_item.mime_type, input_path, intermediate)
             encode_input = intermediate
 
         avifenc = [resolve_tool("avifenc")]
@@ -53,9 +53,5 @@ class AVIFCompressor(Compressor):
         avifenc += tokens(t"--speed {_MAX_SPEED - options.level('avif-lossless-level')}")
         avifenc += [encode_input, result_item.tmp_filename]
 
-        commands.append(Command(avifenc))
+        commands.append(Command(avifenc, temp_files=(result_item.tmp_filename,)))
         return commands
-
-    @override
-    def get_intermediate_files(self, result_item: ResultItem, _options: BatchOptions) -> list[str]:
-        return [self._intermediate_path(result_item)]

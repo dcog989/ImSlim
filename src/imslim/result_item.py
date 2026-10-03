@@ -20,7 +20,6 @@ class ResultItem(QObject):
         super().__init__(parent)
         self.mime_type: str = ""
         self.filename: str = ""
-        self._input_path: str = ""
         self.new_filename: str = ""
         self.backup_filename: str = ""
         self.tmp_filename: str = ""
@@ -35,16 +34,6 @@ class ResultItem(QObject):
         self.error_message: str = ""
         self.error_details_message: str = ""
         self.warning_message: str = ""
-
-    @property
-    def input_path(self) -> str:
-        """Path a compressor reads from; differs from `filename` when a
-        conversion pre-decode produced an intermediate."""
-        return self._input_path or self.filename
-
-    @input_path.setter
-    def input_path(self, value: str) -> None:
-        self._input_path = value
 
     def set_error(self, error: str, details: str = "") -> None:
         self.state = ResultState.ERROR
