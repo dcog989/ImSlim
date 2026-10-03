@@ -90,21 +90,28 @@ def imslim_icon() -> QIcon:
     return QIcon(QIcon(IMSLIM_ICON_PATH).pixmap(1024))
 
 
+def _apply_icon_stroke(painter: QPainter, color: QColor, size: float) -> float:
+    """Apply the shared icon stroke (round caps/joins, size-scaled width with a
+    legibility floor) to `painter`, returning the width for detail sizing."""
+    width = max(1.8, size * 0.09)
+    painter.setPen(
+        QPen(
+            color,
+            width,
+            Qt.PenStyle.SolidLine,
+            Qt.PenCapStyle.RoundCap,
+            Qt.PenJoinStyle.RoundJoin,
+        )
+    )
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+    return width
+
+
 def download_icon(color: QColor, size: int = 20) -> QIcon:
     """A down arrow into a tray (Lucide 'import'), matching the other icons' stroke."""
 
     def draw(painter: QPainter, s: float) -> None:
-        pen = max(1.8, s * 0.09)
-        painter.setPen(
-            QPen(
-                color,
-                pen,
-                Qt.PenStyle.SolidLine,
-                Qt.PenCapStyle.RoundCap,
-                Qt.PenJoinStyle.RoundJoin,
-            )
-        )
-        painter.setBrush(Qt.BrushStyle.NoBrush)
+        _apply_icon_stroke(painter, color, s)
         cx = s / 2
         # M12 3v12 / m8 11 4 4 4-4
         painter.drawLine(QPointF(cx, s * 0.125), QPointF(cx, s * 0.625))
@@ -144,17 +151,7 @@ def chevron_left_icon(color: QColor, size: int = 20) -> QIcon:
     """A left-pointing chevron (Lucide 'chevron-left'), matching the other icons' stroke."""
 
     def draw(painter: QPainter, s: float) -> None:
-        pen = max(1.8, s * 0.09)
-        painter.setPen(
-            QPen(
-                color,
-                pen,
-                Qt.PenStyle.SolidLine,
-                Qt.PenCapStyle.RoundCap,
-                Qt.PenJoinStyle.RoundJoin,
-            )
-        )
-        painter.setBrush(Qt.BrushStyle.NoBrush)
+        _apply_icon_stroke(painter, color, s)
         # M15 18l-6-6 6-6
         painter.drawLine(QPointF(s * 0.625, s * 0.75), QPointF(s * 0.375, s * 0.5))
         painter.drawLine(QPointF(s * 0.375, s * 0.5), QPointF(s * 0.625, s * 0.25))
@@ -166,11 +163,9 @@ def circle_off_icon(color: QColor, size: int = 20) -> QIcon:
     """A circle with a diagonal slash, matching the other icons' stroke weight."""
 
     def draw(painter: QPainter, s: float) -> None:
-        pen = max(1.8, s * 0.09)
+        pen = _apply_icon_stroke(painter, color, s)
         inset = pen
         rect = QRectF(inset, inset, s - 2 * inset, s - 2 * inset)
-        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawEllipse(rect)
         painter.drawLine(QPointF(s * 0.24, s * 0.76), QPointF(s * 0.76, s * 0.24))
 
@@ -181,9 +176,7 @@ def shield_alert_icon(color: QColor, size: int = 20) -> QIcon:
     """A shield with an exclamation mark, matching the other icons' stroke weight."""
 
     def draw(painter: QPainter, s: float) -> None:
-        pen = max(1.8, s * 0.09)
-        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
+        pen = _apply_icon_stroke(painter, color, s)
         path = QPainterPath()
         path.moveTo(s * 0.5, s * 0.06)
         path.lineTo(s * 0.16, s * 0.2)
@@ -196,8 +189,7 @@ def shield_alert_icon(color: QColor, size: int = 20) -> QIcon:
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(color)
         painter.drawEllipse(QPointF(s * 0.5, s * 0.72), pen * 0.8, pen * 0.8)
-        painter.setPen(QPen(color, pen, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
-        painter.setBrush(Qt.BrushStyle.NoBrush)
+        _apply_icon_stroke(painter, color, s)
         painter.drawLine(QPointF(s * 0.5, s * 0.28), QPointF(s * 0.5, s * 0.58))
 
     return _painted_icon(size, draw)
@@ -207,17 +199,7 @@ def triangle_alert_icon(color: QColor, size: int = 20) -> QIcon:
     """An alert triangle with an exclamation mark (Lucide 'triangle-alert')."""
 
     def draw(painter: QPainter, s: float) -> None:
-        pen = max(1.8, s * 0.09)
-        painter.setPen(
-            QPen(
-                color,
-                pen,
-                Qt.PenStyle.SolidLine,
-                Qt.PenCapStyle.RoundCap,
-                Qt.PenJoinStyle.RoundJoin,
-            )
-        )
-        painter.setBrush(Qt.BrushStyle.NoBrush)
+        pen = _apply_icon_stroke(painter, color, s)
         path = QPainterPath()
         path.moveTo(s * 0.5, s * 0.11)
         path.lineTo(s * 0.08, s * 0.83)
@@ -237,7 +219,6 @@ def gear_icon(color: QColor, size: int = 20) -> QIcon:
     icons' stroke weight so the header icons look consistent."""
 
     def draw(painter: QPainter, s: float) -> None:
-        pen = max(1.8, s * 0.09)
         cx, cy = s / 2, s / 2
         tip_r = s * 0.47
         root_r = s * 0.36
@@ -248,16 +229,7 @@ def gear_icon(color: QColor, size: int = 20) -> QIcon:
             angle = math.pi * i / teeth
             radius = tip_r if i % 2 == 0 else root_r
             points.append(QPointF(cx + radius * math.cos(angle), cy + radius * math.sin(angle)))
-        painter.setPen(
-            QPen(
-                color,
-                pen,
-                Qt.PenStyle.SolidLine,
-                Qt.PenCapStyle.RoundCap,
-                Qt.PenJoinStyle.RoundJoin,
-            )
-        )
-        painter.setBrush(Qt.BrushStyle.NoBrush)
+        _apply_icon_stroke(painter, color, s)
         painter.drawPolygon(QPolygonF(points))
         painter.drawEllipse(QPointF(cx, cy), hub_r, hub_r)
 
