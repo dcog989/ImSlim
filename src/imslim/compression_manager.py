@@ -12,6 +12,10 @@ from .result_item import ResultItem
 
 logger = logging.getLogger(__name__)
 
+# Bound on how long shutdown waits for the compression worker to unwind and
+# clean up temp files after cancellation; the kill grace is far shorter.
+_SHUTDOWN_TIMEOUT_SECONDS = 5.0
+
 # MIME type -> (compressor type, output extension). Formats that are re-encoded
 # to a different format on output (BMP/TIFF -> WebP) carry a different extension
 # here; for the rest the source extension is kept. Single source of truth shared
@@ -45,6 +49,7 @@ class CompressionManager:
     def __init__(self) -> None:
         self.compressors: dict[str, Compressor] = {}
         self._context: CompressionContext | None = None
+        self._thread: threading.Thread | None = None
 
     def mime_type_to_compressor_type(self, mime_type: str) -> str | None:
         return MIME_TO_COMPRESSOR.get(mime_type, (None, None))[0]
@@ -90,15 +95,29 @@ class CompressionManager:
         context = CompressionContext()
         self._context = context
         logger.info("Starting compression batch of %d images", len(result_items))
-        threading.Thread(
+        thread = threading.Thread(
             target=self._compress,
             args=(result_items, options, c_update_result_item, c_enable_compression, context),
             daemon=True,
-        ).start()
+        )
+        self._thread = thread
+        thread.start()
 
     def cancel(self) -> None:
         if self._context is not None:
             self._context.cancel()
+
+    def shutdown(self) -> None:
+        """Cancel any running batch and wait for its worker to finish cleanup."""
+        self.cancel()
+        thread = self._thread
+        if thread is not None:
+            thread.join(_SHUTDOWN_TIMEOUT_SECONDS)
+            if thread.is_alive():
+                logger.warning(
+                    "Compression worker still running %.1fs after shutdown",
+                    _SHUTDOWN_TIMEOUT_SECONDS,
+                )
 
     def _compress(
         self,

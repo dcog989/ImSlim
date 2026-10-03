@@ -1,5 +1,6 @@
 import logging
 import os
+from collections.abc import Callable
 
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QImage, QImageReader
@@ -44,14 +45,20 @@ def is_image_path(path: str) -> bool:
     return path.lower().endswith(_IMAGE_EXTENSIONS)
 
 
-def get_image_paths_from_folder(folder_path: str, recursive: bool = False) -> list[str]:
+def get_image_paths_from_folder(
+    folder_path: str,
+    recursive: bool = False,
+    is_cancelled: Callable[[], bool] | None = None,
+) -> list[str]:
     images: list[str] = []
     try:
         with os.scandir(folder_path) as it:
             for entry in sorted(it, key=lambda e: e.name):
+                if is_cancelled is not None and is_cancelled():
+                    return images
                 if entry.is_dir(follow_symlinks=False):
                     if recursive:
-                        images.extend(get_image_paths_from_folder(entry.path, True))
+                        images.extend(get_image_paths_from_folder(entry.path, True, is_cancelled))
                     continue
                 if entry.is_file(follow_symlinks=False) and is_image_path(entry.name):
                     images.append(entry.path)

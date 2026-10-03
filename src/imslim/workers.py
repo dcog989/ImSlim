@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 from typing import override
 
 from PySide6.QtCore import QThread, Signal
@@ -39,22 +40,37 @@ class AnalyzeWorker(QThread):
         super().__init__()
         self._paths: list[str] = paths
         self._options: BatchOptions = options
+        self._cancel_event: threading.Event = threading.Event()
         # The ResultItems are parentless QObjects built on this thread; the
         # queued items_ready delivery runs on the UI thread *after* run()
         # returns, so keep them referenced here until the consumer has them,
         # otherwise Python GC destroys the C++ objects and delivery segfaults.
         self._result_items: list[ResultItem] = []
 
+    def cancel(self) -> None:
+        self._cancel_event.set()
+
+    def is_cancelled(self) -> bool:
+        return self._cancel_event.is_set()
+
     @override
     def run(self) -> None:
         try:
             final_files: list[str] = []
             for path in self._paths:
+                if self.is_cancelled():
+                    return
                 if os.path.isdir(path):
-                    final_files.extend(get_image_paths_from_folder(path, self._options.recursive))
+                    final_files.extend(
+                        get_image_paths_from_folder(
+                            path, self._options.recursive, self.is_cancelled
+                        )
+                    )
                 else:
                     final_files.append(path)
 
+            if self.is_cancelled():
+                return
             if not final_files:
                 self.no_files.emit()
                 return
@@ -64,7 +80,11 @@ class AnalyzeWorker(QThread):
                 self.output_folder_error.emit()
                 return
 
-            self._result_items = [manager.build(path) for path in final_files]
+            self._result_items = []
+            for path in final_files:
+                if self.is_cancelled():
+                    return
+                self._result_items.append(manager.build(path))
             self.items_ready.emit(self._result_items)
         except Exception as err:
             logger.exception("Analyze failed unexpectedly")

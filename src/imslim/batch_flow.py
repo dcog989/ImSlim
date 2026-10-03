@@ -1,3 +1,5 @@
+import logging
+
 from PySide6.QtCore import QObject, Signal
 
 from .batch_options import BatchOptions
@@ -6,6 +8,12 @@ from .compression_manager import CompressionManager
 from .result_item import ResultItem
 from .settings_manager import SettingsManager
 from .workers import AnalyzeWorker
+
+logger = logging.getLogger(__name__)
+
+# Bound on how long shutdown waits for the analyze thread to notice cancellation
+# between files; folder walks check it per entry.
+_ANALYZE_SHUTDOWN_TIMEOUT_MS = 5000
 
 
 class BatchFlow(QObject):
@@ -32,6 +40,7 @@ class BatchFlow(QObject):
         self.summary: BatchSummary = BatchSummary()
         self._active: bool = False
         self._compressing: bool = False
+        self._shutting_down: bool = False
         self._analyze_worker: AnalyzeWorker | None = None
         self._options: BatchOptions | None = None
         _res = self.result_updated.connect(self._on_result_updated)
@@ -44,6 +53,8 @@ class BatchFlow(QObject):
         return self._active
 
     def start(self, paths: list[str]) -> None:
+        if self._shutting_down:
+            return
         self._active = True
         self._options = BatchOptions.from_settings(self._settings)
         worker = AnalyzeWorker(paths, self._options)
@@ -58,11 +69,30 @@ class BatchFlow(QObject):
     def cancel(self) -> None:
         self._manager.cancel()
 
+    def shutdown(self) -> None:
+        """Stop the running batch and wait for its threads to unwind.
+
+        Idempotent: both the window's closeEvent and QApplication.aboutToQuit
+        may reach this during a normal quit.
+        """
+        if self._shutting_down:
+            return
+        self._shutting_down = True
+        worker = self._analyze_worker
+        if worker is not None:
+            worker.cancel()
+            if not worker.wait(_ANALYZE_SHUTDOWN_TIMEOUT_MS):
+                logger.warning("Analyze worker still running after shutdown timeout")
+            self._analyze_worker = None
+        self._manager.shutdown()
+
     def reset(self) -> None:
         self.summary.reset()
         self.summary_changed.emit()
 
     def _on_items_ready(self, result_items: list[ResultItem]) -> None:
+        if self._shutting_down:
+            return
         options = self._options
         assert options is not None, "items arrived before a batch was started"
         for result_item in result_items:

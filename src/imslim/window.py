@@ -19,6 +19,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QAction,
     QClipboard,
+    QCloseEvent,
     QColor,
     QContextMenuEvent,
     QDragEnterEvent,
@@ -150,6 +151,9 @@ class ImSlimWindow(QWidget):
         _res = self.flow.output_folder_error.connect(self._on_analyze_output_error)
         _res = self.flow.analyze_failed.connect(self._on_analyze_failed)
         _res = self.flow.result_updated.connect(self.update_result_item)
+        # Ctrl+Q and logout call quit() without a window closeEvent, so also
+        # hook the application-level signal to guarantee cleanup.
+        _res = self.app.aboutToQuit.connect(self.flow.shutdown)
 
         self.rows: list[ResultItemRow] = []
         self._overlay_timer: QTimer = QTimer(self)
@@ -666,6 +670,14 @@ class ImSlimWindow(QWidget):
         if not paths:
             return
         self.start_compression(paths)
+
+    # ---------------------------------------------------------------- lifecycle
+    @override
+    def closeEvent(self, event: QCloseEvent) -> None:
+        # Cancel any running batch and wait for its subprocesses/threads so we
+        # don't orphan tools or leave .name.tmp/sidecar files behind.
+        self.flow.shutdown()
+        super().closeEvent(event)
 
     # ------------------------------------------------------------- active settings
     @staticmethod
