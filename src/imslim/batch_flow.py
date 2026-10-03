@@ -120,22 +120,18 @@ class BatchFlow(QObject):
             self._compressing = False
 
     def _on_result_updated(self, result_item: ResultItem) -> None:
-        if result_item.cancelled:
-            self.summary.record_done()
-        elif result_item.error:
+        if result_item.error:
             self.summary.record_failed()
-            self.summary.record_done()
         elif result_item.skipped:
             self.summary.record_skipped()
-            self.summary.record_done()
-        else:
+        elif not result_item.cancelled:
             saved_bytes = (
                 result_item.size - result_item.new_size
                 if result_item.size > result_item.new_size
                 else 0
             )
             self.summary.record_compressed(saved_bytes)
-            self.summary.record_done()
+        self.summary.record_done()
         self.summary_changed.emit()
 
     def _on_no_files(self) -> None:

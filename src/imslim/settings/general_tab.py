@@ -15,13 +15,13 @@ from PySide6.QtWidgets import (
 )
 
 from .._i18n import _
+from .._logging import LOG_LEVELS
 from ..settings_manager import SettingsManager, log_file_path
 from .style import separator
 from .tab import SettingsTab
 
-_LOG_LEVELS = ("NONE", "DEBUG", "INFO", "WARNING", "ERROR")
-_LOG_LEVEL_LABELS = ("None", "Debug", "Info", "Warning", "Error")
-_LOG_LEVEL_INDEX = {level: index for index, level in enumerate(_LOG_LEVELS)}
+_LOG_LEVEL_LABELS = tuple(level.capitalize() for level in LOG_LEVELS)
+_LOG_LEVEL_INDEX = {level: index for index, level in enumerate(LOG_LEVELS)}
 
 
 class GeneralTab(SettingsTab):
@@ -213,8 +213,8 @@ class GeneralTab(SettingsTab):
         self.entry_output_folder.setText("")
 
     def _on_log_level_changed(self, index: int) -> None:
-        self.settings.log_level = _LOG_LEVELS[index]
-        self._set_log_controls_state(_LOG_LEVELS[index])
+        self.settings.log_level = LOG_LEVELS[index]
+        self._set_log_controls_state(LOG_LEVELS[index])
         self.settings_changed.emit()
 
     def _set_log_controls_state(self, level: str) -> None:

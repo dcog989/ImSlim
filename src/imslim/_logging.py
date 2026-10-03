@@ -4,12 +4,13 @@ from pathlib import Path
 
 from .settings_manager import SettingsManager, log_file_path
 
-_LOG_LEVELS: dict[str, int] = {
+_LOG_LEVEL_VALUES: dict[str, int] = {
     "DEBUG": logging.DEBUG,
     "INFO": logging.INFO,
     "WARNING": logging.WARNING,
     "ERROR": logging.ERROR,
 }
+LOG_LEVELS: tuple[str, ...] = ("NONE", *_LOG_LEVEL_VALUES)
 _LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
 
 # Last applied (log-level, log-max-size, log-backups); lets configure_logging()
@@ -45,7 +46,7 @@ def configure_logging(settings: SettingsManager | None = None) -> None:
 
     if settings.log_level == "NONE":
         return
-    level = _LOG_LEVELS.get(settings.log_level, logging.INFO)
+    level = _LOG_LEVEL_VALUES.get(settings.log_level, logging.INFO)
 
     log_path = log_file_path()
     Path(log_path).parent.mkdir(parents=True, exist_ok=True)
