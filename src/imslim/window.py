@@ -1,5 +1,6 @@
 import html
 import os
+import shutil
 import tempfile
 import time
 from collections.abc import Callable
@@ -114,6 +115,7 @@ class ImSlimWindow(QWidget):
 
         self.settings: SettingsManager = SettingsManager()
         self.prefs_dialog: SettingsDialog | None = None
+        self._paste_temp_dir: str | None = None
 
         self.paste_filter: _PasteFilter = _PasteFilter()
         _res = self.paste_filter.context_menu_requested.connect(self.on_context_menu)
@@ -499,6 +501,7 @@ class ImSlimWindow(QWidget):
                 widget.deleteLater()
         self.rows.clear()
         self.flow.reset()
+        self._cleanup_paste_directory()
 
     # ------------------------------------------------------- compression flow
     def start_compression(self, paths: list[str]) -> None:
@@ -628,12 +631,26 @@ class ImSlimWindow(QWidget):
             self.start_compression([path])
 
     def _save_clipboard_image(self, image: QImage) -> str | None:
-        directory = tempfile.gettempdir()
-        path = os.path.join(directory, f"imslim-pasted-{time.time_ns()}.png")
+        # Paste sources and their compressed output live in a private (0700)
+        # temp dir so nothing predictable is written to shared /tmp; the dir is
+        # removed on clear/close.
+        directory = self._paste_directory()
+        path = os.path.join(directory, f"pasted-{time.time_ns()}.png")
         # PySide6's stub types `format` as bytes, but the runtime requires str.
         if image.save(path, "PNG"):  # pyright: ignore[reportCallIssue, reportArgumentType]
             return path
         return None
+
+    def _paste_directory(self) -> str:
+        if self._paste_temp_dir is None:
+            self._paste_temp_dir = tempfile.mkdtemp(prefix="imslim-pasted-")
+        return self._paste_temp_dir
+
+    def _cleanup_paste_directory(self) -> None:
+        directory = self._paste_temp_dir
+        self._paste_temp_dir = None
+        if directory is not None:
+            shutil.rmtree(directory, ignore_errors=True)
 
     def on_select(self) -> None:
         files, _filter = QFileDialog.getOpenFileNames(
@@ -677,6 +694,7 @@ class ImSlimWindow(QWidget):
         # Cancel any running batch and wait for its subprocesses/threads so we
         # don't orphan tools or leave .name.tmp/sidecar files behind.
         self.flow.shutdown()
+        self._cleanup_paste_directory()
         super().closeEvent(event)
 
     # ------------------------------------------------------------- active settings
