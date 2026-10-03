@@ -149,7 +149,7 @@ class ImSlimWindow(QWidget):
         # hook the application-level signal to guarantee cleanup.
         _res = self.app.aboutToQuit.connect(self.flow.shutdown)
 
-        self.rows: list[ResultItemRow] = []
+        self._row_count: int = 0
         self._pending_rows: list[ResultItem] = []
         self._row_timer: QTimer = QTimer(self)
         self._row_timer.setSingleShot(True)
@@ -491,21 +491,11 @@ class ImSlimWindow(QWidget):
                 if isinstance(widget, ResultItemRow):
                     widget.stop_thumbnail_loader()
                 widget.deleteLater()
-        self.rows.clear()
+        self._row_count = 0
         self.flow.reset()
         self._cleanup_paste_directory()
 
     # ------------------------------------------------------- compression flow
-    def start_compression(self, paths: list[str]) -> None:
-        """Begin compressing the given paths, switching to the loading view only
-        once at least one file has been collected."""
-        if self.flow.active:
-            _res = QMessageBox.information(
-                self, _("Compression in progress"), _("Wait for the current compression to finish.")
-            )
-            return
-        self.compress_files(paths)
-
     def compress_files(self, paths: list[str]) -> None:
         if self.flow.active:
             _res = QMessageBox.information(
@@ -554,11 +544,11 @@ class ImSlimWindow(QWidget):
         try:
             for result_item in batch:
                 row = ResultItemRow(result_item)
-                self._apply_row_alternation(row, len(self.rows))
+                self._apply_row_alternation(row, self._row_count)
                 # Insert just above the trailing stretch (the summary label is
                 # last), so rows read top-to-bottom in the order they were added.
                 self.results_layout.insertWidget(self.results_layout.count() - 2, row)
-                self.rows.append(row)
+                self._row_count += 1
         finally:
             self.results_container.setUpdatesEnabled(True)
         if self._pending_rows:
@@ -611,7 +601,7 @@ class ImSlimWindow(QWidget):
         paths = self._urls_to_paths(clipboard.mimeData())
 
         if paths:
-            self.start_compression(paths)
+            self.compress_files(paths)
             return
 
         self._read_clipboard_image(clipboard, attempts=0)
@@ -644,7 +634,7 @@ class ImSlimWindow(QWidget):
     def _handle_clipboard_image(self, image: QImage) -> None:
         path = self._save_clipboard_image(image)
         if path:
-            self.start_compression([path])
+            self.compress_files([path])
 
     def _save_clipboard_image(self, image: QImage) -> str | None:
         # Paste sources and their compressed output live in a private (0700)
@@ -674,7 +664,7 @@ class ImSlimWindow(QWidget):
         )
         if not files:
             return
-        self.start_compression(files)
+        self.compress_files(files)
 
     def on_select_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
@@ -682,7 +672,7 @@ class ImSlimWindow(QWidget):
         )
         if not folder:
             return
-        self.start_compression([folder])
+        self.compress_files([folder])
 
     def _dialog_start_dir(self) -> str:
         start = self.settings.default_open_dialog_directory
@@ -702,7 +692,7 @@ class ImSlimWindow(QWidget):
         paths = self._urls_to_paths(event.mimeData())
         if not paths:
             return
-        self.start_compression(paths)
+        self.compress_files(paths)
 
     # ---------------------------------------------------------------- lifecycle
     @override
