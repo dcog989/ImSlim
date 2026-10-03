@@ -13,6 +13,8 @@ from .png_compressor import PNGCompressor
 from .svg_compressor import SVGCompressor
 from .webp_compressor import WEBPCompressor
 
+__all__ = ["ALL_COMPRESSORS"]
+
 ALL_COMPRESSORS: tuple[type[Compressor], ...] = (
     PNGCompressor,
     JPEGCompressor,

@@ -13,10 +13,6 @@ _LOG_LEVEL_VALUES: dict[str, int] = {
 LOG_LEVELS: tuple[str, ...] = ("NONE", *_LOG_LEVEL_VALUES)
 _LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
 
-# Last applied (log-level, log-max-size, log-backups); lets configure_logging()
-# short-circuit when only unrelated settings changed.
-_last_applied: tuple[str, int, int] | None = None
-
 
 def configure_logging(settings: SettingsManager | None = None) -> None:
     """Install console and rotating-file handlers from the log settings.
@@ -30,13 +26,7 @@ def configure_logging(settings: SettingsManager | None = None) -> None:
     (whose writes are not synced to disk until close); a fresh instance reads
     stale values mid-edit.
     """
-    global _last_applied
-
     settings = settings or SettingsManager()
-    config = (settings.log_level, settings.log_max_size, settings.log_backups)
-    if config == _last_applied:
-        return
-    _last_applied = config
 
     root = logging.getLogger()
     for handler in root.handlers[:]:

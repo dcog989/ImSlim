@@ -66,20 +66,16 @@ def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> Q
     Safe to call from a non-GUI thread; the caller converts the result to a
     QPixmap on the main thread.
     """
-    try:
-        reader = QImageReader(filename)
-        reader.setAutoTransform(True)
-        size = reader.size()
-        width = size.width()
-        height = size.height()
-        if width <= 0 or height <= 0:
-            return None
-        ratio = min(max_width / width, max_height / height, 1.0)
-        reader.setScaledSize(QSize(max(1, int(width * ratio)), max(1, int(height * ratio))))
-        image = reader.read()
-    except Exception as err:
-        logger.error(str(err))
+    reader = QImageReader(filename)
+    reader.setAutoTransform(True)
+    size = reader.size()
+    width = size.width()
+    height = size.height()
+    if width <= 0 or height <= 0:
         return None
+    ratio = min(max_width / width, max_height / height, 1.0)
+    reader.setScaledSize(QSize(max(1, int(width * ratio)), max(1, int(height * ratio))))
+    image = reader.read()
     if image.isNull():
         return None
     return image
