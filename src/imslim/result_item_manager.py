@@ -1,4 +1,5 @@
 import os
+import re
 import time
 
 from PySide6.QtCore import QMimeDatabase
@@ -13,6 +14,21 @@ from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE
 
 _mime_db = QMimeDatabase()
+
+_OUTPUT_MARKER = "imslim"
+_BACKUP_MARKER = "BAK"
+
+# Files this app wrote: <stem>.<marker>.<timestamp>[-<n>].<ext>. They keep the
+# source image extension, so a rescan of a folder would pick them up as inputs.
+_GENERATED_OUTPUT_PATTERN = re.compile(
+    rf"\.(?:{_OUTPUT_MARKER}|{_BACKUP_MARKER})\.\d{{14}}(?:-\d+)?\.[^.]+$",
+    re.IGNORECASE,
+)
+
+
+def is_generated_output(path: str) -> bool:
+    """True when `path` is an output or backup this app created."""
+    return _GENERATED_OUTPUT_PATTERN.search(os.path.basename(path)) is not None
 
 
 class ResultItemManager:
@@ -80,14 +96,14 @@ class ResultItemManager:
             # Conversion always writes a new file in the target's format; it
             # must never overwrite a source that may have a different extension.
             return self._output_path(
-                path, "imslim", mime, TARGET_EXTENSIONS[self.options.target_format]
+                path, _OUTPUT_MARKER, mime, TARGET_EXTENSIONS[self.options.target_format]
             )
         if self.options.save_method == SAVE_BACKUP_OVERWRITE and mime not in OUTPUT_EXTENSIONS:
             return path
-        return self._output_path(path, "imslim", mime)
+        return self._output_path(path, _OUTPUT_MARKER, mime)
 
     def create_backup_filename(self, path: str, mime: str) -> str:
-        return self._output_path(path, "BAK", mime)
+        return self._output_path(path, _BACKUP_MARKER, mime)
 
     def _output_parent(self, path: str) -> str:
         if self.options.output_folder:

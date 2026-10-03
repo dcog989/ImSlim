@@ -8,7 +8,7 @@ from PySide6.QtCore import QThread, Signal
 from .batch_options import BatchOptions
 from .image_utils import get_image_paths_from_folder
 from .result_item import ResultItem
-from .result_item_manager import ResultItemManager
+from .result_item_manager import ResultItemManager, is_generated_output
 from .system_info import tool_version_pairs
 
 logger = logging.getLogger(__name__)
@@ -57,17 +57,26 @@ class AnalyzeWorker(QThread):
     def run(self) -> None:
         try:
             final_files: list[str] = []
+            seen: set[str] = set()
             for path in self._paths:
                 if self.is_cancelled():
                     return
                 if os.path.isdir(path):
-                    final_files.extend(
-                        get_image_paths_from_folder(
-                            path, self._options.recursive, self.is_cancelled
-                        )
+                    candidates = get_image_paths_from_folder(
+                        path, self._options.recursive, self.is_cancelled
                     )
                 else:
-                    final_files.append(path)
+                    candidates = [path]
+                for candidate in candidates:
+                    if is_generated_output(candidate):
+                        continue
+                    # A folder and a file inside it (or overlapping selections)
+                    # name the same file; realpath collapses them to one entry.
+                    key = os.path.normcase(os.path.realpath(candidate))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    final_files.append(candidate)
 
             if self.is_cancelled():
                 return
