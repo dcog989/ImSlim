@@ -175,16 +175,6 @@ class Compressor(ABC):
         if process.returncode != 0:
             raise subprocess.CalledProcessError(process.returncode, argv, stdout_data, stderr_data)
 
-    def _mark_cancelled(
-        self,
-        result_item: ResultItem,
-        c_update_result_item: Callable[..., None],
-        options: BatchOptions,
-    ) -> None:
-        result_item.state = ResultState.CANCELLED
-        self._cleanup_temp_files(result_item, options)
-        c_update_result_item(result_item)
-
     def _cleanup_temp_files(self, result_item: ResultItem, options: BatchOptions) -> None:
         paths = [result_item.tmp_filename, *self.get_intermediate_files(result_item, options)]
         if result_item.input_path != result_item.filename:
@@ -199,44 +189,37 @@ class Compressor(ABC):
         context: CompressionContext,
         options: BatchOptions,
     ) -> None:
-        if context.cancelled:
-            self._mark_cancelled(result_item, c_update_result_item, options)
-            return
-
-        # Mark the item as running only once a worker actually picks it up, so
-        # queued items don't show a busy spinner before their turn.
-        result_item.state = ResultState.RUNNING
-        result_item.updated.emit()
-
-        last_argv: list[str] | None = None
         try:
-            last_argv = self._execute_commands(result_item, context, options)
-        except CancelledError:
-            self._mark_cancelled(result_item, c_update_result_item, options)
-            return
-        except Exception as err:
-            self._report_command_error(result_item, err, options)
+            if context.cancelled:
+                result_item.state = ResultState.CANCELLED
+                return
 
-        if context.cancelled:
-            self._mark_cancelled(result_item, c_update_result_item, options)
-            return
+            # Mark the item as running only once a worker actually picks it up,
+            # so queued items don't show a busy spinner before their turn.
+            result_item.state = ResultState.RUNNING
+            result_item.updated.emit()
 
-        if result_item.state is ResultState.ERROR:
+            last_argv: list[str] | None = None
+            try:
+                last_argv = self._execute_commands(result_item, context, options)
+            except CancelledError:
+                result_item.state = ResultState.CANCELLED
+            except Exception as err:
+                self._report_command_error(result_item, err, options)
+
+            if context.cancelled:
+                result_item.state = ResultState.CANCELLED
+            elif result_item.state is ResultState.RUNNING:
+                try:
+                    self._output_writer.finalize(result_item, options)
+                except FileNotFoundError:
+                    logger.error("Command produced no output file: %s", last_argv)
+                    result_item.set_error(_("Can't find the compressed file"))
+
+                if result_item.state is not ResultState.ERROR:
+                    self._log_outcome(result_item)
+        finally:
             self._finish(result_item, c_update_result_item, options)
-            return
-
-        try:
-            self._output_writer.finalize(result_item, options)
-        except FileNotFoundError:
-            logger.error("Command produced no output file: %s", last_argv)
-            result_item.set_error(_("Can't find the compressed file"))
-
-        if result_item.state is ResultState.ERROR:
-            self._finish(result_item, c_update_result_item, options)
-            return
-
-        self._log_outcome(result_item)
-        self._finish(result_item, c_update_result_item, options)
 
     def _execute_commands(
         self, result_item: ResultItem, context: CompressionContext, options: BatchOptions
