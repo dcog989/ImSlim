@@ -1,6 +1,7 @@
 import logging
 import os
 import shutil
+import stat
 from pathlib import Path
 
 from ._i18n import _
@@ -59,7 +60,14 @@ class OutputWriter:
     def _restore_attributes(
         self, result_item: ResultItem, final_path: str, options: BatchOptions
     ) -> None:
-        if options.file_attributes and result_item.atime > 0 and result_item.mtime > 0:
+        if not options.file_attributes:
+            return
+        if result_item.mode >= 0:
+            try:
+                os.chmod(final_path, stat.S_IMODE(result_item.mode))
+            except OSError:
+                pass
+        if result_item.atime > 0 and result_item.mtime > 0:
             try:
                 os.utime(final_path, (result_item.atime, result_item.mtime))
             except OSError:

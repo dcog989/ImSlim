@@ -45,6 +45,7 @@ class ResultItemManager:
 
         result_item.atime = float(stat.st_atime)
         result_item.mtime = float(stat.st_mtime)
+        result_item.mode = stat.st_mode
         result_item.size = stat.st_size
 
         mime = _mime_db.mimeTypeForFile(path).name()

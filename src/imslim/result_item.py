@@ -18,6 +18,7 @@ class ResultItem(QObject):
         self.new_size: int = 0
         self.atime: float = -1.0
         self.mtime: float = -1.0
+        self.mode: int = -1
         self.subtitle_label: str = ""
         self.savings: str = ""
         self.running: bool = False
