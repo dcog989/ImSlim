@@ -24,7 +24,7 @@ class SVGCompressor(Compressor):
 
     @override
     def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:
-        config = _SVGO_CONFIG_MAXIMUM if options.svg_maximum_level else _SVGO_CONFIG
+        config = _SVGO_CONFIG_MAXIMUM if options.flag("svg-maximum-level") else _SVGO_CONFIG
         svgo = [resolve_tool("svgo")]
         svgo += tokens(t"--config {config}")
         svgo += tokens(t"-i {result_item.filename} -o {result_item.tmp_filename}")

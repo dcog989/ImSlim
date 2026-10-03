@@ -22,13 +22,13 @@ class GIFCompressor(Compressor):
 
         gifsicle = [
             resolve_tool("gifsicle"),
-            f"--optimize={options.gif_lossless_level}",
+            f"--optimize={options.level('gif-lossless-level')}",
         ]
 
         # gifsicle --lossy can visibly flicker/posterize complex animation,
         # so animated GIFs are always compressed losslessly
         if options.lossy and not is_animated:
-            gifsicle += [f"--lossy={options.gif_lossy_level}"]
+            gifsicle += [f"--lossy={options.level('gif-lossy-level')}"]
 
         if not options.metadata:
             # --no-extensions would also strip the animation loop and frame

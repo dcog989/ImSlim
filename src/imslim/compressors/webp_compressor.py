@@ -49,14 +49,14 @@ class WEBPCompressor(Compressor):
             cwebp += ["-metadata", "icc"]
 
         if options.lossy:
-            quality = options.webp_lossy_level
+            quality = options.level("webp-lossy-level")
         else:
             cwebp.append("-lossless")
             quality = _LOSSLESS_QUALITY
 
         # multithreaded, (lossless) compression mode, quality, output
         cwebp += tokens(
-            t"-mt -m {options.webp_lossless_level} -q {quality} "
+            t"-mt -m {options.level('webp-lossless-level')} -q {quality} "
             + t"-o {result_item.tmp_filename} {input_path}"
         )
 

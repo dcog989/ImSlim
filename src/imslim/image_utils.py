@@ -6,7 +6,7 @@ from collections.abc import Callable
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QImage, QImageReader
 
-from ._i18n import _
+from .formats import IMAGE_EXTENSIONS
 
 # SVG animation comes from SMIL (<animate>/<set>) or CSS (@keyframes/animation).
 # A source scan is enough to know the rasterized output would drop it.
@@ -16,40 +16,9 @@ _SVG_ANIMATION_PATTERN = re.compile(
 
 logger = logging.getLogger(__name__)
 
-_IMAGE_EXTENSIONS = (
-    ".png",
-    ".jpg",
-    ".jpeg",
-    ".gif",
-    ".webp",
-    ".avif",
-    ".jxl",
-    ".svg",
-    ".bmp",
-    ".tiff",
-    ".tif",
-)
-
-
-def image_filter() -> str:
-    all_extensions = " ".join(f"*{ext}" for ext in _IMAGE_EXTENSIONS)
-    return _(
-        f"Images ({all_extensions});;"
-        + "PNG (*.png);;"
-        + "JPEG (*.jpg *.jpeg);;"
-        + "BMP (*.bmp);;"
-        + "GIF (*.gif);;"
-        + "WebP (*.webp);;"
-        + "AVIF (*.avif);;"
-        + "JXL (*.jxl);;"
-        + "SVG (*.svg);;"
-        + "TIFF (*.tiff *.tif);;"
-        + "All files (*)"
-    )
-
 
 def is_image_path(path: str) -> bool:
-    return path.lower().endswith(_IMAGE_EXTENSIONS)
+    return path.lower().endswith(IMAGE_EXTENSIONS)
 
 
 def is_animated_image(filename: str, mime_type: str) -> bool:

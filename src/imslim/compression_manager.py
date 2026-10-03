@@ -8,6 +8,7 @@ from ._i18n import _
 from .batch_options import BatchOptions
 from .compressor import CompressionContext, Compressor
 from .conversion import is_converting
+from .formats import CONFIGURED_COMPRESSOR_TYPES, MIME_TO_COMPRESSOR
 from .result_item import ResultItem
 
 logger = logging.getLogger(__name__)
@@ -15,34 +16,6 @@ logger = logging.getLogger(__name__)
 # Bound on how long shutdown waits for the compression worker to unwind and
 # clean up temp files after cancellation; the kill grace is far shorter.
 _SHUTDOWN_TIMEOUT_SECONDS = 5.0
-
-# MIME type -> (compressor type, output extension). Formats that are re-encoded
-# to a different format on output (BMP/TIFF -> WebP) carry a different extension
-# here; for the rest the source extension is kept. Single source of truth shared
-# with result_item_manager (ALLOWED_MIME_TYPES / OUTPUT_EXTENSIONS).
-MIME_TO_COMPRESSOR = {
-    "image/jpeg": ("jpeg", None),
-    "image/png": ("png", None),
-    "image/webp": ("webp", None),
-    "image/avif": ("avif", None),
-    "image/jxl": ("jxl", None),
-    "image/gif": ("gif", None),
-    "image/svg+xml": ("svg", None),
-    "image/bmp": ("webp", ".webp"),
-    "image/tiff": ("webp", ".webp"),
-}
-
-ALLOWED_MIME_TYPES = frozenset(MIME_TO_COMPRESSOR)
-
-OUTPUT_EXTENSIONS = {
-    mime: extension for mime, (_compress_type, extension) in MIME_TO_COMPRESSOR.items() if extension
-}
-
-# Compressor types referenced by MIME_TO_COMPRESSOR; used to validate that every
-# configured type is covered by a registered compressor.
-_CONFIGURED_COMPRESSOR_TYPES = frozenset(
-    compress_type for compress_type, _extension in MIME_TO_COMPRESSOR.values()
-)
 
 
 class CompressionManager:
@@ -56,14 +29,14 @@ class CompressionManager:
 
     def register_compressor(self, ConcreteCompressor: type[Compressor]) -> None:
         file_type = ConcreteCompressor.get_file_type()
-        assert file_type in _CONFIGURED_COMPRESSOR_TYPES, (
+        assert file_type in CONFIGURED_COMPRESSOR_TYPES, (
             f"Compressor '{file_type}' is not referenced in MIME_TO_COMPRESSOR"
         )
         if file_type not in self.compressors:
             self.compressors[file_type] = ConcreteCompressor()
 
     def validate_configured_compressors(self) -> None:
-        unregistered = sorted(_CONFIGURED_COMPRESSOR_TYPES - set(self.compressors))
+        unregistered = sorted(CONFIGURED_COMPRESSOR_TYPES - set(self.compressors))
         assert not unregistered, (
             f"No compressor registered for configured types: {', '.join(unregistered)}"
         )

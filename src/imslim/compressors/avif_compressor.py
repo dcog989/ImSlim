@@ -41,12 +41,14 @@ class AVIFCompressor(Compressor):
             avifenc += ["--ignore-exif", "--ignore-xmp"]
 
         if options.lossy:
-            avifenc += tokens(t"-q {options.avif_lossy_level} -a tune=iq -d {_ENCODE_BIT_DEPTH}")
+            avifenc += tokens(
+                t"-q {options.level('avif-lossy-level')} -a tune=iq -d {_ENCODE_BIT_DEPTH}"
+            )
         else:
             avifenc.append("--lossless")
 
         # higher effort -> slower but better compression (speed 0-10, default 6)
-        avifenc += tokens(t"--speed {_MAX_SPEED - options.avif_lossless_level}")
+        avifenc += tokens(t"--speed {_MAX_SPEED - options.level('avif-lossless-level')}")
         avifenc += [encode_input, result_item.tmp_filename]
 
         commands.append(Command(avifenc))

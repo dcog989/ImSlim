@@ -58,12 +58,12 @@ class JXLCompressor(Compressor):
         cjxl = [resolve_tool("cjxl")]
 
         if options.lossy:
-            cjxl += tokens(t"-q {options.jxl_lossy_level}")
+            cjxl += tokens(t"-q {options.level('jxl-lossy-level')}")
         else:
             cjxl += ["-q", _LOSSLESS_QUALITY]
 
         # effort (1-10, default 7): higher -> slower but better compression
-        cjxl += tokens(t"-e {options.jxl_lossless_level}")
+        cjxl += tokens(t"-e {options.level('jxl-lossless-level')}")
 
         if extracting_metadata:
             for kind in _JXL_METADATA:

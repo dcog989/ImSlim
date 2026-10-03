@@ -5,7 +5,7 @@ from typing import Protocol, TypeVar, cast, final
 
 from PySide6.QtCore import QSettings, QStandardPaths
 
-from .conversion import KEEP_FORMAT
+from .formats import FORMAT_DEFAULT_KNOBS, KEEP_FORMAT
 
 _LOG_FILE_NAME = "imslim.log"
 
@@ -62,7 +62,7 @@ def _setting[T](key: str, _type: type[T]) -> _SettingDescriptor[T]:
 SAVE_NEW_FILE = 0
 SAVE_BACKUP_OVERWRITE = 1
 
-DEFAULTS: dict[str, str | int | bool] = {
+BASE_DEFAULTS: dict[str, str | int | bool] = {
     "save-method": SAVE_NEW_FILE,
     "target-format": KEEP_FORMAT,
     "output-folder": "",
@@ -71,24 +71,14 @@ DEFAULTS: dict[str, str | int | bool] = {
     "metadata": True,
     "file-attributes": True,
     "lossy": False,
-    "png-lossy-level": 90,
-    "png-lossless-level": 4,
-    "jpg-lossy-level": 90,
-    "jpg-progressive": False,
-    "webp-lossy-level": 70,
-    "webp-lossless-level": 4,
-    "avif-lossy-level": 70,
-    "avif-lossless-level": 6,
-    "jxl-lossy-level": 70,
-    "jxl-lossless-level": 6,
-    "gif-lossy-level": 80,
-    "gif-lossless-level": 2,
-    "svg-maximum-level": False,
     "compression-timeout": 15,
     "log-level": "INFO",
     "log-max-size": 2,
     "log-backups": 3,
 }
+
+# Per-format knobs are defined by the format table; base settings live here.
+DEFAULTS: dict[str, str | int | bool] = {**BASE_DEFAULTS, **FORMAT_DEFAULT_KNOBS}
 
 
 @final
@@ -126,6 +116,13 @@ class SettingsManager:
         else:
             self.set_string(key, cast(str, value))
 
+    def knob(self, key: str) -> int | bool:
+        """Read a per-format setting by its table-defined key."""
+        return cast("int | bool", self._get(key))
+
+    def set_knob(self, key: str, value: int | bool) -> None:
+        self._set(key, value)
+
     save_method = _setting("save-method", int)
     target_format = _setting("target-format", str)
     output_folder = _setting("output-folder", str)
@@ -134,19 +131,6 @@ class SettingsManager:
     recursive = _setting("recursive", bool)
     metadata = _setting("metadata", bool)
     file_attributes = _setting("file-attributes", bool)
-    png_lossy_level = _setting("png-lossy-level", int)
-    png_lossless_level = _setting("png-lossless-level", int)
-    jpg_lossy_level = _setting("jpg-lossy-level", int)
-    jpg_progressive = _setting("jpg-progressive", bool)
-    webp_lossy_level = _setting("webp-lossy-level", int)
-    webp_lossless_level = _setting("webp-lossless-level", int)
-    avif_lossy_level = _setting("avif-lossy-level", int)
-    avif_lossless_level = _setting("avif-lossless-level", int)
-    jxl_lossy_level = _setting("jxl-lossy-level", int)
-    jxl_lossless_level = _setting("jxl-lossless-level", int)
-    gif_lossy_level = _setting("gif-lossy-level", int)
-    gif_lossless_level = _setting("gif-lossless-level", int)
-    svg_maximum_level = _setting("svg-maximum-level", bool)
     compression_timeout = _setting("compression-timeout", int)
     log_level = _setting("log-level", str)
     log_max_size = _setting("log-max-size", int)

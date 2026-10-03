@@ -6,9 +6,9 @@ from PySide6.QtCore import QMimeDatabase
 
 from ._i18n import _
 from .batch_options import BatchOptions
-from .compression_manager import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS
-from .conversion import TARGET_EXTENSIONS, is_converting
+from .conversion import is_converting
 from .format import sizeof_fmt
+from .formats import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS, TARGET_EXTENSIONS
 from .image_utils import is_animated_image
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE

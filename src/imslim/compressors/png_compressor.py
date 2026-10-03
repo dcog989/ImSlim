@@ -17,7 +17,7 @@ class PNGCompressor(Compressor):
         commands: list[Command] = []
 
         if options.lossy:  # lossy compression
-            quality_flag = f"--quality=0-{options.png_lossy_level}"
+            quality_flag = f"--quality=0-{options.level('png-lossy-level')}"
             pngquant = tokens(t"{resolve_tool('pngquant')} {quality_flag} -f")
             if not options.metadata:
                 pngquant.append("--strip")
@@ -26,7 +26,7 @@ class PNGCompressor(Compressor):
 
         # Deinterlace: Adam7 interlacing adds 25-50% to the file size, which is
         # the opposite of what a compressor wants.
-        oxipng = tokens(t"{resolve_tool('oxipng')} -o {options.png_lossless_level} -i 0")
+        oxipng = tokens(t"{resolve_tool('oxipng')} -o {options.level('png-lossless-level')} -i 0")
         if not options.metadata:
             oxipng += ["--strip", "safe"]
         if options.file_attributes:

@@ -29,7 +29,7 @@ class JPEGCompressor(Compressor):
     ) -> list[Command]:
         jpegtran = tokens(t"{resolve_tool('jpegtran')} -optimize")
 
-        if options.jpg_progressive:
+        if options.flag("jpg-progressive"):
             jpegtran.append("-progressive")
 
         # Keep the ICC profile when stripping metadata so colors still render correctly.
@@ -58,10 +58,10 @@ class JPEGCompressor(Compressor):
 
         cjpegli = tokens(
             t"{resolve_tool('cjpegli')} {encode_input} {output} "
-            + t"--quality {options.jpg_lossy_level}"
+            + t"--quality {options.level('jpg-lossy-level')}"
         )
         cjpegli.append(
-            "--progressive_level=2" if options.jpg_progressive else "--progressive_level=0"
+            "--progressive_level=2" if options.flag("jpg-progressive") else "--progressive_level=0"
         )
 
         commands.append(Command(cjpegli))

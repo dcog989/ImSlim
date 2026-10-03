@@ -50,16 +50,10 @@ from ._i18n import _
 from ._logging import configure_logging
 from .batch_flow import BatchFlow
 from .compression_manager import CompressionManager
-from .compressors.avif_compressor import AVIFCompressor
-from .compressors.gif_compressor import GIFCompressor
-from .compressors.jpeg_compressor import JPEGCompressor
-from .compressors.jxl_compressor import JXLCompressor
-from .compressors.png_compressor import PNGCompressor
-from .compressors.svg_compressor import SVGCompressor
-from .compressors.webp_compressor import WEBPCompressor
-from .conversion import KEEP_FORMAT, TARGET_FORMATS, is_converting
+from .compressors import ALL_COMPRESSORS
+from .conversion import is_converting
 from .format import savings_percent, sizeof_fmt
-from .image_utils import image_filter
+from .formats import KEEP_FORMAT, TARGET_SPECS, image_filter
 from .result_item import ResultItem
 from .result_item_row import ResultItemRow
 from .settings import SettingsDialog
@@ -138,13 +132,8 @@ class ImSlimWindow(QWidget):
         self.show_view("home")
 
         self.manager: CompressionManager = CompressionManager()
-        self.manager.register_compressor(PNGCompressor)
-        self.manager.register_compressor(JPEGCompressor)
-        self.manager.register_compressor(WEBPCompressor)
-        self.manager.register_compressor(AVIFCompressor)
-        self.manager.register_compressor(JXLCompressor)
-        self.manager.register_compressor(GIFCompressor)
-        self.manager.register_compressor(SVGCompressor)
+        for compressor in ALL_COMPRESSORS:
+            self.manager.register_compressor(compressor)
         self.manager.validate_configured_compressors()
 
         self.flow: BatchFlow = BatchFlow(self.settings, self.manager)
@@ -213,14 +202,7 @@ class ImSlimWindow(QWidget):
         header_layout.addWidget(self.results_title)
 
         self.combo_format = self._build_option_combo(
-            (
-                _("Same as input"),
-                _("AVIF"),
-                _("JPEG"),
-                _("JXL"),
-                _("PNG"),
-                _("WebP"),
-            ),
+            (_("Same as input"), *(_(spec.display) for spec in TARGET_SPECS)),
             _(
                 "Output format. Convert every input to the selected format, or "
                 + "keep each file's original format."
@@ -742,12 +724,13 @@ class ImSlimWindow(QWidget):
 
     def _target_index(self) -> int:
         target = self.settings.target_format
-        if target in TARGET_FORMATS:
-            return TARGET_FORMATS.index(target) + 1
+        for index, spec in enumerate(TARGET_SPECS):
+            if spec.key == target:
+                return index + 1
         return 0
 
     def on_format_changed(self, index: int) -> None:
-        self.settings.target_format = KEEP_FORMAT if index <= 0 else TARGET_FORMATS[index - 1]
+        self.settings.target_format = KEEP_FORMAT if index <= 0 else TARGET_SPECS[index - 1].key
 
     def on_compression_changed(self, index: int) -> None:
         self.settings.lossy = index == 0
