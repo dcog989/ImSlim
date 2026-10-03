@@ -545,7 +545,9 @@ class ImSlimWindow(QWidget):
     def add_row(self, result_item: ResultItem) -> None:
         row = ResultItemRow(result_item)
         self._apply_row_alternation(row, len(self.rows))
-        self.results_layout.insertWidget(1, row)
+        # Insert just above the trailing stretch (the summary label is last),
+        # so rows read top-to-bottom in the order they were added.
+        self.results_layout.insertWidget(self.results_layout.count() - 2, row)
         self.rows.append(row)
 
     @staticmethod
