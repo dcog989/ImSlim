@@ -24,7 +24,9 @@ class PNGCompressor(Compressor):
             pngquant += [result_item.input_path, "--output", result_item.tmp_filename]
             commands.append(Command(pngquant))
 
-        oxipng = tokens(t"{resolve_tool('oxipng')} -o {options.png_lossless_level} -i 1")
+        # Deinterlace: Adam7 interlacing adds 25-50% to the file size, which is
+        # the opposite of what a compressor wants.
+        oxipng = tokens(t"{resolve_tool('oxipng')} -o {options.png_lossless_level} -i 0")
         if not options.metadata:
             oxipng += ["--strip", "safe"]
         if options.file_attributes:
