@@ -102,6 +102,9 @@ class _PasteFilter(QObject):
 
 
 _V_SPACING = 16
+# Rows are built in small timer-driven chunks so a huge batch does not block the
+# UI thread building thousands of widgets in one event-loop iteration.
+_ROW_CHUNK_SIZE = 50
 
 
 class ImSlimWindow(QWidget):
@@ -158,6 +161,11 @@ class ImSlimWindow(QWidget):
         _res = self.app.aboutToQuit.connect(self.flow.shutdown)
 
         self.rows: list[ResultItemRow] = []
+        self._pending_rows: list[ResultItem] = []
+        self._row_timer: QTimer = QTimer(self)
+        self._row_timer.setSingleShot(True)
+        self._row_timer.setInterval(0)
+        _res = self._row_timer.timeout.connect(self._flush_rows)
         self._overlay_timer: QTimer = QTimer(self)
         self._overlay_timer.setSingleShot(True)
         self._overlay_timer.setInterval(1000)
@@ -490,6 +498,8 @@ class ImSlimWindow(QWidget):
 
     def clear_results(self) -> None:
         self.show_view("home")
+        self._pending_rows.clear()
+        self._row_timer.stop()
         while self.results_layout.count() > 3:
             item = self.results_layout.takeAt(1)
             if item is None:
@@ -543,12 +553,34 @@ class ImSlimWindow(QWidget):
         )
 
     def add_row(self, result_item: ResultItem) -> None:
-        row = ResultItemRow(result_item)
-        self._apply_row_alternation(row, len(self.rows))
-        # Insert just above the trailing stretch (the summary label is last),
-        # so rows read top-to-bottom in the order they were added.
-        self.results_layout.insertWidget(self.results_layout.count() - 2, row)
-        self.rows.append(row)
+        self._pending_rows.append(result_item)
+        if not self._row_timer.isActive():
+            self._row_timer.start()
+
+    def _flush_rows(self) -> None:
+        """Build the next chunk of queued rows with repaints suppressed.
+
+        Compressing thousands of files emits one item_added per file in a
+        single event-loop iteration; building the widgets here in capped chunks
+        keeps that iteration short so the window stays responsive.
+        """
+        if not self._pending_rows:
+            return
+        batch = self._pending_rows[:_ROW_CHUNK_SIZE]
+        del self._pending_rows[:_ROW_CHUNK_SIZE]
+        self.results_container.setUpdatesEnabled(False)
+        try:
+            for result_item in batch:
+                row = ResultItemRow(result_item)
+                self._apply_row_alternation(row, len(self.rows))
+                # Insert just above the trailing stretch (the summary label is
+                # last), so rows read top-to-bottom in the order they were added.
+                self.results_layout.insertWidget(self.results_layout.count() - 2, row)
+                self.rows.append(row)
+        finally:
+            self.results_container.setUpdatesEnabled(True)
+        if self._pending_rows:
+            self._row_timer.start()
 
     @staticmethod
     def _apply_row_alternation(row: ResultItemRow, index: int) -> None:

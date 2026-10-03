@@ -5,6 +5,7 @@ from typing import override
 from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThreadPool, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
+    QColor,
     QContextMenuEvent,
     QDesktopServices,
     QIcon,
@@ -71,6 +72,23 @@ class _ThumbnailTask(QObject, QRunnable):  # pyright: ignore[reportUnsafeMultipl
 # removed; _release drops it on the main thread after run() returns.
 _ACTIVE_TASKS: set[_ThumbnailTask] = set()
 
+# Every row paints the same three 16px info icons; rendering them per row is
+# pure waste, so memoize by window-text color (rgba) for the current theme.
+_INFO_ICONS: dict[int, tuple[QIcon, QIcon, QIcon]] = {}
+
+
+def _info_icons(color: QColor) -> tuple[QIcon, QIcon, QIcon]:
+    key = color.rgba()
+    icons = _INFO_ICONS.get(key)
+    if icons is None:
+        icons = (
+            circle_off_icon(color, 16),
+            shield_alert_icon(color, 16),
+            triangle_alert_icon(color, 16),
+        )
+        _INFO_ICONS[key] = icons
+    return icons
+
 
 class _ClickableThumbnail(QLabel):
     """Thumbnail label that emits a click signal."""
@@ -110,17 +128,15 @@ class ResultItemRow(QWidget):
         self.spinner.setFixedSize(20, 16)
         self.spinner.setTextVisible(False)
 
+        skipped_icon, error_icon, warning_icon = _info_icons(
+            self.palette().color(self.palette().ColorRole.WindowText)
+        )
         self.skipped_button: QToolButton = self._make_info_button(
-            self._show_skipped_info,
-            circle_off_icon(self.palette().color(self.palette().ColorRole.WindowText), 16),
+            self._show_skipped_info, skipped_icon
         )
-        self.error_button: QToolButton = self._make_info_button(
-            self._show_error_info,
-            shield_alert_icon(self.palette().color(self.palette().ColorRole.WindowText), 16),
-        )
+        self.error_button: QToolButton = self._make_info_button(self._show_error_info, error_icon)
         self.warning_button: QToolButton = self._make_info_button(
-            self._show_warning_info,
-            triangle_alert_icon(self.palette().color(self.palette().ColorRole.WindowText), 16),
+            self._show_warning_info, warning_icon
         )
 
         text_vbox = QVBoxLayout()
