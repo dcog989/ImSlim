@@ -6,7 +6,7 @@ from .._i18n import _
 from ..settings_manager import SettingsManager, log_file_path
 from ..system_info import static_about_pairs, system_info_pairs
 from ..widgets import imslim_icon
-from ..workers import VersionProbeWorker
+from ..workers import VersionProbeTask, start_task
 from .tab import SettingsTab
 
 
@@ -15,7 +15,7 @@ class AboutTab(SettingsTab):
         super().__init__(settings, parent)
         self._tool_pairs: list[tuple[str, str]] = []
         self._populated = False
-        self._probe_worker: VersionProbeWorker | None = None
+        self._probe_worker: VersionProbeTask | None = None
         self._env_label: QLabel = QLabel()
         self._build()
 
@@ -64,11 +64,10 @@ class AboutTab(SettingsTab):
         # System/static info is cheap and synchronous; tool versions spawn
         # subprocesses, so probe them off the UI thread.
         self._env_label.setText(self._env_text())
-        worker = VersionProbeWorker()
+        worker = VersionProbeTask()
         worker.versions_ready.connect(self._on_versions)
-        worker.finished.connect(worker.deleteLater)
         self._probe_worker = worker
-        worker.start()
+        start_task(worker)
 
     def _env_text(self) -> str:
         lines: list[str] = []

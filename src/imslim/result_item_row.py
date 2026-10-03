@@ -2,7 +2,7 @@ import os
 from collections.abc import Callable
 from typing import override
 
-from PySide6.QtCore import QObject, QRunnable, QSize, Qt, QThreadPool, QUrl, Signal
+from PySide6.QtCore import QSize, Qt, QThreadPool, QUrl, Signal
 from PySide6.QtGui import (
     QAction,
     QColor,
@@ -29,6 +29,7 @@ from .format import sizeof_fmt
 from .image_utils import create_thumbnail_qimage
 from .result_item import ResultItem, ResultState
 from .widgets import circle_off_icon, shield_alert_icon, triangle_alert_icon
+from .workers import Task
 
 # Shared, bounded pool: a batch of hundreds of rows must not spawn a thread per
 # row. The cap follows compression_manager's reasoning (decode is cheap but
@@ -37,24 +38,15 @@ _THUMBNAIL_POOL = QThreadPool()
 _THUMBNAIL_POOL.setMaxThreadCount(max(2, (os.cpu_count() or 2) // 2))
 
 
-# Both __init__s are called explicitly below; the multiple-inheritance
-# warning is a false positive for the standard QObject+QRunnable combo.
-class _ThumbnailTask(QObject, QRunnable):  # pyright: ignore[reportUnsafeMultipleInheritance]
+class _ThumbnailTask(Task):
     """Decode a thumbnail image in a pooled worker thread; emits a value QImage."""
 
     loaded: Signal = Signal(object)
-    finished: Signal = Signal()
 
     def __init__(self, filename: str, size: int) -> None:
-        QObject.__init__(self)
-        QRunnable.__init__(self)
-        # Managed by the in-flight registry (tryTake + deleteLater), not the pool.
-        self.setAutoDelete(False)
+        super().__init__()
         self._filename: str = filename
         self._size: int = size
-        # Queued onto the main thread, so it runs after any queued 'loaded'
-        # delivery and never while run() winds down.
-        _res = self.finished.connect(self._release)
 
     @override
     def run(self) -> None:
@@ -63,15 +55,6 @@ class _ThumbnailTask(QObject, QRunnable):  # pyright: ignore[reportUnsafeMultipl
         finally:
             self.finished.emit()
 
-    def _release(self) -> None:
-        _ACTIVE_TASKS.discard(self)
-        self.deleteLater()
-
-
-# Holds every started task until it finishes, so a running QRunnable is never
-# garbage-collected (and its C++ object destroyed) mid-run() when its row is
-# removed; _release drops it on the main thread after run() returns.
-_ACTIVE_TASKS: set[_ThumbnailTask] = set()
 
 # Every row paints the same three 16px info icons; rendering them per row is
 # pure waste, so memoize by window-text color (rgba) for the current theme.
@@ -158,7 +141,6 @@ class ResultItemRow(QWidget):
 
         task = _ThumbnailTask(result_item.filename, 48)
         self._thumbnail_task: _ThumbnailTask | None = task
-        _ACTIVE_TASKS.add(task)
         _res = task.loaded.connect(self._set_thumbnail)
         _THUMBNAIL_POOL.start(task)
 
@@ -175,12 +157,11 @@ class ResultItemRow(QWidget):
         task = self._thumbnail_task
         self._thumbnail_task = None
         if task is None or not _THUMBNAIL_POOL.tryTake(task):
-            # Already running: the registry keeps it alive and _release cleans
-            # it up once run() returns; never drop it mid-run.
+            # Already running: the task registry keeps it alive and _release
+            # cleans it up once run() returns; never drop it mid-run.
             return
         # Still queued; skip the decode entirely.
-        _ACTIVE_TASKS.discard(task)
-        task.deleteLater()
+        task.abandon()
 
     @staticmethod
     def _make_info_button(handler: Callable[..., None], icon: QIcon | None = None) -> QToolButton:

@@ -1,13 +1,13 @@
 import logging
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, QThreadPool, Signal
 
 from .batch_options import BatchOptions
 from .batch_summary import BatchSummary
 from .compression_manager import CompressionManager
 from .result_item import ResultItem, ResultState
 from .settings_manager import SettingsManager
-from .workers import AnalyzeWorker
+from .workers import AnalyzeTask
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,11 @@ class BatchFlow(QObject):
         self._active: bool = False
         self._compressing: bool = False
         self._shutting_down: bool = False
-        self._analyze_worker: AnalyzeWorker | None = None
+        self._analyze_worker: AnalyzeTask | None = None
+        # Dedicated single-thread pool so shutdown can wait for exactly this
+        # analyze run without waiting on unrelated pooled tasks.
+        self._analyze_pool: QThreadPool = QThreadPool()
+        self._analyze_pool.setMaxThreadCount(1)
         self._options: BatchOptions | None = None
         _res = self.result_updated.connect(self._on_result_updated)
         # The manager emits this from its own thread; the queued connection
@@ -57,14 +61,14 @@ class BatchFlow(QObject):
             return
         self._active = True
         self._options = BatchOptions.from_settings(self._settings)
-        worker = AnalyzeWorker(paths, self._options)
+        worker = AnalyzeTask(paths, self._options)
         self._analyze_worker = worker
         _res = worker.items_ready.connect(self._on_items_ready)
         _res = worker.no_files.connect(self._on_no_files)
         _res = worker.output_folder_error.connect(self._on_output_folder_error)
         _res = worker.analysis_failed.connect(self._on_analyze_failed)
         _res = worker.finished.connect(self._on_analyze_finished)
-        worker.start()
+        self._analyze_pool.start(worker)
 
     def cancel(self) -> None:
         self._manager.cancel()
@@ -81,7 +85,7 @@ class BatchFlow(QObject):
         worker = self._analyze_worker
         if worker is not None:
             worker.cancel()
-            if not worker.wait(_ANALYZE_SHUTDOWN_TIMEOUT_MS):
+            if not self._analyze_pool.waitForDone(_ANALYZE_SHUTDOWN_TIMEOUT_MS):
                 logger.warning("Analyze worker still running after shutdown timeout")
             self._analyze_worker = None
         self._manager.shutdown()
@@ -153,7 +157,5 @@ class BatchFlow(QObject):
     def _on_analyze_finished(self) -> None:
         if not self._compressing:
             self._active = False
-        worker = self._analyze_worker
+        # Task deletes itself once finished; just drop our reference.
         self._analyze_worker = None
-        if worker is not None:
-            worker.deleteLater()
