@@ -1,3 +1,4 @@
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QGridLayout,
@@ -13,16 +14,19 @@ from .._i18n import _
 from ..formats import FORMAT_BY_COMPRESSOR, FORMAT_SPECS, FormatSpec, Knob
 from ..settings_manager import SettingsManager
 from .style import hint_label
-from .tab import SettingsTab
+from .tab import bool_handler, int_handler, suspend_signals
 
 
-class FormatsTab(SettingsTab):
+class FormatsTab(QWidget):
+    settings_changed: Signal = Signal()
+
     def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
-        super().__init__(settings, parent)
+        super().__init__(parent)
+        self.settings: SettingsManager = settings
         self._spins: list[tuple[QSpinBox, str]] = []
         self._checks: list[tuple[QCheckBox, str]] = []
         self._build()
-        with self._suspend_signals():
+        with suspend_signals(self):
             self._load_values()
 
     def _build(self) -> None:
@@ -56,7 +60,9 @@ class FormatsTab(SettingsTab):
                 layout.addLayout(self._spin_row(knob))
             else:
                 check = QCheckBox(knob.label)
-                check.toggled.connect(self._bool_handler(knob.key))
+                check.toggled.connect(
+                    bool_handler(self.settings, self.settings_changed.emit, knob.key)
+                )
                 self._checks.append((check, knob.key))
                 layout.addWidget(check)
                 layout.addWidget(hint_label(knob.hint))
@@ -93,7 +99,7 @@ class FormatsTab(SettingsTab):
         label_widget.setMinimumWidth(110)
         spin = QSpinBox()
         spin.setRange(knob.lower, knob.upper)
-        spin.valueChanged.connect(self._int_handler(knob.key))
+        spin.valueChanged.connect(int_handler(self.settings, self.settings_changed.emit, knob.key))
         self._spins.append((spin, knob.key))
         row.addWidget(label_widget)
         row.addStretch(1)

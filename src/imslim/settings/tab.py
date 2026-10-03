@@ -1,50 +1,43 @@
-"""Base class for the settings tabs."""
+"""Shared helpers for the settings tabs."""
 
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
 
-from PySide6.QtCore import QSignalBlocker, Signal
+from PySide6.QtCore import QSignalBlocker
 from PySide6.QtWidgets import QWidget
 
 from ..settings_manager import SettingsManager
 
 
-class SettingsTab(QWidget):
-    """Base for a settings tab.
+@contextmanager
+def suspend_signals(widget: QWidget) -> Iterator[None]:
+    """Run a block with every child widget's signals blocked.
 
-    Settings are written live as the user edits, so tabs only report that
-    something changed; the dialog re-emits this to its owner.
+    Signals are connected while the widgets are built, so populating them
+    from stored settings would otherwise fire the change handlers and write
+    every value straight back (and report a change for each).
     """
+    with ExitStack() as stack:
+        for child in widget.findChildren(QWidget):
+            stack.enter_context(QSignalBlocker(child))
+        yield
 
-    settings_changed: Signal = Signal()
 
-    def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.settings: SettingsManager = settings
+def bool_handler(
+    settings: SettingsManager, changed: Callable[[], None], key: str
+) -> Callable[[bool], None]:
+    def handler(checked: bool) -> None:
+        settings.set_boolean(key, checked)
+        changed()
 
-    @contextmanager
-    def _suspend_signals(self) -> Iterator[None]:
-        """Run a block with every child widget's signals blocked.
+    return handler
 
-        Signals are connected while the widgets are built, so populating them
-        from stored settings would otherwise fire the change handlers and write
-        every value straight back (and report a change for each).
-        """
-        with ExitStack() as stack:
-            for child in self.findChildren(QWidget):
-                stack.enter_context(QSignalBlocker(child))
-            yield
 
-    def _bool_handler(self, key: str) -> Callable[[bool], None]:
-        def handler(checked: bool) -> None:
-            self.settings.set_boolean(key, checked)
-            self.settings_changed.emit()
+def int_handler(
+    settings: SettingsManager, changed: Callable[[], None], key: str
+) -> Callable[[int], None]:
+    def handler(value: int) -> None:
+        settings.set_int(key, value)
+        changed()
 
-        return handler
-
-    def _int_handler(self, key: str) -> Callable[[int], None]:
-        def handler(value: int) -> None:
-            self.settings.set_int(key, value)
-            self.settings_changed.emit()
-
-        return handler
+    return handler

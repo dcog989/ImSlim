@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QUrl
+from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -16,15 +16,18 @@ from .._i18n import _
 from .._logging import LOG_LEVELS
 from ..settings_manager import SettingsManager, log_file_path
 from .style import separator
-from .tab import SettingsTab
+from .tab import bool_handler, int_handler, suspend_signals
 
 _LOG_LEVEL_LABELS = tuple(level.capitalize() for level in LOG_LEVELS)
 _LOG_LEVEL_INDEX = {level: index for index, level in enumerate(LOG_LEVELS)}
 
 
-class GeneralTab(SettingsTab):
+class GeneralTab(QWidget):
+    settings_changed: Signal = Signal()
+
     def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
-        super().__init__(settings, parent)
+        super().__init__(parent)
+        self.settings: SettingsManager = settings
         self.combo_save_method: QComboBox = QComboBox()
         self.entry_output_folder: QLineEdit = QLineEdit()
         self.btn_output_folder: QPushButton = QPushButton()
@@ -38,7 +41,7 @@ class GeneralTab(SettingsTab):
         self.spin_log_max_size: QSpinBox = QSpinBox()
         self.spin_log_backups: QSpinBox = QSpinBox()
         self._build()
-        with self._suspend_signals():
+        with suspend_signals(self):
             self._load_values()
 
     def _build(self) -> None:
@@ -83,7 +86,9 @@ class GeneralTab(SettingsTab):
         default_directory_row.addWidget(self.btn_clear_default_directory)
 
         self.check_recursive.setText(_("Compress sub-directories"))
-        self.check_recursive.toggled.connect(self._bool_handler("recursive"))
+        self.check_recursive.toggled.connect(
+            bool_handler(self.settings, self.settings_changed.emit, "recursive")
+        )
 
         self.spin_timeout.setRange(1, 300)
         self.spin_timeout.setSuffix("s")
@@ -125,10 +130,16 @@ class GeneralTab(SettingsTab):
         self.combo_save_method.currentIndexChanged.connect(self._on_save_method_changed)
         self.entry_output_folder.textChanged.connect(self._on_output_folder_changed)
         self.entry_default_directory.textChanged.connect(self._on_default_directory_changed)
-        self.spin_timeout.valueChanged.connect(self._int_handler("compression-timeout"))
+        self.spin_timeout.valueChanged.connect(
+            int_handler(self.settings, self.settings_changed.emit, "compression-timeout")
+        )
         self.combo_log_level.currentIndexChanged.connect(self._on_log_level_changed)
-        self.spin_log_max_size.valueChanged.connect(self._int_handler("log-max-size"))
-        self.spin_log_backups.valueChanged.connect(self._int_handler("log-backups"))
+        self.spin_log_max_size.valueChanged.connect(
+            int_handler(self.settings, self.settings_changed.emit, "log-max-size")
+        )
+        self.spin_log_backups.valueChanged.connect(
+            int_handler(self.settings, self.settings_changed.emit, "log-backups")
+        )
 
     @staticmethod
     def _build_log_link() -> QLabel:

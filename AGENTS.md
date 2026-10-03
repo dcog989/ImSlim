@@ -10,7 +10,7 @@
 
 - `src/imslim/main.py` — entry point / application bootstrap
 - `src/imslim/window.py` — main window UI, mode toggle, home/results views
-- `src/imslim/settings/` — settings dialog: `dialog.py` hosts the tabbed `SettingsDialog`, with one widget per tab (`general_tab.py`, `formats_tab.py`, `about_tab.py`), a shared `SettingsTab` base in `tab.py` and shared styling in `style.py`
+- `src/imslim/settings/` — settings dialog: `dialog.py` hosts the tabbed `SettingsDialog`, with one widget per tab (`general_tab.py`, `formats_tab.py`, `about_tab.py`), shared signal/handler helpers in `tab.py` and shared styling in `style.py`
 - `src/imslim/settings_manager.py` — persistent settings/state store
 - `src/imslim/commands.py` — `Command` (`argv` or in-process `action`, plus `temp_files`) and `tokens`
 - `src/imslim/compressor.py` — `Compressor` ABC: subclasses produce pure command lists in `build_command()`

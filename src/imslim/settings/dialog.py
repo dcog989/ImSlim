@@ -25,7 +25,7 @@ class SettingsDialog(QDialog):
         tabs = QTabWidget()
         self.general_tab = GeneralTab(settings)
         self.formats_tab = FormatsTab(settings)
-        self.about_tab = AboutTab(settings)
+        self.about_tab = AboutTab()
         tabs.addTab(self.general_tab, _("General"))
         tabs.addTab(self.formats_tab, _("Formats"))
         self._about_index = tabs.addTab(self.about_tab, _("About"))
