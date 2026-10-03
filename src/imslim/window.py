@@ -49,7 +49,7 @@ from .batch_flow import BatchFlow
 from .compression_manager import CompressionManager
 from .compressors import ALL_COMPRESSORS
 from .conversion import is_converting
-from .format import savings_percent, sizeof_fmt
+from .format import savings_percent
 from .formats import KEEP_FORMAT, TARGET_SPECS, image_filter
 from .result_item import ResultItem, ResultState
 from .result_item_row import ResultItemRow
@@ -541,12 +541,7 @@ class ImSlimWindow(QWidget):
         if result_item.state is ResultState.RUNNING:
             result_item.state = ResultState.DONE
         match result_item.state:
-            case ResultState.CANCELLED:
-                result_item.subtitle_label = _("Cancelled")
-                result_item.savings = ""
-            case ResultState.ERROR:
-                result_item.subtitle_label = result_item.error_message
-            case ResultState.SKIPPED:
+            case ResultState.CANCELLED | ResultState.ERROR | ResultState.SKIPPED:
                 result_item.savings = ""
             case _:
                 if result_item.size > 0:
@@ -554,7 +549,6 @@ class ImSlimWindow(QWidget):
                 else:
                     savings = 0
                 result_item.savings = str(savings) + "%"
-                result_item.subtitle_label += " → " + sizeof_fmt(result_item.new_size)
         result_item.updated.emit()
 
     def _update_summary(self) -> None:

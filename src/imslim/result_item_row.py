@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from ._i18n import _
+from .format import sizeof_fmt
 from .image_utils import create_thumbnail_qimage
 from .result_item import ResultItem, ResultState
 from .widgets import circle_off_icon, shield_alert_icon, triangle_alert_icon
@@ -199,7 +200,16 @@ class ResultItemRow(QWidget):
         running = item.state is ResultState.RUNNING
         self.spinner.setVisible(running)
 
-        self.subtitle_label.setText(item.subtitle_label)
+        match item.state:
+            case ResultState.CANCELLED:
+                subtitle = _("Cancelled")
+            case ResultState.ERROR:
+                subtitle = item.error_message
+            case ResultState.DONE:
+                subtitle = item.subtitle_label + " → " + sizeof_fmt(item.new_size)
+            case _:
+                subtitle = item.subtitle_label
+        self.subtitle_label.setText(subtitle)
         self.savings_label.setText(item.savings)
         self.savings_label.setVisible(not running)
 
