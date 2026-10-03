@@ -66,7 +66,7 @@ class JXLCompressor(Compressor):
             cjxl += ["-q", _LOSSLESS_QUALITY]
 
         # effort (1-10, default 7): higher -> slower but better compression
-        cjxl += tokens(t"-e {options.level('jxl-lossless-level')}")
+        cjxl += tokens(t"-e {options.level('jxl-effort')}")
 
         if extracting_metadata:
             for kind in _JXL_METADATA:

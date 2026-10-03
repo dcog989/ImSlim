@@ -30,7 +30,7 @@ class PNGCompressor(Compressor):
 
         # Deinterlace: Adam7 interlacing adds 25-50% to the file size, which is
         # the opposite of what a compressor wants.
-        oxipng = tokens(t"{resolve_tool('oxipng')} -o {options.level('png-lossless-level')} -i 0")
+        oxipng = tokens(t"{resolve_tool('oxipng')} -o {options.level('png-effort')} -i 0")
         if not options.metadata:
             oxipng += ["--strip", "safe"]
         if options.file_attributes:

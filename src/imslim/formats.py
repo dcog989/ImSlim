@@ -91,7 +91,7 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         decoder=None,
         knobs=(
             Knob("png-lossy-level", "level", 90, _("Lossy"), _QUALITY_HINT, 0, 100),
-            Knob("png-lossless-level", "level", 4, _("Lossless"), _level_hint(6), 0, 6),
+            Knob("png-effort", "level", 4, _("Effort"), _level_hint(6), 0, 6),
         ),
     ),
     FormatSpec(
@@ -129,7 +129,7 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         decoder=None,
         knobs=(
             Knob("webp-lossy-level", "level", 70, _("Lossy"), _QUALITY_HINT, 0, 100),
-            Knob("webp-lossless-level", "level", 4, _("Lossless"), _level_hint(6), 0, 6),
+            Knob("webp-effort", "level", 4, _("Effort"), _level_hint(6), 0, 6),
         ),
     ),
     FormatSpec(
@@ -145,7 +145,7 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         decoder="avifdec",
         knobs=(
             Knob("avif-lossy-level", "level", 70, _("Lossy"), _QUALITY_HINT, 0, 100),
-            Knob("avif-lossless-level", "level", 6, _("Lossless"), _level_hint(10), 0, 10),
+            Knob("avif-effort", "level", 6, _("Effort"), _level_hint(10), 0, 10),
         ),
     ),
     FormatSpec(
@@ -161,7 +161,7 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         decoder="djxl",
         knobs=(
             Knob("jxl-lossy-level", "level", 70, _("Lossy"), _QUALITY_HINT, 1, 100),
-            Knob("jxl-lossless-level", "level", 6, _("Lossless"), _level_hint(10), 1, 10),
+            Knob("jxl-effort", "level", 6, _("Effort"), _level_hint(10), 1, 10),
         ),
     ),
     FormatSpec(
@@ -177,7 +177,7 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         decoder=None,
         knobs=(
             Knob("gif-lossy-level", "level", 80, _("Lossy"), _QUALITY_HINT, 1, 100),
-            Knob("gif-lossless-level", "level", 2, _("Lossless"), _level_hint(3), 1, 3),
+            Knob("gif-effort", "level", 2, _("Effort"), _level_hint(3), 1, 3),
         ),
     ),
     FormatSpec(

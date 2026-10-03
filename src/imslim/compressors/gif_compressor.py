@@ -26,7 +26,7 @@ class GIFCompressor(Compressor):
 
         gifsicle = [
             resolve_tool("gifsicle"),
-            f"--optimize={options.level('gif-lossless-level')}",
+            f"--optimize={options.level('gif-effort')}",
         ]
 
         # gifsicle --lossy can visibly flicker/posterize complex animation,

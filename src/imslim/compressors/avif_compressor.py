@@ -50,7 +50,7 @@ class AVIFCompressor(Compressor):
             avifenc.append("--lossless")
 
         # higher effort -> slower but better compression (speed 0-10, default 6)
-        avifenc += tokens(t"--speed {_MAX_SPEED - options.level('avif-lossless-level')}")
+        avifenc += tokens(t"--speed {_MAX_SPEED - options.level('avif-effort')}")
         avifenc += [encode_input, result_item.tmp_filename]
 
         commands.append(Command(avifenc, temp_files=(result_item.tmp_filename,)))
