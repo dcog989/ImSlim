@@ -4,6 +4,7 @@ from typing import override
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
+from ..conversion import decoder_argv
 from ..result_item import ResultItem
 
 _JXL_METADATA = ("exif", "xmp", "jumbf")
@@ -31,9 +32,9 @@ class JXLCompressor(Compressor):
         # cross-format metadata sidecars can't be extracted, so they are skipped.
         if not self._input_is_png(result_item):
             intermediate = self._intermediate_path(result_item)
-            commands.append(
-                Command(tokens(t"{resolve_tool('djxl')} {result_item.filename} {intermediate}"))
-            )
+            decode = decoder_argv(result_item.mime_type, result_item.filename, intermediate)
+            assert decode is not None, "no bundled decoder for non-PNG JXL source"
+            commands.append(Command(decode))
             encode_input = intermediate
             extracting_metadata = options.metadata
 

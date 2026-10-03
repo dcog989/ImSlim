@@ -3,6 +3,7 @@ from typing import override
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
+from ..conversion import decoder_argv
 from ..result_item import ResultItem
 
 
@@ -46,9 +47,9 @@ class JPEGCompressor(Compressor):
         # PNG/YUV inputs (native PNG or a conversion intermediate) feed cjpegli directly.
         if result_item.mime_type == "image/jpeg" and not self._input_is_png(result_item):
             intermediate = self._intermediate_path(result_item)
-            commands.append(
-                Command(tokens(t"{resolve_tool('djpegli')} {result_item.filename} {intermediate}"))
-            )
+            decode = decoder_argv(result_item.mime_type, result_item.filename, intermediate)
+            assert decode is not None, "no bundled decoder for JPEG source"
+            commands.append(Command(decode))
             encode_input = intermediate
 
         output = result_item.tmp_filename
