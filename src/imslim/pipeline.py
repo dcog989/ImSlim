@@ -100,7 +100,7 @@ class CompressionPipeline:
             # Mark the item as running only once a worker actually picks it up,
             # so queued items don't show a busy spinner before their turn.
             result_item.state = ResultState.RUNNING
-            result_item.updated.emit()
+            c_update_result_item(result_item)
 
             last_argv: list[str] | None = None
             try:
@@ -120,6 +120,8 @@ class CompressionPipeline:
                     logger.error("Command produced no output file: %s", last_argv)
                     result_item.set_error(_("Can't find the compressed file"))
 
+                if result_item.state is ResultState.RUNNING:
+                    result_item.state = ResultState.DONE
                 if result_item.state is not ResultState.ERROR:
                     log_outcome(result_item)
         finally:

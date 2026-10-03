@@ -123,6 +123,7 @@ class ImSlimWindow(QWidget):
 
         self._row_count: int = 0
         self._pending_rows: list[ResultItem] = []
+        self._rows: dict[ResultItem, ResultItemRow] = {}
         self._row_timer: QTimer = QTimer(self)
         self._row_timer.setSingleShot(True)
         self._row_timer.setInterval(0)
@@ -467,6 +468,7 @@ class ImSlimWindow(QWidget):
                     widget.stop_thumbnail_loader()
                 widget.deleteLater()
         self._row_count = 0
+        self._rows.clear()
         self.flow.reset()
         self._cleanup_paste_directory()
 
@@ -521,6 +523,7 @@ class ImSlimWindow(QWidget):
                 row = ResultItemRow(result_item)
                 self._apply_row_alternation(row, self._row_count)
                 self.rows_layout.addWidget(row)
+                self._rows[result_item] = row
                 self._row_count += 1
         finally:
             self.results_container.setUpdatesEnabled(True)
@@ -540,7 +543,8 @@ class ImSlimWindow(QWidget):
 
     def update_result_item(self, result_item: ResultItem) -> None:
         if result_item.state is ResultState.RUNNING:
-            result_item.state = ResultState.DONE
+            self._refresh_row(result_item)
+            return
         match result_item.state:
             case ResultState.CANCELLED | ResultState.ERROR | ResultState.SKIPPED:
                 result_item.savings = ""
@@ -550,7 +554,12 @@ class ImSlimWindow(QWidget):
                 else:
                     savings = 0
                 result_item.savings = str(savings) + "%"
-        result_item.updated.emit()
+        self._refresh_row(result_item)
+
+    def _refresh_row(self, result_item: ResultItem) -> None:
+        row = self._rows.get(result_item)
+        if row is not None:
+            row.refresh()
 
     def _update_summary(self) -> None:
         converting = is_converting(self.settings.target_format)

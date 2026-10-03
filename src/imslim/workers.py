@@ -82,11 +82,6 @@ class AnalyzeTask(Task):
         self._paths: list[str] = paths
         self._options: BatchOptions = options
         self._cancel_event: threading.Event = threading.Event()
-        # The ResultItems are parentless QObjects built here; the queued
-        # items_ready delivery runs on the UI thread after run() returns, so
-        # keep them referenced until the consumer has them, otherwise Python GC
-        # destroys the C++ objects and delivery segfaults.
-        self._result_items: list[ResultItem] = []
 
     def cancel(self) -> None:
         self._cancel_event.set()
@@ -138,9 +133,9 @@ class AnalyzeTask(Task):
             self.output_folder_error.emit()
             return
 
-        self._result_items = []
+        result_items: list[ResultItem] = []
         for path in final_files:
             if self.is_cancelled():
                 return
-            self._result_items.append(manager.build(path))
-        self.items_ready.emit(self._result_items)
+            result_items.append(manager.build(path))
+        self.items_ready.emit(result_items)

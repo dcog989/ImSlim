@@ -144,7 +144,6 @@ class ResultItemRow(QWidget):
         _res = task.loaded.connect(self._set_thumbnail)
         _THUMBNAIL_POOL.start(task)
 
-        _res = result_item.updated.connect(self.refresh)
         self.refresh()
 
     def _set_thumbnail(self, image: QImage | None) -> None:

@@ -125,6 +125,9 @@ class BatchFlow(QObject):
             self._compressing = False
 
     def _on_result_updated(self, result_item: ResultItem) -> None:
+        # RUNNING is an interim UI refresh, not a terminal outcome to tally.
+        if result_item.state is ResultState.RUNNING:
+            return
         match result_item.state:
             case ResultState.ERROR:
                 self.summary.record_failed()
