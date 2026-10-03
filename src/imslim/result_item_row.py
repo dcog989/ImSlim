@@ -235,8 +235,10 @@ class ResultItemRow(QWidget):
 
     @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        # Accept even without a compressed file so the window's paste menu does
+        # not appear when right-clicking a row.
+        event.accept()
         if not self._compressed_exists():
-            event.ignore()
             return
 
         menu = QMenu(self)

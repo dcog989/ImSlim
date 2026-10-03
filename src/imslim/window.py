@@ -4,18 +4,15 @@ import shutil
 import tempfile
 import time
 from collections.abc import Callable
-from typing import ClassVar, cast, override
+from typing import ClassVar, override
 
 from PySide6.QtCore import (
     QDir,
-    QEvent,
     QMimeData,
     QObject,
-    QPoint,
     QSize,
     Qt,
     QTimer,
-    Signal,
 )
 from PySide6.QtGui import (
     QAction,
@@ -69,32 +66,6 @@ from .widgets import (
     muted_color,
 )
 
-
-class _PasteFilter(QObject):
-    """Shows the paste context menu for widgets without their own handler."""
-
-    context_menu_requested: Signal = Signal(QPoint)
-
-    @override
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
-        if event.type() == QEvent.Type.ContextMenu:
-            context_event = cast(QContextMenuEvent, event)
-            target = QApplication.widgetAt(context_event.globalPos())
-            if target is None or not self._is_result_row(target):
-                self.context_menu_requested.emit(context_event.globalPos())
-                return True
-        return super().eventFilter(obj, event)
-
-    @staticmethod
-    def _is_result_row(widget: QWidget | None) -> bool:
-        current = widget
-        while current is not None:
-            if isinstance(current, ResultItemRow):
-                return True
-            current = current.parentWidget()
-        return False
-
-
 _V_SPACING = 16
 # Rows are built in small timer-driven chunks so a huge batch does not block the
 # UI thread building thousands of widgets in one event-loop iteration.
@@ -113,10 +84,6 @@ class ImSlimWindow(QWidget):
         self.settings: SettingsManager = SettingsManager()
         self.prefs_dialog: SettingsDialog | None = None
         self._paste_temp_dir: str | None = None
-
-        self.paste_filter: _PasteFilter = _PasteFilter()
-        _res = self.paste_filter.context_menu_requested.connect(self.on_context_menu)
-        self.installEventFilter(self.paste_filter)
 
         self.create_actions()
         self.loading_spinner: QProgressBar = QProgressBar()
@@ -588,13 +555,15 @@ class ImSlimWindow(QWidget):
         self.summary_label.setText(self.flow.summary.text(converting))
 
     # ----------------------------------------------------------------- file IO
-    def on_context_menu(self, pos: QPoint) -> None:
+    @override
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         menu = QMenu(self)
         menu.addAction(self.act_paste)
         _res = menu.addSeparator()
         menu.addAction(self.act_select)
         menu.addAction(self.act_select_folder)
-        _res = menu.exec(pos)
+        _res = menu.exec(event.globalPos())
+        event.accept()
 
     def on_paste(self) -> None:
         clipboard = self.app.clipboard()
