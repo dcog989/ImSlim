@@ -62,7 +62,13 @@ class CompressionContext:
 
     def register_process(self, process: subprocess.Popen[bytes]) -> None:
         with self._lock:
-            self._processes.append(process)
+            if not self._cancel_event.is_set():
+                self._processes.append(process)
+                return
+        try:
+            process.terminate()
+        except OSError:
+            pass
 
     def unregister_process(self, process: subprocess.Popen[bytes]) -> None:
         with self._lock:
@@ -209,7 +215,11 @@ class Compressor(ABC):
         except Exception as err:
             self._report_command_error(result_item, err)
 
-        if context.cancelled or result_item.error:
+        if context.cancelled:
+            self._mark_cancelled(result_item, c_update_result_item)
+            return
+
+        if result_item.error:
             self._finish(result_item, c_update_result_item)
             return
 
