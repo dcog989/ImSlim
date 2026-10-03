@@ -14,7 +14,6 @@ from . import __version__
 from ._logging import configure_logging
 from .binary_resolver import KNOWN_TOOLS, resolve_tool
 from .composition import build_app_context
-from .settings_manager import log_file_path
 from .system_info import static_about_pairs, system_info_pairs
 from .window import ImSlimWindow
 
@@ -55,7 +54,6 @@ def _configure_platform_theme() -> None:
 def _log_startup() -> None:
     """Record a session opener so the log is never empty just from launching."""
     logger.info("ImSlim %s starting", __version__)
-    logger.info("Log file: %s", log_file_path())
     if not logger.isEnabledFor(logging.DEBUG):
         return
     for label, value in (*static_about_pairs(), *system_info_pairs()):
