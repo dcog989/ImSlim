@@ -212,6 +212,10 @@ class ImSlimApp(QApplication):
             return 0
         single.become_primary()
 
+        # Only the primary process owns the log file; a forwarded launch must
+        # not open (or rotate) the same file out from under it.
+        configure_logging()
+
         self.win = ImSlimWindow(self)
         self.win.show()
         if paths:
@@ -232,7 +236,6 @@ class ImSlimApp(QApplication):
 
 def main() -> None:
     app = ImSlimApp(sys.argv)
-    configure_logging()
     sys.exit(app.run())
 
 
