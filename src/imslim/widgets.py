@@ -281,8 +281,8 @@ class Spinner(QWidget):
 class ResultsPage(QWidget):
     """Results list covered by a spinner overlay while compressing."""
 
-    def __init__(self, stop_button: QToolButton) -> None:
-        super().__init__()
+    def __init__(self, stop_button: QToolButton, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
         self.overlay: QWidget = QWidget(self)
         self.overlay.setObjectName("processingOverlay")
         self.overlay.setStyleSheet(

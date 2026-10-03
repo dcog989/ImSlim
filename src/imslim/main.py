@@ -10,6 +10,7 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
 from ._logging import configure_logging
+from .composition import build_app_context
 from .window import ImSlimWindow
 
 # Native-desktop integration comes from a Qt platform theme plugin read during
@@ -223,7 +224,7 @@ class ImSlimApp(QApplication):
         # not open (or rotate) the same file out from under it.
         configure_logging()
 
-        self.win = ImSlimWindow(self)
+        self.win = ImSlimWindow(self, build_app_context())
         self.win.show()
         if paths:
             self.win.compress_files(paths)

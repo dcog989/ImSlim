@@ -9,7 +9,10 @@
 ### Key Files
 
 - `src/imslim/main.py` — entry point / application bootstrap
-- `src/imslim/window.py` — main window UI, mode toggle, home/results views
+- `src/imslim/window.py` — main window UI, mode toggle, home view
+- `src/imslim/results_view.py` — `ResultsView`: results page, chunked result rows, busy overlay
+- `src/imslim/clipboard_intake.py` — `ClipboardIntake`: paste-to-paths (URLs or saved image) and temp-dir cleanup
+- `src/imslim/composition.py` — `AppContext` / `build_app_context()`: assembles settings, compression manager and batch flow
 - `src/imslim/settings/` — settings dialog: `dialog.py` hosts the tabbed `SettingsDialog`, with one widget per tab (`general_tab.py`, `formats_tab.py`, `about_tab.py`), shared signal/handler helpers in `tab.py` and shared styling in `style.py`
 - `src/imslim/settings_manager.py` — persistent settings/state store
 - `src/imslim/commands.py` — `Command` (`argv` or in-process `action`, plus `temp_files`) and `tokens`

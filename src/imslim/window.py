@@ -1,30 +1,18 @@
 import html
 import os
-import shutil
-import tempfile
-import time
 from collections.abc import Callable
 from enum import Enum, auto
 from typing import override
 
-from PySide6.QtCore import (
-    QDir,
-    QMimeData,
-    QObject,
-    QSize,
-    Qt,
-    QTimer,
-)
+from PySide6.QtCore import QDir, QObject, QSize, Qt
 from PySide6.QtGui import (
     QAction,
-    QClipboard,
     QCloseEvent,
     QColor,
     QContextMenuEvent,
     QDragEnterEvent,
     QDropEvent,
     QIcon,
-    QImage,
     QKeySequence,
 )
 from PySide6.QtWidgets import (
@@ -37,7 +25,6 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
-    QScrollArea,
     QStackedWidget,
     QToolButton,
     QVBoxLayout,
@@ -47,29 +34,22 @@ from PySide6.QtWidgets import (
 from ._i18n import _
 from ._logging import configure_logging
 from .batch_flow import BatchFlow
-from .compression_manager import create_compression_manager
+from .clipboard_intake import ClipboardIntake, urls_to_paths
+from .composition import AppContext
 from .conversion import is_converting
-from .format import savings_percent
 from .formats import TARGET_SPECS, Format, image_filter
-from .result_item import ResultItem, ResultState
-from .result_item_row import ResultItemRow
+from .results_view import ResultsView
 from .settings import SettingsDialog
 from .settings_manager import SettingsManager
 from .widgets import (
-    ResultsPage,
-    apply_muted_palette,
     chevron_left_icon,
     combo_stylesheet,
     download_icon,
     gear_icon,
     imslim_icon,
-    muted_color,
 )
 
 _V_SPACING = 16
-# Rows are built in small timer-driven chunks so a huge batch does not block the
-# UI thread building thousands of widgets in one event-loop iteration.
-_ROW_CHUNK_SIZE = 50
 
 
 class View(Enum):
@@ -79,59 +59,37 @@ class View(Enum):
 
 
 class ImSlimWindow(QWidget):
-    def __init__(self, app: QApplication) -> None:
+    def __init__(self, app: QApplication, context: AppContext) -> None:
         super().__init__()
         self.app: QApplication = app
+        self.settings: SettingsManager = context.settings
+        self.manager = context.manager
+        self.flow: BatchFlow = context.flow
+        self.clipboard: ClipboardIntake = ClipboardIntake(self.app.clipboard(), self)
         self.setWindowTitle("ImSlim")
         self.setWindowIcon(imslim_icon())
         self.resize(650, 500)
         self.setAcceptDrops(True)
 
-        self.settings: SettingsManager = SettingsManager()
         self.prefs_dialog: SettingsDialog | None = None
-        self._paste_temp_dir: str | None = None
 
         self.create_actions()
-        self.loading_spinner: QProgressBar = QProgressBar()
-        self.results_container: QWidget = QWidget()
-        self.results_layout: QVBoxLayout = QVBoxLayout()
-        self.rows_container: QWidget = QWidget()
-        self.rows_layout: QVBoxLayout = QVBoxLayout()
-        self.combo_compression: QComboBox = QComboBox()
-        self.combo_metadata: QComboBox = QComboBox()
-        self.combo_attributes: QComboBox = QComboBox()
-        self.combo_format: QComboBox = QComboBox()
-        self.summary_label: QLabel = QLabel()
-        self.reduced_label: QLabel = QLabel()
         self.build_ui()
         self.show_view(View.HOME)
 
-        self.manager = create_compression_manager()
-
-        self.flow: BatchFlow = BatchFlow(self.settings, self.manager)
-        _res = self.flow.item_added.connect(self.add_row)
+        _res = self.flow.item_added.connect(self.results.add_item)
         _res = self.flow.items_ready.connect(self._show_items_ready)
         _res = self.flow.compression_enabled.connect(self.enable_compression)
         _res = self.flow.summary_changed.connect(self._update_summary)
         _res = self.flow.no_files.connect(self._on_analyze_no_files)
         _res = self.flow.output_folder_error.connect(self._on_analyze_output_error)
         _res = self.flow.analyze_failed.connect(self._on_analyze_failed)
-        _res = self.flow.result_updated.connect(self.update_result_item)
+        _res = self.flow.result_updated.connect(self.results.update_item)
+        _res = self.clipboard.paths_ready.connect(self.compress_files)
+        _res = self.results.stop_requested.connect(self.stop_compression)
         # Ctrl+Q and logout call quit() without a window closeEvent, so also
         # hook the application-level signal to guarantee cleanup.
         _res = self.app.aboutToQuit.connect(self.flow.shutdown)
-
-        self._row_count: int = 0
-        self._pending_rows: list[ResultItem] = []
-        self._rows: dict[ResultItem, ResultItemRow] = {}
-        self._row_timer: QTimer = QTimer(self)
-        self._row_timer.setSingleShot(True)
-        self._row_timer.setInterval(0)
-        _res = self._row_timer.timeout.connect(self._flush_rows)
-        self._overlay_timer: QTimer = QTimer(self)
-        self._overlay_timer.setSingleShot(True)
-        self._overlay_timer.setInterval(1000)
-        _res = self._overlay_timer.timeout.connect(self._show_processing_overlay)
 
     # ------------------------------------------------------------------ UI
     def build_ui(self) -> None:
@@ -152,13 +110,6 @@ class ImSlimWindow(QWidget):
             _("Return to main window"),
             self.clear_results,
         )
-
-        self.stop_button: QToolButton = QToolButton()
-        self.stop_button.setText(_("Stop"))
-        self.stop_button.setToolTip(_("Stop the current compression."))
-        self.stop_button.setFixedHeight(32)
-        self.stop_button.setStyleSheet("QToolButton { padding: 0 12px; }")
-        _res = self.stop_button.clicked.connect(self.stop_compression)
 
         self.results_title: QLabel = QLabel(_("Compression Results"))
         title_font = self.results_title.font()
@@ -232,12 +183,12 @@ class ImSlimWindow(QWidget):
 
         self.home_page: QWidget = self._build_home_page()
         self.loading_page: QWidget = self._build_loading_page()
-        self.results_page: ResultsPage = self._build_results_page()
+        self.results: ResultsView = ResultsView()
 
         self._pages: dict[View, QWidget] = {
             View.HOME: self.home_page,
             View.LOADING: self.loading_page,
-            View.RESULTS: self.results_page,
+            View.RESULTS: self.results,
         }
         for page in self._pages.values():
             _res = self.stack.addWidget(page)
@@ -332,56 +283,6 @@ class ImSlimWindow(QWidget):
         layout.addStretch(1)
         return page
 
-    def _build_results_page(self) -> ResultsPage:
-        self.results_container = QWidget()
-        self.results_layout = QVBoxLayout(self.results_container)
-        self.results_layout.setContentsMargins(12, 12, 12, 12)
-        self.results_layout.setSpacing(2)
-        self.results_layout.addWidget(self._build_results_header())
-        self.rows_container = QWidget()
-        self.rows_layout = QVBoxLayout(self.rows_container)
-        self.rows_layout.setContentsMargins(0, 0, 0, 0)
-        self.rows_layout.setSpacing(2)
-        self.results_layout.addWidget(self.rows_container)
-        self.results_layout.addStretch(1)
-        self.summary_label = self._build_summary_label()
-        self.results_layout.addWidget(self.summary_label)
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(self.results_container)
-
-        page = ResultsPage(self.stop_button)
-        page_layout = QVBoxLayout(page)
-        page_layout.setContentsMargins(0, 0, 0, 0)
-        page_layout.addWidget(scroll)
-        return page
-
-    def _build_results_header(self) -> QWidget:
-        header = QWidget()
-        layout = QHBoxLayout(header)
-        layout.setContentsMargins(12, 4, 12, 4)
-        layout.setSpacing(8)
-
-        image_label = QLabel(_("Image:"))
-        self.reduced_label = QLabel()
-        header_font = image_label.font()
-        header_font.setBold(True)
-        image_label.setFont(header_font)
-        self.reduced_label.setFont(header_font)
-
-        layout.addWidget(image_label)
-        layout.addStretch(1)
-        layout.addWidget(self.reduced_label)
-        return header
-
-    def _build_summary_label(self) -> QLabel:
-        label = QLabel()
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setContentsMargins(0, 8, 0, 0)
-        apply_muted_palette(label)
-        return label
-
     # ----------------------------------------------------------------- actions
     def create_actions(self) -> None:
         self.act_select: QAction = QAction(_("Select Files"), self)
@@ -427,19 +328,11 @@ class ImSlimWindow(QWidget):
 
     def enable_compression(self, enable: bool) -> None:
         self.clear_button.setEnabled(enable)
-        if enable:
-            self._overlay_timer.stop()
-            self.results_page.hide_overlay()
-            self.stop_button.setEnabled(True)
-        else:
-            self._overlay_timer.start()
-
-    def _show_processing_overlay(self) -> None:
-        self.results_page.show_overlay()
+        self.results.set_busy(not enable)
 
     def stop_compression(self) -> None:
         self.flow.cancel()
-        self.stop_button.setEnabled(False)
+        self.results.set_stop_enabled(False)
 
     def show_view(self, view: View) -> None:
         self.stack.setCurrentWidget(self._pages[view])
@@ -456,21 +349,9 @@ class ImSlimWindow(QWidget):
 
     def clear_results(self) -> None:
         self.show_view(View.HOME)
-        self._pending_rows.clear()
-        self._row_timer.stop()
-        while self.rows_layout.count():
-            item = self.rows_layout.takeAt(0)
-            if item is None:
-                continue
-            widget = item.widget()
-            if widget is not None:
-                if isinstance(widget, ResultItemRow):
-                    widget.stop_thumbnail_loader()
-                widget.deleteLater()
-        self._row_count = 0
-        self._rows.clear()
+        self.results.clear()
         self.flow.reset()
-        self._cleanup_paste_directory()
+        self.clipboard.cleanup()
 
     # ------------------------------------------------------- compression flow
     def compress_files(self, paths: list[str]) -> None:
@@ -483,8 +364,7 @@ class ImSlimWindow(QWidget):
         self.flow.start(paths)
 
     def _show_items_ready(self) -> None:
-        converting = is_converting(self.settings.target_format)
-        self.reduced_label.setText(_("Size change:") if converting else _("Reduced by:"))
+        self.results.set_converting(is_converting(self.settings.target_format))
         self.show_view(View.RESULTS)
 
     def _on_analyze_no_files(self) -> None:
@@ -501,69 +381,9 @@ class ImSlimWindow(QWidget):
             self, _("Error"), _("An unexpected error occurred while analyzing the images.")
         )
 
-    def add_row(self, result_item: ResultItem) -> None:
-        self._pending_rows.append(result_item)
-        if not self._row_timer.isActive():
-            self._row_timer.start()
-
-    def _flush_rows(self) -> None:
-        """Build the next chunk of queued rows with repaints suppressed.
-
-        Compressing thousands of files emits one item_added per file in a
-        single event-loop iteration; building the widgets here in capped chunks
-        keeps that iteration short so the window stays responsive.
-        """
-        if not self._pending_rows:
-            return
-        batch = self._pending_rows[:_ROW_CHUNK_SIZE]
-        del self._pending_rows[:_ROW_CHUNK_SIZE]
-        self.results_container.setUpdatesEnabled(False)
-        try:
-            for result_item in batch:
-                row = ResultItemRow(result_item)
-                self._apply_row_alternation(row, self._row_count)
-                self.rows_layout.addWidget(row)
-                self._rows[result_item] = row
-                self._row_count += 1
-        finally:
-            self.results_container.setUpdatesEnabled(True)
-        if self._pending_rows:
-            self._row_timer.start()
-
-    @staticmethod
-    def _apply_row_alternation(row: ResultItemRow, index: int) -> None:
-        if index % 2 == 0:
-            return
-        palette = row.palette()
-        base = palette.color(palette.ColorRole.Base)
-        window = palette.color(palette.ColorRole.Window)
-        palette.setColor(palette.ColorRole.Window, muted_color(base, window, 0.6))
-        row.setPalette(palette)
-        row.setAutoFillBackground(True)
-
-    def update_result_item(self, result_item: ResultItem) -> None:
-        if result_item.state is ResultState.RUNNING:
-            self._refresh_row(result_item)
-            return
-        match result_item.state:
-            case ResultState.CANCELLED | ResultState.ERROR | ResultState.SKIPPED:
-                result_item.savings = ""
-            case _:
-                if result_item.size > 0:
-                    savings = savings_percent(result_item.size, result_item.new_size)
-                else:
-                    savings = 0
-                result_item.savings = str(savings) + "%"
-        self._refresh_row(result_item)
-
-    def _refresh_row(self, result_item: ResultItem) -> None:
-        row = self._rows.get(result_item)
-        if row is not None:
-            row.refresh()
-
     def _update_summary(self) -> None:
         converting = is_converting(self.settings.target_format)
-        self.summary_label.setText(self.flow.summary.text(converting))
+        self.results.set_summary(self.flow.summary.text(converting))
 
     # ----------------------------------------------------------------- file IO
     @override
@@ -577,66 +397,7 @@ class ImSlimWindow(QWidget):
         event.accept()
 
     def on_paste(self) -> None:
-        clipboard = self.app.clipboard()
-        paths = self._urls_to_paths(clipboard.mimeData())
-
-        if paths:
-            self.compress_files(paths)
-            return
-
-        self._read_clipboard_image(clipboard, attempts=0)
-
-    @staticmethod
-    def _urls_to_paths(mime: QMimeData) -> list[str]:
-        paths: list[str] = []
-        if mime.hasUrls():
-            for url in mime.urls():
-                local = url.toLocalFile()
-                if local:
-                    paths.append(local)
-        return paths
-
-    def _read_clipboard_image(self, clipboard: QClipboard, attempts: int) -> None:
-        # On Wayland, image data is transferred asynchronously from the
-        # clipboard owner, so the first read may come back empty. Retry on a
-        # QTimer instead of sleeping in a loop so the UI thread stays responsive.
-        image = clipboard.image()
-        if not image.isNull():
-            self._handle_clipboard_image(image)
-            return
-        if attempts >= 20:
-            return
-        QTimer.singleShot(
-            50,
-            lambda: self._read_clipboard_image(clipboard, attempts + 1),
-        )
-
-    def _handle_clipboard_image(self, image: QImage) -> None:
-        path = self._save_clipboard_image(image)
-        if path:
-            self.compress_files([path])
-
-    def _save_clipboard_image(self, image: QImage) -> str | None:
-        # Paste sources and their compressed output live in a private (0700)
-        # temp dir so nothing predictable is written to shared /tmp; the dir is
-        # removed on clear/close.
-        directory = self._paste_directory()
-        path = os.path.join(directory, f"pasted-{time.time_ns()}.png")
-        # PySide6's stub types `format` as bytes, but the runtime requires str.
-        if image.save(path, "PNG"):  # pyright: ignore[reportCallIssue, reportArgumentType]
-            return path
-        return None
-
-    def _paste_directory(self) -> str:
-        if self._paste_temp_dir is None:
-            self._paste_temp_dir = tempfile.mkdtemp(prefix="imslim-pasted-")
-        return self._paste_temp_dir
-
-    def _cleanup_paste_directory(self) -> None:
-        directory = self._paste_temp_dir
-        self._paste_temp_dir = None
-        if directory is not None:
-            shutil.rmtree(directory, ignore_errors=True)
+        self.clipboard.request()
 
     def on_select(self) -> None:
         files, _filter = QFileDialog.getOpenFileNames(
@@ -669,7 +430,7 @@ class ImSlimWindow(QWidget):
 
     @override
     def dropEvent(self, event: QDropEvent) -> None:
-        paths = self._urls_to_paths(event.mimeData())
+        paths = urls_to_paths(event.mimeData())
         if not paths:
             return
         self.compress_files(paths)
@@ -680,7 +441,7 @@ class ImSlimWindow(QWidget):
         # Cancel any running batch and wait for its subprocesses/threads so we
         # don't orphan tools or leave .name.tmp/sidecar files behind.
         self.flow.shutdown()
-        self._cleanup_paste_directory()
+        self.clipboard.cleanup()
         super().closeEvent(event)
 
     # ------------------------------------------------------------- active settings
