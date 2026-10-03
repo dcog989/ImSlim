@@ -1,10 +1,9 @@
 from typing import override
 
-from PySide6.QtGui import QImageReader
-
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
+from ..image_utils import is_animated_image
 from ..result_item import ResultItem
 
 
@@ -15,11 +14,7 @@ class GIFCompressor(Compressor):
         return "gif"
 
     def _is_animated(self, result_item: ResultItem) -> bool:
-        reader = QImageReader(result_item.filename)
-        frame_count = reader.imageCount()
-        # imageCount() is -1 when Qt can't determine the count (e.g. static
-        # GIFs written by Qt); treat unknown counts as animated to stay lossless
-        return frame_count != 1
+        return is_animated_image(result_item.filename, "image/gif")
 
     @override
     def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:

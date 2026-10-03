@@ -28,6 +28,7 @@ class ResultItem(QObject):
         self.error_message: str = ""
         self.error_details: bool = False
         self.error_details_message: str = ""
+        self.warning_message: str = ""
 
     @property
     def input_path(self) -> str:

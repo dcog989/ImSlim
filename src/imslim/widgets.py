@@ -203,6 +203,35 @@ def shield_alert_icon(color: QColor, size: int = 20) -> QIcon:
     return _painted_icon(size, draw)
 
 
+def triangle_alert_icon(color: QColor, size: int = 20) -> QIcon:
+    """An alert triangle with an exclamation mark (Lucide 'triangle-alert')."""
+
+    def draw(painter: QPainter, s: float) -> None:
+        pen = max(1.8, s * 0.09)
+        painter.setPen(
+            QPen(
+                color,
+                pen,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
+            )
+        )
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        path = QPainterPath()
+        path.moveTo(s * 0.5, s * 0.11)
+        path.lineTo(s * 0.08, s * 0.83)
+        path.lineTo(s * 0.92, s * 0.83)
+        path.closeSubpath()
+        painter.drawPath(path)
+        painter.drawLine(QPointF(s * 0.5, s * 0.4), QPointF(s * 0.5, s * 0.62))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(color)
+        painter.drawEllipse(QPointF(s * 0.5, s * 0.73), pen * 0.8, pen * 0.8)
+
+    return _painted_icon(size, draw)
+
+
 def gear_icon(color: QColor, size: int = 20) -> QIcon:
     """A simple gear: an outlined ring with eight teeth, matching the other
     icons' stroke weight so the header icons look consistent."""

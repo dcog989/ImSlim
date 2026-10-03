@@ -8,6 +8,7 @@ from .batch_options import BatchOptions
 from .compression_manager import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS
 from .conversion import TARGET_EXTENSIONS, is_converting
 from .format import sizeof_fmt
+from .image_utils import is_animated_image
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE
 
@@ -55,6 +56,9 @@ class ResultItemManager:
             return result_item
 
         result_item.subtitle_label = sizeof_fmt(result_item.size)
+
+        if is_converting(self.options.target_format) and is_animated_image(path, mime):
+            result_item.warning_message = _("Animation will be lost: only the first frame is kept.")
 
         result_item.new_filename = self.create_new_filename(result_item.filename, mime)
         result_item.backup_filename = (

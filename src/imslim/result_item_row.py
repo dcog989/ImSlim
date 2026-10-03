@@ -26,7 +26,7 @@ from PySide6.QtWidgets import (
 from ._i18n import _
 from .image_utils import create_thumbnail_qimage
 from .result_item import ResultItem
-from .widgets import circle_off_icon, shield_alert_icon
+from .widgets import circle_off_icon, shield_alert_icon, triangle_alert_icon
 
 # Shared, bounded pool: a batch of hundreds of rows must not spawn a thread per
 # row. The cap follows compression_manager's reasoning (decode is cheap but
@@ -104,6 +104,10 @@ class ResultItemRow(QWidget):
             self._show_error_info,
             shield_alert_icon(self.palette().color(self.palette().ColorRole.WindowText), 16),
         )
+        self.warning_button: QToolButton = self._make_info_button(
+            self._show_warning_info,
+            triangle_alert_icon(self.palette().color(self.palette().ColorRole.WindowText), 16),
+        )
 
         text_vbox = QVBoxLayout()
         text_vbox.setSpacing(0)
@@ -118,6 +122,7 @@ class ResultItemRow(QWidget):
         layout.addWidget(self.savings_label)
         layout.addWidget(self.spinner)
         layout.addWidget(self.skipped_button)
+        layout.addWidget(self.warning_button)
         layout.addWidget(self.error_button)
 
         self._thumbnail_task: _ThumbnailTask | None = _ThumbnailTask(result_item.filename, 48)
@@ -163,6 +168,7 @@ class ResultItemRow(QWidget):
 
         self.skipped_button.setVisible(item.skipped and not item.running)
         self.error_button.setVisible(item.error and item.error_details)
+        self.warning_button.setVisible(bool(item.warning_message) and not item.running)
 
     def _show_skipped_info(self) -> None:
         _res = QMessageBox.information(
@@ -183,6 +189,13 @@ class ResultItemRow(QWidget):
         box.setTextFormat(Qt.TextFormat.PlainText)
         box.setText(self.result_item.error_details_message)
         _res = box.exec()
+
+    def _show_warning_info(self) -> None:
+        _res = QMessageBox.warning(
+            self,
+            _("Warning"),
+            self.result_item.warning_message,
+        )
 
     @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:

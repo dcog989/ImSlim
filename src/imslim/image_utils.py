@@ -1,11 +1,18 @@
 import logging
 import os
+import re
 from collections.abc import Callable
 
 from PySide6.QtCore import QSize
 from PySide6.QtGui import QImage, QImageReader
 
 from ._i18n import _
+
+# SVG animation comes from SMIL (<animate>/<set>) or CSS (@keyframes/animation).
+# A source scan is enough to know the rasterized output would drop it.
+_SVG_ANIMATION_PATTERN = re.compile(
+    rb"<\s*animate|<\s*set[\s>]|@keyframes|animation\s*:", re.IGNORECASE
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +50,23 @@ def image_filter() -> str:
 
 def is_image_path(path: str) -> bool:
     return path.lower().endswith(_IMAGE_EXTENSIONS)
+
+
+def is_animated_image(filename: str, mime_type: str) -> bool:
+    """True when the source carries animation (GIF frames or SVG animation).
+
+    GIF counts come from Qt; an unknown (-1) count is treated as animated so an
+    animated source is never silently flattened. Other formats are static.
+    """
+    if mime_type == "image/gif":
+        return QImageReader(filename).imageCount() != 1
+    if mime_type == "image/svg+xml":
+        try:
+            with open(filename, "rb") as fp:
+                return _SVG_ANIMATION_PATTERN.search(fp.read()) is not None
+        except OSError:
+            return False
+    return False
 
 
 def get_image_paths_from_folder(
