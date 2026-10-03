@@ -4,7 +4,8 @@ import shutil
 import tempfile
 import time
 from collections.abc import Callable
-from typing import ClassVar, override
+from enum import Enum, auto
+from typing import override
 
 from PySide6.QtCore import (
     QDir,
@@ -50,7 +51,7 @@ from .compression_manager import CompressionManager
 from .compressors import ALL_COMPRESSORS
 from .conversion import is_converting
 from .format import savings_percent
-from .formats import KEEP_FORMAT, TARGET_SPECS, image_filter
+from .formats import TARGET_SPECS, Format, image_filter
 from .result_item import ResultItem, ResultState
 from .result_item_row import ResultItemRow
 from .settings import SettingsDialog
@@ -70,6 +71,12 @@ _V_SPACING = 16
 # Rows are built in small timer-driven chunks so a huge batch does not block the
 # UI thread building thousands of widgets in one event-loop iteration.
 _ROW_CHUNK_SIZE = 50
+
+
+class View(Enum):
+    HOME = auto()
+    LOADING = auto()
+    RESULTS = auto()
 
 
 class ImSlimWindow(QWidget):
@@ -98,7 +105,7 @@ class ImSlimWindow(QWidget):
         self.summary_label: QLabel = QLabel()
         self.reduced_label: QLabel = QLabel()
         self.build_ui()
-        self.show_view("home")
+        self.show_view(View.HOME)
 
         self.manager: CompressionManager = CompressionManager()
         for compressor in ALL_COMPRESSORS:
@@ -230,9 +237,13 @@ class ImSlimWindow(QWidget):
         self.loading_page: QWidget = self._build_loading_page()
         self.results_page: ResultsPage = self._build_results_page()
 
-        _res = self.stack.addWidget(self.home_page)  # index 0
-        _res = self.stack.addWidget(self.loading_page)  # index 1
-        _res = self.stack.addWidget(self.results_page)  # index 2
+        self._pages: dict[View, QWidget] = {
+            View.HOME: self.home_page,
+            View.LOADING: self.loading_page,
+            View.RESULTS: self.results_page,
+        }
+        for page in self._pages.values():
+            _res = self.stack.addWidget(page)
 
         root.addWidget(self.stack, 1)
 
@@ -433,18 +444,12 @@ class ImSlimWindow(QWidget):
         self.flow.cancel()
         self.stop_button.setEnabled(False)
 
-    _VIEWS: ClassVar[dict[str, tuple[int, bool]]] = {
-        "home": (0, False),
-        "loading": (1, False),
-        "results": (2, True),
-    }
-
-    def show_view(self, view: str) -> None:
-        index, show_clear = self._VIEWS[view]
-        self.stack.setCurrentIndex(index)
-        self.clear_button.setVisible(show_clear)
-        self.results_title.setVisible(view == "results")
-        show_options = view != "results"
+    def show_view(self, view: View) -> None:
+        self.stack.setCurrentWidget(self._pages[view])
+        is_results = view is View.RESULTS
+        self.clear_button.setVisible(is_results)
+        self.results_title.setVisible(is_results)
+        show_options = not is_results
         self.combo_format.setVisible(show_options)
         self.combo_compression.setVisible(show_options)
         self.combo_metadata.setVisible(show_options)
@@ -453,7 +458,7 @@ class ImSlimWindow(QWidget):
         self.header_left_spacer.setVisible(show_options)
 
     def clear_results(self) -> None:
-        self.show_view("home")
+        self.show_view(View.HOME)
         self._pending_rows.clear()
         self._row_timer.stop()
         while self.rows_layout.count():
@@ -476,24 +481,24 @@ class ImSlimWindow(QWidget):
                 self, _("Compression in progress"), _("Wait for the current compression to finish.")
             )
             return
-        self.show_view("loading")
+        self.show_view(View.LOADING)
         self.flow.start(paths)
 
     def _show_items_ready(self) -> None:
         converting = is_converting(self.settings.target_format)
         self.reduced_label.setText(_("Size change:") if converting else _("Reduced by:"))
-        self.show_view("results")
+        self.show_view(View.RESULTS)
 
     def _on_analyze_no_files(self) -> None:
-        self.show_view("home")
+        self.show_view(View.HOME)
         _res = QMessageBox.information(self, _("No files found"), _("No files found"))
 
     def _on_analyze_output_error(self) -> None:
-        self.show_view("home")
+        self.show_view(View.HOME)
         _res = QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
 
     def _on_analyze_failed(self) -> None:
-        self.show_view("home")
+        self.show_view(View.HOME)
         _res = QMessageBox.warning(
             self, _("Error"), _("An unexpected error occurred while analyzing the images.")
         )
@@ -690,7 +695,7 @@ class ImSlimWindow(QWidget):
         return 0
 
     def on_format_changed(self, index: int) -> None:
-        self.settings.target_format = KEEP_FORMAT if index <= 0 else TARGET_SPECS[index - 1].key
+        self.settings.target_format = Format.KEEP if index <= 0 else TARGET_SPECS[index - 1].key
 
     def on_compression_changed(self, index: int) -> None:
         self.settings.lossy = index == 0

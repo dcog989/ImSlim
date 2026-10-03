@@ -12,6 +12,7 @@ from ._i18n import _
 from .batch_options import BatchOptions
 from .conversion import decode_to_png, is_converting, native_inputs
 from .format import savings_percent
+from .formats import CompressorType
 from .output_writer import OutputWriter
 from .result_item import ResultItem, ResultState
 
@@ -104,7 +105,7 @@ class Compressor(ABC):
 
     @classmethod
     @abstractmethod
-    def get_file_type(cls) -> str: ...
+    def get_file_type(cls) -> CompressorType: ...
 
     @abstractmethod
     def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]: ...

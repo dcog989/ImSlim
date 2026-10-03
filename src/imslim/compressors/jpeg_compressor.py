@@ -4,14 +4,15 @@ from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
 from ..conversion import decoder_argv
+from ..formats import CompressorType
 from ..result_item import ResultItem
 
 
 class JPEGCompressor(Compressor):
     @override
     @classmethod
-    def get_file_type(cls) -> str:
-        return "jpeg"
+    def get_file_type(cls) -> CompressorType:
+        return CompressorType.JPEG
 
     def _encoded_path(self, result_item: ResultItem) -> str:
         return result_item.tmp_filename + ".enc.jpg"

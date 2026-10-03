@@ -5,6 +5,7 @@ from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
 from ..conversion import decoder_argv
+from ..formats import CompressorType
 from ..result_item import ResultItem
 
 _JXL_METADATA = ("exif", "xmp", "jumbf")
@@ -15,8 +16,8 @@ _LOSSLESS_QUALITY = "100"
 class JXLCompressor(Compressor):
     @override
     @classmethod
-    def get_file_type(cls) -> str:
-        return "jxl"
+    def get_file_type(cls) -> CompressorType:
+        return CompressorType.JXL
 
     def _sidecar_path(self, result_item: ResultItem, kind: str) -> str:
         return result_item.tmp_filename + "." + kind

@@ -3,6 +3,7 @@ from typing import override
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
+from ..formats import CompressorType
 from ..image_utils import is_animated_image
 from ..result_item import ResultItem
 
@@ -10,8 +11,8 @@ from ..result_item import ResultItem
 class GIFCompressor(Compressor):
     @override
     @classmethod
-    def get_file_type(cls) -> str:
-        return "gif"
+    def get_file_type(cls) -> CompressorType:
+        return CompressorType.GIF
 
     def _is_animated(self, result_item: ResultItem) -> bool:
         return is_animated_image(result_item.filename, "image/gif")

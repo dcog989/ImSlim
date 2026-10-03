@@ -8,7 +8,12 @@ from ._i18n import _
 from .batch_options import BatchOptions
 from .compressor import CompressionContext, Compressor
 from .conversion import is_converting
-from .formats import CONFIGURED_COMPRESSOR_TYPES, MIME_TO_COMPRESSOR
+from .formats import (
+    CONFIGURED_COMPRESSOR_TYPES,
+    FORMAT_BY_KEY,
+    MIME_TO_COMPRESSOR,
+    CompressorType,
+)
 from .result_item import ResultItem, ResultState
 
 logger = logging.getLogger(__name__)
@@ -20,11 +25,11 @@ _SHUTDOWN_TIMEOUT_SECONDS = 5.0
 
 class CompressionManager:
     def __init__(self) -> None:
-        self.compressors: dict[str, Compressor] = {}
+        self.compressors: dict[CompressorType, Compressor] = {}
         self._context: CompressionContext | None = None
         self._thread: threading.Thread | None = None
 
-    def mime_type_to_compressor_type(self, mime_type: str) -> str | None:
+    def mime_type_to_compressor_type(self, mime_type: str) -> CompressorType | None:
         return MIME_TO_COMPRESSOR.get(mime_type, (None, None))[0]
 
     def register_compressor(self, ConcreteCompressor: type[Compressor]) -> None:
@@ -45,8 +50,12 @@ class CompressionManager:
         """Resolve the compressor for one item: the conversion target when
         converting, otherwise the compressor matching the source format."""
         if is_converting(options.target_format):
-            return self.compressors.get(options.target_format)
-        return self.compressors.get(self.mime_type_to_compressor_type(result_item.mime_type) or "")
+            target_spec = FORMAT_BY_KEY[options.target_format]
+            return self.compressors.get(target_spec.compressor_key)
+        compressor_type = self.mime_type_to_compressor_type(result_item.mime_type)
+        if compressor_type is None:
+            return None
+        return self.compressors.get(compressor_type)
 
     def compress(
         self,

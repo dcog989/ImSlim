@@ -3,6 +3,7 @@ from typing import override
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
+from ..formats import CompressorType
 from ..image_convert import to_png
 from ..result_item import ResultItem
 
@@ -14,8 +15,8 @@ _LOSSLESS_QUALITY = 100
 class WEBPCompressor(Compressor):
     @override
     @classmethod
-    def get_file_type(cls) -> str:
-        return "webp"
+    def get_file_type(cls) -> CompressorType:
+        return CompressorType.WEBP
 
     @override
     def _intermediate_path(self, result_item: ResultItem) -> str:

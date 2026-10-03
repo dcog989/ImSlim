@@ -4,6 +4,7 @@ from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
 from ..conversion import decoder_argv
+from ..formats import CompressorType
 from ..result_item import ResultItem
 
 # tune=iq + 10-bit depth is the best quality/size operating point for libaom.
@@ -15,8 +16,8 @@ _MAX_SPEED = 10
 class AVIFCompressor(Compressor):
     @override
     @classmethod
-    def get_file_type(cls) -> str:
-        return "avif"
+    def get_file_type(cls) -> CompressorType:
+        return CompressorType.AVIF
 
     @override
     def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:

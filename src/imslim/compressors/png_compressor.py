@@ -3,14 +3,15 @@ from typing import override
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
+from ..formats import CompressorType
 from ..result_item import ResultItem
 
 
 class PNGCompressor(Compressor):
     @override
     @classmethod
-    def get_file_type(cls) -> str:
-        return "png"
+    def get_file_type(cls) -> CompressorType:
+        return CompressorType.PNG
 
     @override
     def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:

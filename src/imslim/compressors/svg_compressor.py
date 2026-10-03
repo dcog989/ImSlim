@@ -4,6 +4,7 @@ from typing import override
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..compressor import Command, Compressor, tokens
+from ..formats import CompressorType
 from ..result_item import ResultItem
 
 # svgo configs are constant, so they ship as assets instead of being written
@@ -19,8 +20,8 @@ _SVGO_CONFIG_MAXIMUM = str(_ASSETS_DIR / "svgo.maximum.config.cjs")
 class SVGCompressor(Compressor):
     @override
     @classmethod
-    def get_file_type(cls) -> str:
-        return "svg"
+    def get_file_type(cls) -> CompressorType:
+        return CompressorType.SVG
 
     @override
     def build_command(self, result_item: ResultItem, options: BatchOptions) -> list[Command]:

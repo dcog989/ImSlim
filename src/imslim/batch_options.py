@@ -1,7 +1,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from .formats import FORMAT_KNOB_KEYS
+from .formats import FORMAT_KNOB_KEYS, Format
 from .settings_manager import SettingsManager
 
 
@@ -16,7 +16,7 @@ class BatchOptions:
     """
 
     save_method: int
-    target_format: str
+    target_format: Format
     output_folder: str
     recursive: bool
     lossy: bool

@@ -9,11 +9,38 @@ means adding one compressor module plus one entry here.
 """
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Literal
 
 from ._i18n import _
 
-KEEP_FORMAT = "keep"
+
+class Format(StrEnum):
+    """A source/target image format key (matches a `FormatSpec.key`)."""
+
+    KEEP = "keep"
+    PNG = "png"
+    JPEG = "jpeg"
+    WEBP = "webp"
+    AVIF = "avif"
+    JXL = "jxl"
+    GIF = "gif"
+    SVG = "svg"
+    BMP = "bmp"
+    TIFF = "tiff"
+
+
+class CompressorType(StrEnum):
+    """An encoder backend key (matches a `FormatSpec.compressor_key`)."""
+
+    PNG = "png"
+    JPEG = "jpeg"
+    WEBP = "webp"
+    AVIF = "avif"
+    JXL = "jxl"
+    GIF = "gif"
+    SVG = "svg"
+
 
 _QUALITY_HINT = _("Set the quality; 100 is best.")
 
@@ -37,10 +64,10 @@ class Knob:
 
 @dataclass(frozen=True)
 class FormatSpec:
-    key: str
+    key: Format
     display: str
     title: str
-    compressor_key: str
+    compressor_key: CompressorType
     source_mimes: tuple[str, ...]
     source_extensions: tuple[str, ...]
     output_extension: str
@@ -52,10 +79,10 @@ class FormatSpec:
 
 FORMAT_SPECS: tuple[FormatSpec, ...] = (
     FormatSpec(
-        key="png",
+        key=Format.PNG,
         display="PNG",
         title="PNG",
-        compressor_key="png",
+        compressor_key=CompressorType.PNG,
         source_mimes=("image/png",),
         source_extensions=(".png",),
         output_extension=".png",
@@ -68,10 +95,10 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         ),
     ),
     FormatSpec(
-        key="jpeg",
+        key=Format.JPEG,
         display="JPEG",
         title="JPEG / Jpegli",
-        compressor_key="jpeg",
+        compressor_key=CompressorType.JPEG,
         source_mimes=("image/jpeg",),
         source_extensions=(".jpg", ".jpeg"),
         output_extension=".jpg",
@@ -90,10 +117,10 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         ),
     ),
     FormatSpec(
-        key="webp",
+        key=Format.WEBP,
         display="WebP",
         title="WebP",
-        compressor_key="webp",
+        compressor_key=CompressorType.WEBP,
         source_mimes=("image/webp",),
         source_extensions=(".webp",),
         output_extension=".webp",
@@ -106,10 +133,10 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         ),
     ),
     FormatSpec(
-        key="avif",
+        key=Format.AVIF,
         display="AVIF",
         title="AVIF",
-        compressor_key="avif",
+        compressor_key=CompressorType.AVIF,
         source_mimes=("image/avif",),
         source_extensions=(".avif",),
         output_extension=".avif",
@@ -122,10 +149,10 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         ),
     ),
     FormatSpec(
-        key="jxl",
+        key=Format.JXL,
         display="JXL",
         title="JXL",
-        compressor_key="jxl",
+        compressor_key=CompressorType.JXL,
         source_mimes=("image/jxl",),
         source_extensions=(".jxl",),
         output_extension=".jxl",
@@ -138,10 +165,10 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         ),
     ),
     FormatSpec(
-        key="gif",
+        key=Format.GIF,
         display="GIF",
         title="GIF",
-        compressor_key="gif",
+        compressor_key=CompressorType.GIF,
         source_mimes=("image/gif",),
         source_extensions=(".gif",),
         output_extension=".gif",
@@ -154,10 +181,10 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         ),
     ),
     FormatSpec(
-        key="svg",
+        key=Format.SVG,
         display="SVG",
         title="SVG",
-        compressor_key="svg",
+        compressor_key=CompressorType.SVG,
         source_mimes=("image/svg+xml",),
         source_extensions=(".svg",),
         output_extension=".svg",
@@ -175,10 +202,10 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         ),
     ),
     FormatSpec(
-        key="bmp",
+        key=Format.BMP,
         display="BMP",
         title="BMP",
-        compressor_key="webp",
+        compressor_key=CompressorType.WEBP,
         source_mimes=("image/bmp",),
         source_extensions=(".bmp",),
         output_extension=".webp",
@@ -187,10 +214,10 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         decoder=None,
     ),
     FormatSpec(
-        key="tiff",
+        key=Format.TIFF,
         display="TIFF",
         title="TIFF",
-        compressor_key="webp",
+        compressor_key=CompressorType.WEBP,
         source_mimes=("image/tiff",),
         source_extensions=(".tiff", ".tif"),
         output_extension=".webp",
@@ -200,7 +227,15 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
     ),
 )
 
-FORMAT_BY_KEY: dict[str, FormatSpec] = {spec.key: spec for spec in FORMAT_SPECS}
+FORMAT_BY_KEY: dict[Format, FormatSpec] = {spec.key: spec for spec in FORMAT_SPECS}
+
+# Canonical spec for an encoder backend, used to describe re-encoded formats
+# (e.g. BMP/TIFF -> WebP) with the target's display name and extension.
+FORMAT_BY_COMPRESSOR: dict[CompressorType, FormatSpec] = {
+    spec.compressor_key: spec
+    for spec in FORMAT_SPECS
+    if spec.compressor_key.value == spec.key.value
+}
 
 MIME_TO_FORMAT: dict[str, FormatSpec] = {
     mime: spec for spec in FORMAT_SPECS for mime in spec.source_mimes
@@ -210,10 +245,10 @@ ALLOWED_MIME_TYPES: frozenset[str] = frozenset(MIME_TO_FORMAT)
 
 # MIME -> (compressor type, output extension override). Re-encoded formats
 # (BMP/TIFF -> WebP) carry an override; every other format keeps its own.
-MIME_TO_COMPRESSOR: dict[str, tuple[str, str | None]] = {
+MIME_TO_COMPRESSOR: dict[str, tuple[CompressorType, str | None]] = {
     mime: (
         spec.compressor_key,
-        spec.output_extension if spec.compressor_key != spec.key else None,
+        spec.output_extension if spec.compressor_key.value != spec.key.value else None,
     )
     for spec in FORMAT_SPECS
     for mime in spec.source_mimes
@@ -225,7 +260,7 @@ OUTPUT_EXTENSIONS: dict[str, str] = {
     if extension is not None
 }
 
-CONFIGURED_COMPRESSOR_TYPES: frozenset[str] = frozenset(
+CONFIGURED_COMPRESSOR_TYPES: frozenset[CompressorType] = frozenset(
     spec.compressor_key for spec in FORMAT_SPECS
 )
 
@@ -233,9 +268,11 @@ CONFIGURED_COMPRESSOR_TYPES: frozenset[str] = frozenset(
 TARGET_SPECS: tuple[FormatSpec, ...] = tuple(
     sorted((spec for spec in FORMAT_SPECS if spec.target), key=lambda spec: spec.display)
 )
-TARGET_FORMATS: tuple[str, ...] = tuple(spec.key for spec in TARGET_SPECS)
-TARGET_EXTENSIONS: dict[str, str] = {spec.key: spec.output_extension for spec in TARGET_SPECS}
-NATIVE_INPUTS: dict[str, frozenset[str]] = {spec.key: spec.native_inputs for spec in TARGET_SPECS}
+TARGET_FORMATS: tuple[Format, ...] = tuple(spec.key for spec in TARGET_SPECS)
+TARGET_EXTENSIONS: dict[Format, str] = {spec.key: spec.output_extension for spec in TARGET_SPECS}
+NATIVE_INPUTS: dict[Format, frozenset[str]] = {
+    spec.key: spec.native_inputs for spec in TARGET_SPECS
+}
 
 
 def _build_decoder_tools() -> dict[str, str]:
@@ -261,12 +298,12 @@ FORMAT_DEFAULT_KNOBS: dict[str, int | bool] = {
 }
 
 
-def is_converting(target: str) -> bool:
+def is_converting(target: Format) -> bool:
     """True when the target selects a real conversion format."""
     return target in TARGET_FORMATS
 
 
-def native_inputs(target: str) -> frozenset[str]:
+def native_inputs(target: Format) -> frozenset[str]:
     """Source MIME types the target encoder can consume without a pre-decode."""
     return NATIVE_INPUTS.get(target, frozenset())
 

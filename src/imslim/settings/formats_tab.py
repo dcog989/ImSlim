@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from .._i18n import _
-from ..formats import FORMAT_BY_KEY, FORMAT_SPECS, FormatSpec, Knob
+from ..formats import FORMAT_BY_COMPRESSOR, FORMAT_SPECS, FormatSpec, Knob
 from ..settings_manager import SettingsManager
 from .style import hint_label
 from .tab import SettingsTab
@@ -40,7 +40,7 @@ class FormatsTab(SettingsTab):
         for row in range((len(format_specs) + 1) // 2):
             grid.setRowStretch(row, 1)
 
-        note_specs = [spec for spec in FORMAT_SPECS if spec.compressor_key != spec.key]
+        note_specs = [spec for spec in FORMAT_SPECS if spec.compressor_key.value != spec.key.value]
         if note_specs:
             note_row = (len(format_specs) + 1) // 2
             grid.addWidget(self._build_note_group(note_specs), note_row, 0, 1, 2)
@@ -65,7 +65,7 @@ class FormatsTab(SettingsTab):
 
     def _build_note_group(self, note_specs: list[FormatSpec]) -> QGroupBox:
         title = " / ".join(spec.display for spec in note_specs)
-        target = FORMAT_BY_KEY[note_specs[0].compressor_key]
+        target = FORMAT_BY_COMPRESSOR[note_specs[0].compressor_key]
         text = _(
             "{formats} images are always converted to {target}: they are decoded and "
             + "re-encoded with the {target} settings above. The original file is never "
