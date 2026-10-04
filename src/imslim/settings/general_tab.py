@@ -14,8 +14,13 @@ from PySide6.QtWidgets import (
 
 from .._i18n import _
 from .._logging import LOG_LEVELS
-from ..settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager, log_file_path
-from .style import separator
+from ..settings_manager import (
+    SAVE_BACKUP_OVERWRITE,
+    SAVE_OUTPUT_FOLDER,
+    SettingsManager,
+    log_file_path,
+)
+from .style import hint_label, separator
 from .tab import bool_handler, int_handler, suspend_signals
 
 _LOG_LEVEL_LABELS = tuple(level.capitalize() for level in LOG_LEVELS)
@@ -73,6 +78,14 @@ class GeneralTab(QWidget):
         output_row.addWidget(self.btn_output_folder)
         output_row.addWidget(self.btn_clear_output_folder)
 
+        self.save_method_hint: QLabel = hint_label(
+            _(
+                "Converting to a different format, or re-encoding BMP/TIFF, writes "
+                + "a new file beside the original instead of overwriting it."
+            )
+        )
+        self.save_method_hint.setVisible(False)
+
         self.entry_default_directory.setPlaceholderText(_("User's home directory"))
 
         self.btn_default_directory.setText(_("Browse…"))
@@ -106,6 +119,7 @@ class GeneralTab(QWidget):
 
         form.addRow(_("Save Method"), self.combo_save_method)
         form.addRow(_("Custom Folder"), output_row)
+        form.addRow(self.save_method_hint)
         form.addRow(_("Open Dialog Directory"), default_directory_row)
         form.addRow(_("Directory Recurse"), self.check_recursive)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
@@ -157,7 +171,7 @@ class GeneralTab(QWidget):
     def _load_values(self) -> None:
         s = self.settings
         self.combo_save_method.setCurrentIndex(s.save_method)
-        self._set_output_folder_state(s.save_method)
+        self._set_save_method_state(s.save_method)
         self.entry_output_folder.setText(s.output_folder)
         self.entry_default_directory.setText(s.default_open_dialog_directory)
         self.spin_timeout.setValue(s.compression_timeout)
@@ -170,14 +184,15 @@ class GeneralTab(QWidget):
 
     def _on_save_method_changed(self, index: int) -> None:
         self.settings.save_method = index
-        self._set_output_folder_state(index)
+        self._set_save_method_state(index)
         self.settings_changed.emit()
 
-    def _set_output_folder_state(self, save_method: int) -> None:
-        enabled = save_method == SAVE_OUTPUT_FOLDER
-        self.entry_output_folder.setEnabled(enabled)
-        self.btn_output_folder.setEnabled(enabled)
-        self.btn_clear_output_folder.setEnabled(enabled)
+    def _set_save_method_state(self, save_method: int) -> None:
+        output_folder = save_method == SAVE_OUTPUT_FOLDER
+        self.entry_output_folder.setEnabled(output_folder)
+        self.btn_output_folder.setEnabled(output_folder)
+        self.btn_clear_output_folder.setEnabled(output_folder)
+        self.save_method_hint.setVisible(save_method == SAVE_BACKUP_OVERWRITE)
 
     def _on_output_folder_changed(self, text: str) -> None:
         self.settings.output_folder = text.strip()
