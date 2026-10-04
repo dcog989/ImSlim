@@ -4,12 +4,13 @@ from collections.abc import Callable
 from enum import Enum, auto
 from typing import override
 
-from PySide6.QtCore import QDir, QSize, Qt
+from PySide6.QtCore import QDir, QSize, Qt, QUrl
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
     QColor,
     QContextMenuEvent,
+    QDesktopServices,
     QDragEnterEvent,
     QDropEvent,
     QIcon,
@@ -42,7 +43,7 @@ from .formats import TARGET_SPECS, Format, image_filter
 from .icons import chevron_left_icon, download_icon, gear_icon, imslim_icon
 from .results_view import ResultsView
 from .settings import SettingsDialog
-from .settings_manager import SettingsManager
+from .settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager
 from .theme import combo_stylesheet
 
 _V_SPACING = 16
@@ -83,6 +84,7 @@ class ImSlimWindow(QWidget):
         _res = self.flow.result_updated.connect(self.results.update_item)
         _res = self.clipboard.paths_ready.connect(self.compress_files)
         _res = self.results.stop_requested.connect(self.stop_compression)
+        _res = self.results.open_folder_requested.connect(self.open_output_folder)
         # Ctrl+Q and logout call quit() without a window closeEvent, so also
         # hook the application-level signal to guarantee cleanup.
         _res = self.app.aboutToQuit.connect(self.flow.shutdown)
@@ -346,6 +348,14 @@ class ImSlimWindow(QWidget):
         self.settings_button.setVisible(show_options)
         self.header_left_spacer.setVisible(show_options)
 
+    def _uses_custom_output_folder(self) -> bool:
+        return self.settings.save_method == SAVE_OUTPUT_FOLDER and bool(self.settings.output_folder)
+
+    def open_output_folder(self) -> None:
+        folder = self.settings.output_folder
+        if self._uses_custom_output_folder() and os.path.isdir(folder):
+            _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
     def clear_results(self) -> None:
         self.show_view(View.HOME)
         self.results.clear()
@@ -364,6 +374,7 @@ class ImSlimWindow(QWidget):
 
     def _show_items_ready(self) -> None:
         self.results.set_converting(is_converting(self.settings.target_format))
+        self.results.set_open_folder_enabled(self._uses_custom_output_folder())
         self.show_view(View.RESULTS)
 
     def _on_analyze_no_files(self) -> None:

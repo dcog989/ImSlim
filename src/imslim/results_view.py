@@ -33,6 +33,16 @@ def _make_stop_button() -> QToolButton:
     return button
 
 
+def _make_open_folder_button() -> QToolButton:
+    button = QToolButton()
+    button.setText(_("Open Output Folder"))
+    button.setToolTip(_("Open the folder the compressed files were written to."))
+    button.setCursor(Qt.CursorShape.PointingHandCursor)
+    button.setFixedHeight(32)
+    button.setStyleSheet("QToolButton { padding: 0 12px; }")
+    return button
+
+
 class ResultsPage(QWidget):
     """Results list covered by a spinner overlay while compressing."""
 
@@ -70,12 +80,17 @@ class ResultsPage(QWidget):
 
 class ResultsView(ResultsPage):
     stop_requested: Signal = Signal()
+    open_folder_requested: Signal = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         stop_button = _make_stop_button()
         super().__init__(stop_button, parent)
         self.stop_button: QToolButton = stop_button
         _res = stop_button.clicked.connect(self.stop_requested.emit)
+
+        self.open_folder_button: QToolButton = _make_open_folder_button()
+        self.open_folder_button.hide()
+        _res = self.open_folder_button.clicked.connect(self.open_folder_requested.emit)
 
         self.results_container: QWidget = QWidget()
         self.results_layout: QVBoxLayout = QVBoxLayout(self.results_container)
@@ -93,6 +108,9 @@ class ResultsView(ResultsPage):
 
         self.summary_label: QLabel = self._build_summary_label()
         self.results_layout.addWidget(self.summary_label)
+        self.results_layout.addWidget(
+            self.open_folder_button, alignment=Qt.AlignmentFlag.AlignCenter
+        )
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -191,6 +209,9 @@ class ResultsView(ResultsPage):
 
     def set_summary(self, text: str) -> None:
         self.summary_label.setText(text)
+
+    def set_open_folder_enabled(self, enabled: bool) -> None:
+        self.open_folder_button.setVisible(enabled)
 
     def set_busy(self, busy: bool) -> None:
         if busy:
