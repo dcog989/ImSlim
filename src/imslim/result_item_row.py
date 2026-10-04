@@ -195,6 +195,8 @@ class ResultItemRow(QWidget):
                 subtitle = item.error_message
             case ResultState.DONE:
                 subtitle = sizeof_fmt(item.size) + " → " + sizeof_fmt(item.new_size)
+            case ResultState.SKIPPED:
+                subtitle = _("Already optimal")
             case _:
                 subtitle = sizeof_fmt(item.size)
         self.subtitle_label.setText(subtitle)
