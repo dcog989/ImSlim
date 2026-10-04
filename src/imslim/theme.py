@@ -1,5 +1,6 @@
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPalette
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QMenu, QWidget
 
 
 def input_background_color() -> str:
@@ -39,6 +40,42 @@ def muted_color(fg: QColor, bg: QColor, factor: float = 0.5) -> QColor:
         round(fg.red() * (1.0 - factor) + bg.red() * factor),
         round(fg.green() * (1.0 - factor) + bg.green() * factor),
         round(fg.blue() * (1.0 - factor) + bg.blue() * factor),
+    )
+
+
+def style_menu(menu: QMenu) -> None:
+    """Give a context menu an outlined, rounded appearance on any theme.
+
+    A popup is its own top-level window, so a translucent background is
+    required: without it the area outside the rounded border is filled with a
+    hard rectangle of the menu background instead of showing through.
+    """
+    palette = QApplication.palette()
+    background = palette.color(QPalette.ColorRole.Base)
+    border = muted_color(palette.color(QPalette.ColorRole.Text), background, factor=0.7)
+    highlight = palette.color(QPalette.ColorRole.Highlight)
+    highlighted_text = palette.color(QPalette.ColorRole.HighlightedText)
+    menu.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+    menu.setStyleSheet(
+        "QMenu {"
+        + f" background-color: {background.name()};"
+        + f" border: 1px solid {border.name()};"
+        + " border-radius: 8px;"
+        + " padding: 4px;"
+        + " }"
+        + " QMenu::item {"
+        + " padding: 5px 18px 5px 12px;"
+        + " border-radius: 4px;"
+        + " }"
+        + " QMenu::item:selected {"
+        + f" background-color: {highlight.name()};"
+        + f" color: {highlighted_text.name()};"
+        + " }"
+        + " QMenu::separator {"
+        + " height: 1px;"
+        + " margin: 4px 8px;"
+        + f" background-color: {border.name()};"
+        + " }"
     )
 
 

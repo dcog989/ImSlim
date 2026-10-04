@@ -30,6 +30,7 @@ from .format import savings_percent, sizeof_fmt
 from .icons import circle_off_icon, shield_alert_icon, triangle_alert_icon
 from .image_utils import create_thumbnail_qimage
 from .result_item import ResultItem, ResultState
+from .theme import style_menu
 from .workers import Task
 
 # Shared, bounded pool: a batch of hundreds of rows must not spawn a thread per
@@ -245,6 +246,7 @@ class ResultItemRow(QWidget):
         event.accept()
 
         menu = QMenu(self)
+        style_menu(menu)
         if self._compressed_exists():
             open_image = QAction(_("Open Image"), menu)
             _res = open_image.triggered.connect(self._open_compressed)

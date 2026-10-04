@@ -46,7 +46,7 @@ from .icons import chevron_left_icon, download_icon, gear_icon, imslim_icon
 from .results_view import ResultsView
 from .settings import SettingsDialog
 from .settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager
-from .theme import combo_stylesheet
+from .theme import combo_stylesheet, style_menu
 
 _V_SPACING = 16
 
@@ -410,6 +410,7 @@ class ImSlimWindow(QWidget):
     @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         menu = QMenu(self)
+        style_menu(menu)
         menu.addAction(self.act_paste)
         _res = menu.addSeparator()
         menu.addAction(self.act_select)
