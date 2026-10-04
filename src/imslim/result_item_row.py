@@ -8,6 +8,7 @@ from PySide6.QtGui import (
     QColor,
     QContextMenuEvent,
     QDesktopServices,
+    QGuiApplication,
     QIcon,
     QImage,
     QMouseEvent,
@@ -238,19 +239,29 @@ class ResultItemRow(QWidget):
 
     @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
-        # Accept even without a compressed file so the window's paste menu does
-        # not appear when right-clicking a row.
+        # Accept unconditionally so the window's paste menu does not appear when
+        # right-clicking a row; the menu itself offers original-file actions even
+        # when the compression produced no output.
         event.accept()
-        if not self._compressed_exists():
-            return
 
         menu = QMenu(self)
-        open_image = QAction(_("Open Image"), menu)
-        _res = open_image.triggered.connect(self._open_compressed)
-        show_in_folder = QAction(_("Show in Folder"), menu)
-        _res = show_in_folder.triggered.connect(self._show_in_folder)
-        menu.addAction(open_image)
-        menu.addAction(show_in_folder)
+        if self._compressed_exists():
+            open_image = QAction(_("Open Image"), menu)
+            _res = open_image.triggered.connect(self._open_compressed)
+            show_in_folder = QAction(_("Show in Folder"), menu)
+            _res = show_in_folder.triggered.connect(self._show_in_folder)
+            menu.addAction(open_image)
+            menu.addAction(show_in_folder)
+        if self._original_exists():
+            show_original = QAction(_("Show Original in Folder"), menu)
+            _res = show_original.triggered.connect(self._show_original_in_folder)
+            menu.addAction(show_original)
+        if self.result_item.state is ResultState.ERROR and self.result_item.error_details_message:
+            copy_error = QAction(_("Copy Error Details"), menu)
+            _res = copy_error.triggered.connect(self._copy_error_details)
+            menu.addAction(copy_error)
+        if menu.isEmpty():
+            return
         _res = menu.exec(event.globalPos())
 
     def _compressed_exists(self) -> bool:
@@ -266,3 +277,17 @@ class ResultItemRow(QWidget):
             return
         folder = os.path.dirname(self.result_item.new_filename)
         _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
+    def _original_exists(self) -> bool:
+        return bool(self.result_item.filename) and os.path.exists(self.result_item.filename)
+
+    def _show_original_in_folder(self) -> None:
+        if not self._original_exists():
+            return
+        folder = os.path.dirname(self.result_item.filename)
+        _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
+    def _copy_error_details(self) -> None:
+        clipboard = QGuiApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(self.result_item.error_details_message)
