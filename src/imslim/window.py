@@ -12,9 +12,11 @@ from PySide6.QtGui import (
     QContextMenuEvent,
     QDesktopServices,
     QDragEnterEvent,
+    QDragLeaveEvent,
     QDropEvent,
     QIcon,
     QKeySequence,
+    QResizeEvent,
 )
 from PySide6.QtWidgets import (
     QApplication,
@@ -193,6 +195,15 @@ class ImSlimWindow(QWidget):
         }
         for page in self._pages.values():
             _res = self.stack.addWidget(page)
+
+        self.drop_indicator: QWidget = QWidget(self.stack)
+        self.drop_indicator.setObjectName("dropIndicator")
+        self.drop_indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.drop_indicator.setStyleSheet(
+            "QWidget#dropIndicator { border: 3px dashed palette(highlight); "
+            "background-color: transparent; }"
+        )
+        self.drop_indicator.hide()
 
         root.addWidget(self.stack, 1)
 
@@ -436,10 +447,28 @@ class ImSlimWindow(QWidget):
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         mime = event.mimeData()
         if mime.hasUrls():
+            self._show_drop_indicator()
             event.acceptProposedAction()
+
+    def _show_drop_indicator(self) -> None:
+        self.drop_indicator.setGeometry(self.stack.rect())
+        self.drop_indicator.raise_()
+        self.drop_indicator.show()
+
+    @override
+    def resizeEvent(self, event: QResizeEvent) -> None:
+        if self.drop_indicator.isVisible():
+            self.drop_indicator.setGeometry(self.stack.rect())
+        super().resizeEvent(event)
+
+    @override
+    def dragLeaveEvent(self, event: QDragLeaveEvent) -> None:
+        self.drop_indicator.hide()
+        super().dragLeaveEvent(event)
 
     @override
     def dropEvent(self, event: QDropEvent) -> None:
+        self.drop_indicator.hide()
         paths = urls_to_paths(event.mimeData())
         if not paths:
             return
