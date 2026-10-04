@@ -32,7 +32,12 @@ class SettingsDialog(QDialog):
         _res = tabs.currentChanged.connect(self._on_tab_changed)
         layout.addWidget(tabs)
 
+        # Settings are written live, so "Close" would read like it discards
+        # them. "Done" states that the edits are already applied.
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        done_button = buttons.button(QDialogButtonBox.StandardButton.Close)
+        if done_button is not None:
+            done_button.setText(_("Done"))
         _res = buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
 
