@@ -96,6 +96,36 @@ class _ClickableThumbnail(QLabel):
         super().mouseReleaseEvent(event)
 
 
+class _SelectableLabel(QLabel):
+    """Selectable label whose text menu matches the app's styled menus.
+
+    QLabel's built-in context menu bypasses style_menu, so the standard Copy
+    and Select All actions are rebuilt here with the shared styling.
+    """
+
+    @override
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        event.accept()
+        menu = QMenu(self)
+        style_menu(menu)
+        copy = QAction(_("Copy"), menu)
+        copy.setEnabled(bool(self.selectedText()))
+        _res = copy.triggered.connect(self._copy_selection)
+        select_all = QAction(_("Select All"), menu)
+        _res = select_all.triggered.connect(self._select_all)
+        menu.addAction(copy)
+        menu.addAction(select_all)
+        _res = menu.exec(event.globalPos())
+
+    def _copy_selection(self) -> None:
+        text = self.selectedText()
+        if text:
+            QGuiApplication.clipboard().setText(text)
+
+    def _select_all(self) -> None:
+        self.setSelection(0, len(self.text()))
+
+
 class ResultItemRow(QWidget):
     def __init__(self, result_item: ResultItem, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -109,7 +139,7 @@ class ResultItemRow(QWidget):
         title_font.setBold(True)
         self.title_label.setFont(title_font)
         self.title_label.setWordWrap(True)
-        self.subtitle_label: QLabel = QLabel()
+        self.subtitle_label: _SelectableLabel = _SelectableLabel()
         self.subtitle_label.setObjectName("rowSubtitle")
         self.subtitle_label.setWordWrap(True)
         self.subtitle_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
