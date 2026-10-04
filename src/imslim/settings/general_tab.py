@@ -20,7 +20,7 @@ from ..settings_manager import (
     SettingsManager,
     log_file_path,
 )
-from .style import hint_label, separator
+from .style import separator
 from .tab import bool_handler, int_handler, suspend_signals
 
 _LOG_LEVEL_LABELS = tuple(level.capitalize() for level in LOG_LEVELS)
@@ -78,14 +78,6 @@ class GeneralTab(QWidget):
         output_row.addWidget(self.btn_output_folder)
         output_row.addWidget(self.btn_clear_output_folder)
 
-        self.save_method_hint: QLabel = hint_label(
-            _(
-                "Converting to a different format, or re-encoding BMP/TIFF, writes "
-                + "a new file beside the original instead of overwriting it."
-            )
-        )
-        self.save_method_hint.setVisible(False)
-
         self.entry_default_directory.setPlaceholderText(_("User's home directory"))
 
         self.btn_default_directory.setText(_("Browse…"))
@@ -119,7 +111,6 @@ class GeneralTab(QWidget):
 
         form.addRow(_("Save Method"), self.combo_save_method)
         form.addRow(_("Custom Folder"), output_row)
-        form.addRow(self.save_method_hint)
         form.addRow(_("Open Dialog Directory"), default_directory_row)
         form.addRow(_("Directory Recurse"), self.check_recursive)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
@@ -192,7 +183,15 @@ class GeneralTab(QWidget):
         self.entry_output_folder.setEnabled(output_folder)
         self.btn_output_folder.setEnabled(output_folder)
         self.btn_clear_output_folder.setEnabled(output_folder)
-        self.save_method_hint.setVisible(save_method == SAVE_BACKUP_OVERWRITE)
+        if save_method == SAVE_BACKUP_OVERWRITE:
+            self.combo_save_method.setToolTip(
+                _(
+                    "Converting to a different format, or re-encoding BMP/TIFF, writes "
+                    + "a new file beside the original instead of overwriting it."
+                )
+            )
+        else:
+            self.combo_save_method.setToolTip("")
 
     def _on_output_folder_changed(self, text: str) -> None:
         self.settings.output_folder = text.strip()
