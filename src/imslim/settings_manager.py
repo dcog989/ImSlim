@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from typing import Protocol, TypeVar, cast, final
 
-from PySide6.QtCore import QSettings, QStandardPaths
+from PySide6.QtCore import QByteArray, QSettings, QStandardPaths
 
 from .formats import FORMAT_DEFAULT_KNOBS, Format
 
@@ -142,6 +142,21 @@ class SettingsManager:
     @target_format.setter
     def target_format(self, value: Format) -> None:
         self._set("target-format", value.value)
+
+    @property
+    def window_geometry(self) -> bytes:
+        raw = self._settings.value("window-geometry", b"")
+        if isinstance(raw, QByteArray):
+            return bytes(raw.data())
+        if isinstance(raw, bytearray):
+            return bytes(raw)
+        if isinstance(raw, bytes):
+            return raw
+        return b""
+
+    @window_geometry.setter
+    def window_geometry(self, value: bytes) -> None:
+        self._settings.setValue("window-geometry", QByteArray(value))
 
     save_method = _setting("save-method", int)
     output_folder = _setting("output-folder", str)

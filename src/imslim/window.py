@@ -67,7 +67,8 @@ class ImSlimWindow(QWidget):
         self.clipboard: ClipboardIntake = ClipboardIntake(self.app.clipboard(), self)
         self.setWindowTitle("ImSlim")
         self.setWindowIcon(imslim_icon())
-        self.resize(650, 500)
+        if not self.restoreGeometry(self.settings.window_geometry):
+            self.resize(560, 460)
         self.setAcceptDrops(True)
 
         self.prefs_dialog: SettingsDialog | None = None
@@ -480,6 +481,7 @@ class ImSlimWindow(QWidget):
         # don't orphan tools or leave .name.tmp/sidecar files behind.
         self.flow.shutdown()
         self.clipboard.cleanup()
+        self.settings.window_geometry = bytes(self.saveGeometry().data())
         super().closeEvent(event)
 
     # ------------------------------------------------------------- active settings
