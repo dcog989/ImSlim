@@ -106,14 +106,19 @@ class AnalyzeTask(Task):
             if self.is_cancelled():
                 return
             if os.path.isdir(path):
-                candidates = get_image_paths_from_folder(
-                    path, self._options.recursive, self.is_cancelled
-                )
+                # Only a folder scan can rediscover this app's own outputs;
+                # a file the user explicitly passed must always be processed,
+                # even if its name looks like a generated backup.
+                candidates = [
+                    candidate
+                    for candidate in get_image_paths_from_folder(
+                        path, self._options.recursive, self.is_cancelled
+                    )
+                    if not is_generated_output(candidate)
+                ]
             else:
                 candidates = [path]
             for candidate in candidates:
-                if is_generated_output(candidate):
-                    continue
                 # A folder and a file inside it (or overlapping selections)
                 # name the same file; realpath collapses them to one entry.
                 key = os.path.normcase(os.path.realpath(candidate))
