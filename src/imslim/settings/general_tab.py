@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 
 from .._i18n import _
 from .._logging import LOG_LEVELS
-from ..settings_manager import SettingsManager, log_file_path
+from ..settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager, log_file_path
 from .style import separator
 from .tab import bool_handler, int_handler, suspend_signals
 
@@ -50,10 +50,14 @@ class GeneralTab(QWidget):
         form.setVerticalSpacing(16)
 
         self.combo_save_method.addItems(
-            [_("Save to a new file"), _("Save to original after backup")]
+            [
+                _("Next to the original"),
+                _("Overwrite the original (backup)"),
+                _("Custom folder"),
+            ]
         )
 
-        self.entry_output_folder.setPlaceholderText(_("Same folder as the original files"))
+        self.entry_output_folder.setPlaceholderText(_("Choose a folder"))
 
         self.btn_output_folder.setText(_("Browse…"))
         _res = self.btn_output_folder.clicked.connect(self._browse_output_folder)
@@ -101,7 +105,7 @@ class GeneralTab(QWidget):
         )
 
         form.addRow(_("Save Method"), self.combo_save_method)
-        form.addRow(_("Output Folder"), output_row)
+        form.addRow(_("Custom Folder"), output_row)
         form.addRow(_("Open Dialog Directory"), default_directory_row)
         form.addRow(_("Directory Recurse"), self.check_recursive)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
@@ -153,6 +157,7 @@ class GeneralTab(QWidget):
     def _load_values(self) -> None:
         s = self.settings
         self.combo_save_method.setCurrentIndex(s.save_method)
+        self._set_output_folder_state(s.save_method)
         self.entry_output_folder.setText(s.output_folder)
         self.entry_default_directory.setText(s.default_open_dialog_directory)
         self.spin_timeout.setValue(s.compression_timeout)
@@ -165,7 +170,14 @@ class GeneralTab(QWidget):
 
     def _on_save_method_changed(self, index: int) -> None:
         self.settings.save_method = index
+        self._set_output_folder_state(index)
         self.settings_changed.emit()
+
+    def _set_output_folder_state(self, save_method: int) -> None:
+        enabled = save_method == SAVE_OUTPUT_FOLDER
+        self.entry_output_folder.setEnabled(enabled)
+        self.btn_output_folder.setEnabled(enabled)
+        self.btn_clear_output_folder.setEnabled(enabled)
 
     def _on_output_folder_changed(self, text: str) -> None:
         self.settings.output_folder = text.strip()

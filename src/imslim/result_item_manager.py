@@ -10,7 +10,7 @@ from .conversion import is_converting
 from .formats import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS, TARGET_EXTENSIONS
 from .image_utils import is_animated_image
 from .result_item import ResultItem
-from .settings_manager import SAVE_BACKUP_OVERWRITE
+from .settings_manager import SAVE_BACKUP_OVERWRITE, SAVE_OUTPUT_FOLDER
 
 _mime_db = QMimeDatabase()
 
@@ -42,7 +42,7 @@ class ResultItemManager:
         should be aborted.
         """
         self._used_names.clear()
-        if self.options.output_folder:
+        if self.options.save_method == SAVE_OUTPUT_FOLDER and self.options.output_folder:
             try:
                 os.makedirs(self.options.output_folder, exist_ok=True)
             except OSError:
@@ -103,7 +103,7 @@ class ResultItemManager:
         return self._output_path(path, _BACKUP_MARKER, mime)
 
     def _output_parent(self, path: str) -> str:
-        if self.options.output_folder:
+        if self.options.save_method == SAVE_OUTPUT_FOLDER and self.options.output_folder:
             return self.options.output_folder
         return os.path.dirname(path)
 

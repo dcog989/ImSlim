@@ -59,11 +59,12 @@ def _setting[T](key: str, _type: type[T]) -> _SettingDescriptor[T]:
     return cast(_SettingDescriptor[T], cast(object, property(getter, setter)))
 
 
-SAVE_NEW_FILE = 0
+SAVE_NEXT_TO_ORIGINAL = 0
 SAVE_BACKUP_OVERWRITE = 1
+SAVE_OUTPUT_FOLDER = 2
 
 BASE_DEFAULTS: dict[str, str | int | bool] = {
-    "save-method": SAVE_NEW_FILE,
+    "save-method": SAVE_NEXT_TO_ORIGINAL,
     "target-format": Format.KEEP,
     "output-folder": "",
     "default-open-dialog-directory": "",
@@ -85,6 +86,17 @@ DEFAULTS: dict[str, str | int | bool] = {**BASE_DEFAULTS, **FORMAT_DEFAULT_KNOBS
 class SettingsManager:
     def __init__(self) -> None:
         self._settings: QSettings = QSettings("ImSlim", "ImSlim")
+        self._migrate()
+
+    def _migrate(self) -> None:
+        # Older builds had "save to a new file" write into a configured output
+        # folder, silently overriding it. Surface that as its own save method so
+        # existing configurations keep their destination.
+        if self._settings.contains("save-method-migrated"):
+            return
+        if self.save_method == SAVE_NEXT_TO_ORIGINAL and self.output_folder:
+            self.save_method = SAVE_OUTPUT_FOLDER
+        self._settings.setValue("save-method-migrated", True)
 
     def set_boolean(self, key: str, value: bool) -> None:
         self._settings.setValue(key, bool(value))
