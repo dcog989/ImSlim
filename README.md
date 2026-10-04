@@ -17,14 +17,14 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail).
 - animated GIFs are always compressed losslessly.
 - convert any input format to any supported output format.
 - optionally strip metadata (EXIF/XMP/JUMBF), reset file attributes.
-- save output to new files or backup->overwrite originals.
+- save output next to the original, to a custom folder, or backup->overwrite originals.
 - recurse directories for batch compression.
 
 ## Installation
 
 ### AppImage (recommended)
 
-Download `ImSlim-*-linux-x86_64.AppImage` and `install_appimage.sh` from the [latest release](https://github.com/dcog989/ImSlim/releases/latest), then run:
+[Download latest release](https://github.com/dcog989/ImSlim/releases/latest) AppImage, then run:
 
 ```sh
 bash install_appimage.sh ImSlim-*-linux-x86_64.AppImage
@@ -32,9 +32,11 @@ bash install_appimage.sh ImSlim-*-linux-x86_64.AppImage
 
 This copies the AppImage to `~/Applications`, adds ImSlim to your application menu, and registers it as the handler for the supported image types.
 
-## Tech Stack
+---
 
-Built with Python / PySide6. The compression libraries are built from source, latest releases, and statically linked so the bundled tools are self-contained (no distro package dependencies):
+## Technical
+
+Built with Python / PySide6. The compression libraries are built from source and statically linked:
 
 - [libjxl](https://github.com/libjxl/libjxl) (`cjxl`/`djxl`)
 - [Jpegli](https://github.com/google/jpegli) (`cjpegli`/`djpegli`)
@@ -46,9 +48,7 @@ Built with Python / PySide6. The compression libraries are built from source, la
 - [gifsicle](https://www.lcdf.org/gifsicle/)
 - [svgo](https://github.com/svg/svgo)
 
----
-
-## Development
+### Development
 
 See `Makefile` for details:
 
@@ -61,7 +61,7 @@ make distclean      # remove build tools - expensive!
 make fix            # auto fix lint issues
 make format         # runs ruff format
 make init           # runs uv sync, installs deps
-make install        # install locally (installs even if version unchanged)
+make install        # install locally (even if version unchanged)
 make package-linux  # build the Linux AppImage
 make run            # runs the app
 make tools          # runs build / update script for image libraries
