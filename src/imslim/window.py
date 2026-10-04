@@ -200,8 +200,7 @@ class ImSlimWindow(QWidget):
         self.drop_indicator.setObjectName("dropIndicator")
         self.drop_indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.drop_indicator.setStyleSheet(
-            "QWidget#dropIndicator { border: 3px dashed palette(highlight); "
-            "background-color: transparent; }"
+            "QWidget#dropIndicator { border: 3px dashed palette(highlight); background-color: transparent; }"
         )
         self.drop_indicator.hide()
 

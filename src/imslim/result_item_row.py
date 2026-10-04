@@ -288,6 +288,4 @@ class ResultItemRow(QWidget):
         _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
     def _copy_error_details(self) -> None:
-        clipboard = QGuiApplication.clipboard()
-        if clipboard is not None:
-            clipboard.setText(self.result_item.error_details_message)
+        QGuiApplication.clipboard().setText(self.result_item.error_details_message)
