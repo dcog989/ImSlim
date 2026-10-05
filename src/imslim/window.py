@@ -226,6 +226,7 @@ class ImSlimWindow(QWidget):
         drop_font.setBold(True)
         drop_label.setFont(drop_font)
         drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        drop_label.setContentsMargins(0, 0, 0, 8)
         layout.addWidget(drop_label)
 
         # Bottom buttons
