@@ -2,7 +2,7 @@
 
 A Linux image compressor / converter for all common image formats. Lossless or lossy, individually or in batch.
 
-Inspired by [Curtail](https://github.com/Huluti/Curtail).
+Inspired by and extends [Curtail](https://github.com/Huluti/Curtail).
 
 ![screen-1](assets/screen-1.webp)
 ![screen-2](assets/screen-2.webp)
@@ -19,6 +19,7 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail).
 - optionally strip metadata (EXIF/XMP/JUMBF), reset file attributes.
 - save output next to the original, to a custom folder, or backup->overwrite originals.
 - recurse directories for batch compression.
+- configurable timeout for compression / conversion operations.
 
 ## Installation
 
@@ -36,7 +37,7 @@ This copies the AppImage to `~/Applications`, adds ImSlim to your application me
 
 ## Technical
 
-Built with Python / PySide6. The compression libraries are built from source and statically linked:
+ImSlim is built with Python / PySide6. The compression libraries are built from source and statically linked:
 
 - [libjxl](https://github.com/libjxl/libjxl) (`cjxl`/`djxl`)
 - [Jpegli](https://github.com/google/jpegli) (`cjpegli`/`djpegli`)
