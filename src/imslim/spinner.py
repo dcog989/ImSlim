@@ -4,6 +4,8 @@ from PySide6.QtCore import QRectF, Qt, QTimer
 from PySide6.QtGui import QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QWidget
 
+from .theme import accent_color
+
 
 class Spinner(QWidget):
     """A rotating arc used as a busy indicator."""
@@ -30,7 +32,7 @@ class Spinner(QWidget):
     def paintEvent(self, event: QPaintEvent) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        color = self.palette().color(self.palette().ColorRole.Text)
+        color = accent_color()
         pen = QPen(
             color,
             6,

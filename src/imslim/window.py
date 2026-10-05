@@ -8,7 +8,6 @@ from PySide6.QtCore import QDir, QSize, Qt, QUrl
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
-    QColor,
     QContextMenuEvent,
     QDesktopServices,
     QDragEnterEvent,
@@ -46,7 +45,7 @@ from .icons import chevron_left_icon, download_icon, gear_icon, imslim_icon
 from .results_view import ResultsView
 from .settings import SettingsDialog
 from .settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager
-from .theme import combo_stylesheet, style_menu
+from .theme import accent_color, accent_colors, combo_stylesheet, muted_color, style_menu
 
 _V_SPACING = 16
 
@@ -201,7 +200,10 @@ class ImSlimWindow(QWidget):
         self.drop_indicator.setObjectName("dropIndicator")
         self.drop_indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.drop_indicator.setStyleSheet(
-            "QWidget#dropIndicator { border: 3px dashed palette(highlight); background-color: transparent; }"
+            "QWidget#dropIndicator {"
+            f" border: 3px dashed {accent_color().name()};"
+            " background-color: transparent;"
+            " }"
         )
         self.drop_indicator.hide()
 
@@ -215,7 +217,7 @@ class ImSlimWindow(QWidget):
 
         icon = QLabel()
         bg = self.palette().color(self.palette().ColorRole.Window)
-        icon_color = QColor("#3a3a3a") if bg.lightness() < 128 else QColor("#d3d3d3")
+        icon_color = muted_color(accent_color(), bg, factor=0.8)
         icon.setPixmap(download_icon(icon_color, 240).pixmap(240))
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
@@ -233,19 +235,20 @@ class ImSlimWindow(QWidget):
         buttons = QHBoxLayout()
         buttons.setSpacing(8)
 
+        accent, accent_hover, accent_pressed = accent_colors()
         lozenge = (
             "QPushButton {"
             "  border-radius: 18px;"
-            "  background-color: palette(highlight);"
+            f"  background-color: {accent.name()};"
             "  color: palette(highlighted-text);"
             "  border: none;"
             "  padding: 6px 20px;"
             "}"
             "QPushButton:hover {"
-            "  background-color: palette(Highlight);"
+            f"  background-color: {accent_hover.name()};"
             "}"
             "QPushButton:pressed {"
-            "  background-color: palette(dark);"
+            f"  background-color: {accent_pressed.name()};"
             "}"
         )
 

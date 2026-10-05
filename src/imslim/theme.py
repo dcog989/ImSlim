@@ -29,6 +29,39 @@ def combo_stylesheet() -> str:
     )
 
 
+def accent_color() -> QColor:
+    """The system accent color (palette Highlight), with a brand fallback.
+
+    Only the logo is a fixed brand color; the rest of the UI tracks the
+    desktop's accent, so interactive elements match the user's theme.
+    """
+    color = QApplication.palette().color(QPalette.ColorRole.Highlight)
+    return color if color.isValid() else QColor("#50abb7")
+
+
+def _shift_hsl(color: QColor, lightness_delta: float, saturation_delta: float) -> QColor:
+    hue, saturation, lightness, alpha = color.getHslF()
+    return QColor.fromHslF(
+        hue,
+        min(1.0, max(0.0, saturation + saturation_delta)),
+        min(1.0, max(0.0, lightness + lightness_delta)),
+        alpha,
+    )
+
+
+def accent_colors() -> tuple[QColor, QColor, QColor]:
+    """Base, hover and pressed variants of the system accent.
+
+    Hover lifts lightness while easing saturation so the color does not turn
+    neon; pressed deepens lightness with a touch more saturation. Both stay
+    readable on light and dark themes because they are relative shifts.
+    """
+    base = accent_color()
+    hover = _shift_hsl(base, lightness_delta=0.08, saturation_delta=-0.05)
+    pressed = _shift_hsl(base, lightness_delta=-0.08, saturation_delta=0.05)
+    return base, hover, pressed
+
+
 def muted_color(fg: QColor, bg: QColor, factor: float = 0.5) -> QColor:
     """Blend the foreground color `factor` toward `bg`.
 
