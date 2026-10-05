@@ -34,6 +34,7 @@ class GeneralTab(QWidget):
         super().__init__(parent)
         self.settings: SettingsManager = settings
         self.combo_save_method: QComboBox = QComboBox()
+        self.label_output_folder: QLabel = QLabel()
         self.entry_output_folder: QLineEdit = QLineEdit()
         self.btn_output_folder: QPushButton = QPushButton()
         self.btn_clear_output_folder: QPushButton = QPushButton()
@@ -109,8 +110,10 @@ class GeneralTab(QWidget):
             )
         )
 
+        self.label_output_folder.setText(_("Custom Folder"))
+
         form.addRow(_("Save Method"), self.combo_save_method)
-        form.addRow(_("Custom Folder"), output_row)
+        form.addRow(self.label_output_folder, output_row)
         form.addRow(_("Open Dialog Directory"), default_directory_row)
         form.addRow(_("Directory Recurse"), self.check_recursive)
         form.addRow(_("Compression Timeout"), self.spin_timeout)
@@ -180,6 +183,7 @@ class GeneralTab(QWidget):
 
     def _set_save_method_state(self, save_method: int) -> None:
         output_folder = save_method == SAVE_OUTPUT_FOLDER
+        self.label_output_folder.setEnabled(output_folder)
         self.entry_output_folder.setEnabled(output_folder)
         self.btn_output_folder.setEnabled(output_folder)
         self.btn_clear_output_folder.setEnabled(output_folder)
