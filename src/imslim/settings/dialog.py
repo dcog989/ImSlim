@@ -1,7 +1,7 @@
 from typing import cast, override
 
 from PySide6.QtCore import Signal
-from PySide6.QtGui import QCloseEvent
+from PySide6.QtGui import QCloseEvent, QIcon
 from PySide6.QtWidgets import QDialog, QDialogButtonBox, QTabWidget, QVBoxLayout, QWidget
 
 from .._i18n import _
@@ -36,6 +36,7 @@ class SettingsDialog(QDialog):
         # them. "Done" states that the edits are already applied.
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.button(QDialogButtonBox.StandardButton.Close).setText(_("Done"))
+        buttons.button(QDialogButtonBox.StandardButton.Close).setIcon(QIcon())
         _res = buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
 
