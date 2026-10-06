@@ -39,14 +39,15 @@ def accent_color() -> QColor:
     return color if color.isValid() else QColor("#50abb7")
 
 
-def _shift_hsl(color: QColor, lightness_delta: float, saturation_delta: float) -> QColor:
-    hue, saturation, lightness, alpha = color.getHslF()
-    return QColor.fromHslF(
-        hue,
-        min(1.0, max(0.0, saturation + saturation_delta)),
-        min(1.0, max(0.0, lightness + lightness_delta)),
-        alpha,
+def _shift_hsl(color: QColor, lightness_delta: int, saturation_delta: int) -> QColor:
+    shifted = QColor(color)
+    shifted.setHsl(
+        max(0, color.hslHue()),
+        min(255, max(0, color.hslSaturation() + saturation_delta)),
+        min(255, max(0, color.lightness() + lightness_delta)),
+        color.alpha(),
     )
+    return shifted
 
 
 def accent_colors() -> tuple[QColor, QColor, QColor]:
@@ -57,8 +58,8 @@ def accent_colors() -> tuple[QColor, QColor, QColor]:
     readable on light and dark themes because they are relative shifts.
     """
     base = accent_color()
-    hover = _shift_hsl(base, lightness_delta=0.08, saturation_delta=-0.05)
-    pressed = _shift_hsl(base, lightness_delta=-0.08, saturation_delta=0.05)
+    hover = _shift_hsl(base, lightness_delta=20, saturation_delta=-13)
+    pressed = _shift_hsl(base, lightness_delta=-20, saturation_delta=13)
     return base, hover, pressed
 
 

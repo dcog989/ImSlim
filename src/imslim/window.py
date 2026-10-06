@@ -201,9 +201,9 @@ class ImSlimWindow(QWidget):
         self.drop_indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         self.drop_indicator.setStyleSheet(
             "QWidget#dropIndicator {"
-            f" border: 3px dashed {accent_color().name()};"
-            " background-color: transparent;"
-            " }"
+            + f" border: 3px dashed {accent_color().name()};"
+            + " background-color: transparent;"
+            + " }"
         )
         self.drop_indicator.hide()
 
@@ -238,18 +238,18 @@ class ImSlimWindow(QWidget):
         accent, accent_hover, accent_pressed = accent_colors()
         lozenge = (
             "QPushButton {"
-            "  border-radius: 18px;"
-            f"  background-color: {accent.name()};"
-            "  color: palette(highlighted-text);"
-            "  border: none;"
-            "  padding: 6px 20px;"
-            "}"
-            "QPushButton:hover {"
-            f"  background-color: {accent_hover.name()};"
-            "}"
-            "QPushButton:pressed {"
-            f"  background-color: {accent_pressed.name()};"
-            "}"
+            + "  border-radius: 18px;"
+            + f"  background-color: {accent.name()};"
+            + "  color: palette(highlighted-text);"
+            + "  border: none;"
+            + "  padding: 6px 20px;"
+            + "}"
+            + "QPushButton:hover {"
+            + f"  background-color: {accent_hover.name()};"
+            + "}"
+            + "QPushButton:pressed {"
+            + f"  background-color: {accent_pressed.name()};"
+            + "}"
         )
 
         select_files = QPushButton(_("Select Files"))
