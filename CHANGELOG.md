@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.10.0 - 2026-10-06
+
+#### Features
+
+- (5948cdc) rebrand accent color for logo - dcog989
+
+#### Bug Fixes
+
+- (633866a) use integer HSL API and explicit string concatenation - dcog989
+
+- (9e23290) strip cancel-looking icon from done button - dcog989
+
+- (15232bd) dim custom folder label when inactive - dcog989
+- - -
+
 ## v0.9.0 - 2026-10-04
 
 #### Features
