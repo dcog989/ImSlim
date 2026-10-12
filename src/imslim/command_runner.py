@@ -40,17 +40,29 @@ class CompressionContext:
                 self._processes.remove(process)
 
     def cancel(self) -> None:
+        """Signal cancellation and ask every running process to stop.
+
+        Non-blocking: the bounded wait (and kill escalation) can take up to
+        _KILL_GRACE_SECONDS, so it runs on a short-lived daemon thread to keep
+        a Stop click from stalling the caller's (UI) thread.
+        """
         if self._cancel_event.is_set():
             return
         self._cancel_event.set()
         with self._lock:
             processes = list(self._processes)
-        deadline = time.monotonic() + _KILL_GRACE_SECONDS
         for process in processes:
             try:
                 process.terminate()
             except OSError:
                 pass
+        if processes:
+            threading.Thread(target=self._reap, args=(processes,), daemon=True).start()
+
+    @staticmethod
+    def _reap(processes: list[subprocess.Popen[bytes]]) -> None:
+        """Wait briefly for terminated processes to exit, then kill stragglers."""
+        deadline = time.monotonic() + _KILL_GRACE_SECONDS
         for process in processes:
             try:
                 remaining = max(0.0, deadline - time.monotonic())
