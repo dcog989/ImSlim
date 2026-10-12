@@ -2,11 +2,14 @@ import logging
 import os
 import re
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QSize
-from PySide6.QtGui import QImage, QImageReader
 
 from .formats import IMAGE_EXTENSIONS
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QImage
 
 # SVG animation comes from SMIL (<animate>/<set>) or CSS (@keyframes/animation).
 # A source scan is enough to know the rasterized output would drop it.
@@ -28,6 +31,10 @@ def is_animated_image(filename: str, mime_type: str) -> bool:
     animated source is never silently flattened. Other formats are static.
     """
     if mime_type == "image/gif":
+        # Imported lazily: QtGui needs system GL libraries that a headless
+        # environment may lack, and importing this module must not require them.
+        from PySide6.QtGui import QImageReader
+
         return QImageReader(filename).imageCount() != 1
     if mime_type == "image/svg+xml":
         try:
@@ -66,6 +73,8 @@ def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> Q
     Safe to call from a non-GUI thread; the caller converts the result to a
     QPixmap on the main thread.
     """
+    from PySide6.QtGui import QImageReader
+
     reader = QImageReader(filename)
     reader.setAutoTransform(True)
     size = reader.size()
