@@ -65,11 +65,10 @@ See `Makefile` for details:
 
 ```sh
 make build          # package / build the app
-make check          # runs ruff check + basedpyright
+make check          # runs ruff check + basedpyright + pytest
 make clean          # remove all build artifacts
 make distclean      # remove build tools - expensive!
-make fix            # auto fix lint issues
-make format         # runs ruff format
+make fix            # auto fix lint issues and format
 make init           # runs uv sync, installs deps
 make install        # install locally (even if version unchanged)
 make package-linux  # build the Linux AppImage

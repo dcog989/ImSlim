@@ -12,11 +12,9 @@ clean:
 distclean: clean
 	rm -rf .build
 
-format:
-	uv run ruff format .
-
 fix:
 	uv run ruff check --fix
+	uv run ruff format .
 
 init:
 	uv sync
