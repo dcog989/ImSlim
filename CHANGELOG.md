@@ -3,6 +3,67 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.11.0 - 2026-10-12
+
+#### Features
+
+- (0526cb4) load real gettext catalogs and add translation tooling - dcog989
+
+- (bc2ba7c) handle --help/--version and stop treating flags as file paths - dcog989
+
+#### Bug Fixes
+
+- (63c37c6) pad spin box text like the other input fields - dcog989
+
+- (30fe635) restore the ruff BLE001 ignore for intentional broad excepts - dcog989
+
+- (5eb845a) pin svgo's dependency tree with a committed npm lockfile - dcog989
+
+- (a1cac4a) merge into tools.lock so a partial --update can't drop pins - dcog989
+
+- (ac519b3) run the test suite before cog bumps the version - dcog989
+
+- (8df624f) lock dependency sync so a stale uv.lock fails instead of re-resolving - dcog989
+
+- (608e6b3) keep the bundled tools out of `make clean` - dcog989
+
+- (f48225c) mark Makefile targets phony so directory names can't shadow them - dcog989
+
+- (cfca898) declare GPL-3.0-only and ship LICENSE in the distributions - dcog989
+
+- (5a6e242) widen uv_build pin to <0.14 to silence build warning on uv 0.13 - dcog989
+
+- (43a9388) stop queued rows showing 100% savings before compression - dcog989
+
+- (7af615d) use quality 100 when Lossless is selected for a JPEG target - dcog989
+
+- (c62a2b8) keep EXIF/XMP when re-encoding to JPEG or AVIF - dcog989
+
+- (18a98c6) cap the single-instance payload to a few MB per connection - dcog989
+
+- (f9e4848) flush each setting to disk as it is written - dcog989
+
+- (3f22567) describe the results page from the batch snapshot, not live settings - dcog989
+
+- (1ebae57) serialize the single-instance primary decision with a lock file - dcog989
+
+- (c7f0e46) reset previous results when a new batch starts - dcog989
+
+- (a1919bd) build bundled tools before packaging the wheel - dcog989
+
+- (f121ba3) disable Clear Results while a batch is compressing - dcog989
+
+#### Refactoring
+
+- (95c39d3) use uv from a cold checkout and export ARCH - dcog989
+
+- (6ecd615) unify pool-size formula into one worker_count helper - dcog989
+
+- (2857227) merge the two tool-button helpers into one - dcog989
+
+- (16fb87d) delete dead debug_pairs, set_knob and stray conversion export - dcog989
+- - -
+
 ## v0.10.0 - 2026-10-06
 
 #### Features
