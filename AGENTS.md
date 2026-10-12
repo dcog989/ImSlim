@@ -21,7 +21,7 @@
 - `src/imslim/pipeline.py` — `CompressionPipeline`: runs a compressor's commands, finalizes output, cleans up and reports errors
 - `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools
 - `src/imslim/image_convert.py` — Qt-based decode-to-PNG helper (BMP/TIFF → cwebp input)
-- `src/imslim/compressors/` — per-format compressors (png, jpeg, webp, avif, jxl, svg)
+- `src/imslim/compressors/` — per-format compressors (PNG, JPEG, WebP, AVIF, jxl, SVG)
 - `src/imslim/compression_manager.py` — thread-pool orchestration of compressors
 - `src/imslim/assets/imslim.svg` — main window logo
 - Tests: `tests/` (pytest unit tests for naming, version parsing and percent math)
@@ -89,12 +89,16 @@
 - Logic fully implemented.
 - Existing docs updated if public interfaces changed.
 - When required by the `Verification` rules, run the corresponding `Workflow` command.
-- On completion of an update or fix, print a concise conventional commit message in a fenced code block.
+- On completion of an update or fix, print a concise conventional commit message in a fenced code block. Do not line wrap.
 
 ### Communication Style
 
 - Provide concise, actionable responses.
+- Answer in the fewest words that fully answer. No preamble, no restating the request, no summary of what you just did, no tables unless asked for.
 - Ask clarifying questions when requirements are ambiguous.
 - Flag potential risks or edge cases proactively.
 - Do not pretend to understand how the user feels.
 - Never editorialise your answer. No "to be honest", "honestly", hedging, disclaimers, or meta-commentary — just answer.
+- Never end with "want me to…?" or a list of options unless a real decision is needed. If nothing is needed, end.
+- When asked "is there an issue?", answer "No." or state the issue. Do not explain the mechanism unless asked.
+- Commit message block: one line, no commentary around it. Add a body only when the "why" isn't obvious. Do not wrap lines.
