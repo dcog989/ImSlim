@@ -28,19 +28,10 @@ _ROW_CHUNK_SIZE = 50
 _MAX_ROWS = 500
 
 
-def _make_stop_button() -> QToolButton:
+def _make_tool_button(text: str, tooltip: str) -> QToolButton:
     button = QToolButton()
-    button.setText(_("Stop"))
-    button.setToolTip(_("Stop the current compression."))
-    button.setFixedHeight(32)
-    button.setStyleSheet("QToolButton { padding: 0 12px; }")
-    return button
-
-
-def _make_open_folder_button() -> QToolButton:
-    button = QToolButton()
-    button.setText(_("Open Output Folder"))
-    button.setToolTip(_("Open the folder the compressed files were written to."))
+    button.setText(text)
+    button.setToolTip(tooltip)
     button.setCursor(Qt.CursorShape.PointingHandCursor)
     button.setFixedHeight(32)
     button.setStyleSheet("QToolButton { padding: 0 12px; }")
@@ -87,12 +78,15 @@ class ResultsView(ResultsPage):
     open_folder_requested: Signal = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        stop_button = _make_stop_button()
+        stop_button = _make_tool_button(_("Stop"), _("Stop the current compression."))
         super().__init__(stop_button, parent)
         self.stop_button: QToolButton = stop_button
         _res = stop_button.clicked.connect(self.stop_requested.emit)
 
-        self.open_folder_button: QToolButton = _make_open_folder_button()
+        self.open_folder_button: QToolButton = _make_tool_button(
+            _("Open Output Folder"),
+            _("Open the folder the compressed files were written to."),
+        )
         self.open_folder_button.hide()
         _res = self.open_folder_button.clicked.connect(self.open_folder_requested.emit)
 
