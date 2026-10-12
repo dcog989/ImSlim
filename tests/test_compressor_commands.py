@@ -297,15 +297,15 @@ def test_jxl_prunes_sidecar_hints_that_were_not_produced(tmp_path) -> None:
     ],
 )
 def test_gif_command(
-    monkeypatch: pytest.MonkeyPatch,
     animated: bool,
     lossy: bool,
     metadata: bool,
     expected: list[str],
 ) -> None:
-    monkeypatch.setattr("imslim.compressors.gif_compressor.is_animated_image", lambda *_: animated)
+    item = _item("image/gif")
+    item.is_animated = animated
     options = _options(Format.KEEP, lossy, metadata)
-    commands = GIFCompressor().commands(_item("image/gif"), options)
+    commands = GIFCompressor().commands(item, options)
 
     assert _argv(commands) == [expected]
 

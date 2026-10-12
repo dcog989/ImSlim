@@ -70,7 +70,13 @@ class ResultItemManager:
             result_item.set_error(_("Format of this file is not supported."))
             return result_item
 
-        if is_converting(self.options.target_format) and is_animated_image(path, mime):
+        # Sniffed once and carried on the item: the GIF compressor needs it to
+        # pick lossy vs lossless, and a conversion that would drop the animation
+        # warns here. Other formats answer without touching the file.
+        if mime == "image/gif" or is_converting(self.options.target_format):
+            result_item.is_animated = is_animated_image(path, mime)
+
+        if result_item.is_animated and is_converting(self.options.target_format):
             result_item.warning_message = _("Animation will be lost: only the first frame is kept.")
 
         result_item.new_filename = self.create_new_filename(result_item.filename, mime)

@@ -25,6 +25,7 @@ class ResultItem:
     mtime: float = -1.0
     mode: int = -1
     state: ResultState = ResultState.IDLE
+    is_animated: bool = False
     error_message: str = ""
     error_details_message: str = ""
     warning_message: str = ""
