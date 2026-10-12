@@ -21,10 +21,11 @@
 - `src/imslim/pipeline.py` — `CompressionPipeline`: runs a compressor's commands, finalizes output, cleans up and reports errors
 - `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools
 - `src/imslim/image_convert.py` — Qt-based decode-to-PNG helper (BMP/TIFF → cwebp input)
-- `src/imslim/compressors/` — per-format compressors (PNG, JPEG, WebP, AVIF, jxl, SVG)
+- `src/imslim/formats.py` — `FORMAT_SPECS`: single source of truth for formats, per-format knobs, MIME/extension tables and the file-dialog filter
+- `src/imslim/compressors/` — per-format compressors (PNG, JPEG, WebP, AVIF, jxl, SVG); `ALL_COMPRESSORS` in `__init__.py` is the registry
 - `src/imslim/compression_manager.py` — thread-pool orchestration of compressors
 - `src/imslim/assets/imslim.svg` — main window logo
-- Tests: `tests/` (pytest unit tests for naming, version parsing and percent math)
+- Tests: `tests/` (pytest unit tests for compressor command building, format/percent math, JPEG encode + metadata, output writer, result-item manager and system info)
 
 ### Commands
 
@@ -50,8 +51,8 @@
 ### Common Patterns
 
 - Add a setting: Add key + accessors in `src/imslim/settings_manager.py`, expose it in the relevant tab under `src/imslim/settings/`, and consume it in the relevant compressor under `src/imslim/compressors/`.
-- Add a format: Create a compressor subclass in `src/imslim/compressors/`, register it in `src/imslim/window.py` (`manager.register_compressor(...)`) and `compression_manager.py` (`mime_type_to_compressor_type`), and add its extensions to `_IMAGE_EXTENSIONS`/`image_filter()` in `src/imslim/image_utils.py`.
-- Compressor pipeline: override `build_command(result_item, options, input_path)` to return a pure `list[Command]` (a `NamedTuple` of `argv: list[str] | None`, `action: Callable[[], None] | None`, `stdout_path: str | None`, `ignore_errors: bool`, `temp_files: tuple[str, ...]`, defined in `src/imslim/commands.py`). Declare every temporary file a command creates in `temp_files` so cleanup is derived; implement `get_file_type()` as needed. Pre-decode with `decode_commands()` rather than doing work in the builder.
+- Add a format: Create a compressor subclass in `src/imslim/compressors/`, add it to `ALL_COMPRESSORS` in `src/imslim/compressors/__init__.py`, and add a `FormatSpec` to `FORMAT_SPECS` in `src/imslim/formats.py` (MIME + extensions, decoder, knobs); the lookup tables and file-dialog filter are derived from it.
+- Compressor pipeline: override `build_command(result_item, options, input_path)` to return a pure `list[Command]` (a `NamedTuple` of `argv: list[str] | None`, `action: Callable[[], None] | None`, `stdout_path: str | None`, `ignore_errors: bool`, `temp_files: tuple[str, ...]`, `adapt: Callable[[list[str]], list[str]] | None`, defined in `src/imslim/commands.py`). Declare every temporary file a command creates in `temp_files` so cleanup is derived; implement `get_file_type()` as needed. Pre-decode with `decode_commands()` rather than doing work in the builder.
 - State access: Read/write mode and settings through `SettingsManager` (exposed on the window as `self.settings`).
 
 ---

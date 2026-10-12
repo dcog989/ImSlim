@@ -64,7 +64,7 @@ ImSlim is built with Python / PySide6. The compression libraries are built from 
 See `Makefile` for details:
 
 ```sh
-make build          # package / build the app
+make build          # build the wheel + sdist
 make check          # runs ruff check + ruff format check + basedpyright + pytest
 make clean          # remove all build artifacts
 make distclean      # remove build tools - expensive!
