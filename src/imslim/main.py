@@ -108,6 +108,10 @@ _WRITE_TIMEOUT_MS = 500
 # never triggers readChannelFinished) must not hold a buffer entry forever.
 _SWEEP_INTERVAL_MS = 5000
 _IDLE_TIMEOUT_MS = 10000
+# Cap how much data one connection may buffer: a same-user local process could
+# otherwise stream without end and grow the app's memory until the sweep fires.
+# A real launch sends newline-free, \0-separated paths, so a few MB is ample.
+_MAX_PAYLOAD_BYTES = 4 * 1024 * 1024
 # A launch that lost the primary race waits this long for the winner's socket,
 # which appears a few statements after it takes the lock.
 _PRIMARY_WAIT_SECONDS = 2.0
@@ -183,7 +187,8 @@ class SingleInstance(QObject):
     primary decision atomic, so two simultaneous launches cannot both call
     QLocalServer.removeServer() and unlink each other's socket. A background
     sweep reaps connections that connect but never send data, so a hung or
-    malformed client cannot accumulate buffer entries indefinitely.
+    malformed client cannot accumulate buffer entries indefinitely; a connection
+    whose buffered payload passes _MAX_PAYLOAD_BYTES is dropped outright.
     """
 
     def __init__(self, name: str, on_paths: Callable[[list[str]], None]) -> None:
@@ -273,18 +278,25 @@ class SingleInstance(QObject):
         if buffer is None:
             return
         buffer.extend(conn.readAll().data())
+        if len(buffer) > _MAX_PAYLOAD_BYTES:
+            logger.warning("Dropping connection with oversized payload (%d bytes)", len(buffer))
+            self._drop_connection(conn)
 
-    def _finish(self, conn: QLocalSocket) -> None:
-        buffer = self._conn_buffer.get(conn)
-        if buffer is None:
-            return
-        buffer.extend(conn.readAll().data())
+    def _drop_connection(self, conn: QLocalSocket) -> None:
+        """Stop tracking a connection, disconnect it and schedule its deletion."""
         _res = self._conn_buffer.pop(conn, None)
         _res = self._conn_started.pop(conn, None)
         conn.disconnectFromServer()
         conn.deleteLater()
         if not self._conn_started:
             self._sweep_timer.stop()
+
+    def _finish(self, conn: QLocalSocket) -> None:
+        buffer = self._conn_buffer.get(conn)
+        if buffer is None:
+            return
+        buffer.extend(conn.readAll().data())
+        self._drop_connection(conn)
         data = bytes(buffer)
         paths = data.decode("utf-8").split("\0") if data else []
         self._on_paths(paths)
@@ -294,12 +306,7 @@ class SingleInstance(QObject):
         for conn, started in list(self._conn_started.items()):
             if (now - started) * 1000 <= _IDLE_TIMEOUT_MS:
                 continue
-            _res = self._conn_buffer.pop(conn, None)
-            _res = self._conn_started.pop(conn, None)
-            conn.disconnectFromServer()
-            conn.deleteLater()
-        if not self._conn_started:
-            self._sweep_timer.stop()
+            self._drop_connection(conn)
 
 
 class ImSlimApp(QApplication):
