@@ -65,7 +65,7 @@ See `Makefile` for details:
 
 ```sh
 make build          # package / build the app
-make check          # runs ruff check + basedpyright + pytest
+make check          # runs ruff check + ruff format check + basedpyright + pytest
 make clean          # remove all build artifacts
 make distclean      # remove build tools - expensive!
 make fix            # auto fix lint issues and format

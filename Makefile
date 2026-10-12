@@ -3,6 +3,7 @@ build:
 
 check:
 	uv run ruff check
+	uv run ruff format --check
 	uv run basedpyright src/imslim
 	uv run pytest
 
