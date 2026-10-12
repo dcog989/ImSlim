@@ -10,6 +10,10 @@ from ..formats import CompressorType
 from ..jpeg_metadata import transfer_metadata
 from ..result_item import ResultItem
 
+# cjpegli cannot encode losslessly; quality 100 is the closest it gets, so a
+# lossless request must not fall back to the lossy knob's default of 90.
+_LOSSLESS_QUALITY = 100
+
 
 class JPEGCompressor(Compressor):
     @override
@@ -66,10 +70,8 @@ class JPEGCompressor(Compressor):
             encoded_path = self._encoded_path(result_item)
             output = encoded_path
 
-        cjpegli = tokens(
-            t"{resolve_tool('cjpegli')} {encode_input} {output} "
-            + t"--quality {options.level('jpg-lossy-level')}"
-        )
+        quality = options.level("jpg-lossy-level") if options.lossy else _LOSSLESS_QUALITY
+        cjpegli = tokens(t"{resolve_tool('cjpegli')} {encode_input} {output} --quality {quality}")
         cjpegli.append(
             "--progressive_level=2" if options.flag("jpg-progressive") else "--progressive_level=0"
         )
