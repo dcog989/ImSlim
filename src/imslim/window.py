@@ -126,7 +126,7 @@ class ImSlimWindow(QWidget):
 
         self.label_format: QLabel = QLabel(_("Output format:"))
         self.combo_format: QComboBox = self._build_option_combo(
-            (_("Same as input"), *(_(spec.display) for spec in TARGET_SPECS)),
+            (_("Same as input"), *(spec.display for spec in TARGET_SPECS)),
             _(
                 "Output format. Convert every input to the selected format, or "
                 + "keep each file's original format."
@@ -499,7 +499,7 @@ class ImSlimWindow(QWidget):
     @staticmethod
     def _build_option_combo(items: tuple[str, ...], tooltip: str) -> QComboBox:
         combo = QComboBox()
-        combo.addItems([_(item) for item in items])
+        combo.addItems(items)
         combo.setStyleSheet(combo_stylesheet())
         combo.setToolTip(f"<div style='width: 300px'>{html.escape(tooltip)}</div>")
         return combo

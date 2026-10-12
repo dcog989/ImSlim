@@ -56,5 +56,8 @@ run:
 tools:
 	./scripts/build_tools.sh
 
+translations:
+	./scripts/translations.sh all
+
 upgrade:
 	uv lock --upgrade

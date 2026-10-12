@@ -33,19 +33,19 @@ class BatchSummary:
         self.failed += 1
 
     def text(self, converting: bool = False) -> str:
+        progress = _("{done} of {total} images done").format(done=self.done, total=self.total)
         if converting:
-            text = _("%d of %d images done") % (self.done, self.total)
-            text += " · " + _("%d converted") % self.compressed
+            text = progress + " · " + _("{count} converted").format(count=self.compressed)
         else:
             text = (
-                _("%d of %d images done") % (self.done, self.total)
+                progress
                 + " · "
-                + _("%d compressed") % self.compressed
+                + _("{count} compressed").format(count=self.compressed)
                 + " · "
-                + _("%s saved") % sizeof_fmt(self.saved_bytes)
+                + _("{size} saved").format(size=sizeof_fmt(self.saved_bytes))
             )
         if self.skipped:
-            text += " · " + _("%d skipped") % self.skipped
+            text += " · " + _("{count} skipped").format(count=self.skipped)
         if self.failed:
-            text += " · " + _("%d failed") % self.failed
+            text += " · " + _("{count} failed").format(count=self.failed)
         return text

@@ -23,7 +23,13 @@ from ..settings_manager import (
 from .style import separator
 from .tab import bool_handler, int_handler, suspend_signals
 
-_LOG_LEVEL_LABELS = tuple(level.capitalize() for level in LOG_LEVELS)
+_LOG_LEVEL_LABELS: dict[str, str] = {
+    "NONE": _("None"),
+    "DEBUG": _("Debug"),
+    "INFO": _("Info"),
+    "WARNING": _("Warning"),
+    "ERROR": _("Error"),
+}
 _LOG_LEVEL_INDEX = {level: index for index, level in enumerate(LOG_LEVELS)}
 
 
@@ -121,7 +127,7 @@ class GeneralTab(QWidget):
 
         form.addRow(separator())
 
-        self.combo_log_level.addItems([_(label) for label in _LOG_LEVEL_LABELS])
+        self.combo_log_level.addItems([_LOG_LEVEL_LABELS[level] for level in LOG_LEVELS])
         self.combo_log_level.setToolTip(
             _("Verbosity of the log file. Debug includes the exact commands run.")
         )

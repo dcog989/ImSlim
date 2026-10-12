@@ -306,4 +306,4 @@ def image_filter() -> str:
         f"{spec.display} ({' '.join(f'*{ext}' for ext in spec.source_extensions)})"
         for spec in FORMAT_SPECS
     )
-    return _(f"Images ({all_extensions});;" + per_format + ";;All files (*)")
+    return f"{_('Images')} ({all_extensions});;{per_format};;{_('All files')} (*)"

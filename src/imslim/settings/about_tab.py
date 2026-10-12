@@ -8,6 +8,8 @@ from ..settings_manager import log_file_path
 from ..system_info import static_about_pairs, system_info_pairs
 from ..workers import VersionProbeTask, start_task
 
+_GITHUB_URL = "https://github.com/dcog989/ImSlim"
+
 
 class AboutTab(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -40,8 +42,12 @@ class AboutTab(QWidget):
                 + "Compress common image formats, lossless or lossy.</div>"
                 + "<div style='margin-top: 8px;'>"
                 + "<a href='{log_url}'>Open latest log file</a> · "
-                + "<a href='https://github.com/dcog989/ImSlim'>GitHub</a></div>"
-            ).format(version=__version__, log_url=QUrl.fromLocalFile(log_file_path()).toString())
+                + "<a href='{github_url}'>GitHub</a></div>"
+            ).format(
+                version=__version__,
+                log_url=QUrl.fromLocalFile(log_file_path()).toString(),
+                github_url=_GITHUB_URL,
+            )
         )
         layout.addWidget(message)
 

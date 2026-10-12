@@ -22,6 +22,7 @@ if not BIN_DIR.is_dir():
 datas = [
     (str(BIN_DIR), "imslim/bin"),
     (str(project_root / "src" / "imslim" / "assets"), "imslim/assets"),
+    (str(project_root / "src" / "imslim" / "locale"), "imslim/locale"),
 ]
 
 a = Analysis(
