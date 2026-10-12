@@ -21,6 +21,11 @@ post_bump_hooks = [
     "git push origin {{version_tag}}",
 ]
 
+# cog's built-in title for `perf` is "Performance Improvements", which the
+# template's "Performance" group never matched, so perf commits were dropped.
+[commit_types]
+perf = { changelog_title = "Performance" }
+
 [changelog]
 path = "CHANGELOG.md"
 template = "changelog.tpl"
