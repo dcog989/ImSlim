@@ -1,4 +1,4 @@
-"""Results list: chunked rows, per-item updates and the busy overlay."""
+"""Results list: capped chunked rows, per-item updates and the busy overlay."""
 
 from typing import override
 
@@ -22,6 +22,10 @@ from .theme import apply_muted_palette, muted_color
 # Rows are built in small timer-driven chunks so a huge batch does not block the
 # UI thread building thousands of widgets in one event-loop iteration.
 _ROW_CHUNK_SIZE = 50
+# One widget (plus a queued thumbnail decode) per result does not scale to
+# folders with tens of thousands of images, so only the first rows are listed;
+# the batch summary still counts every item.
+_MAX_ROWS = 500
 
 
 def _make_stop_button() -> QToolButton:
@@ -104,6 +108,8 @@ class ResultsView(ResultsPage):
         self.rows_layout.setContentsMargins(0, 0, 0, 0)
         self.rows_layout.setSpacing(2)
         self.results_layout.addWidget(self.rows_container)
+        self.limit_label: QLabel = self._build_limit_label()
+        self.results_layout.addWidget(self.limit_label)
         self.results_layout.addStretch(1)
 
         self.summary_label: QLabel = self._build_summary_label()
@@ -156,7 +162,21 @@ class ResultsView(ResultsPage):
         apply_muted_palette(label)
         return label
 
+    def _build_limit_label(self) -> QLabel:
+        label = QLabel(_("Showing only the first %d results.") % _MAX_ROWS)
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        label.setContentsMargins(4, 10, 4, 0)
+        label.setWordWrap(True)
+        apply_muted_palette(label)
+        label.hide()
+        return label
+
     def add_item(self, result_item: ResultItem) -> None:
+        if self._row_count + len(self._pending_rows) >= _MAX_ROWS:
+            # Past the cap: keep counting in the summary, but build no more rows.
+            if self.limit_label.isHidden():
+                self.limit_label.show()
+            return
         self._pending_rows.append(result_item)
         if not self._row_timer.isActive():
             self._row_timer.start()
@@ -227,6 +247,7 @@ class ResultsView(ResultsPage):
     def clear(self) -> None:
         self._pending_rows.clear()
         self._row_timer.stop()
+        self.limit_label.hide()
         while self.rows_layout.count():
             item = self.rows_layout.takeAt(0)
             if item is None:
