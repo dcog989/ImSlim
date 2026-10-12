@@ -12,6 +12,9 @@ from ..result_item import ResultItem
 _ENCODE_BIT_DEPTH = 10
 # avifenc --speed range is 0-10 (slowest/best to fastest/worst).
 _MAX_SPEED = 10
+# Source formats avifenc reads itself; any other source is decoded to PNG first.
+# Kept in step with the AVIF entry's native_inputs in formats.py.
+_ENCODER_INPUTS = frozenset({"image/jpeg", "image/png"})
 
 
 class AVIFCompressor(Compressor):
@@ -19,6 +22,17 @@ class AVIFCompressor(Compressor):
     @classmethod
     def get_file_type(cls) -> CompressorType:
         return CompressorType.AVIF
+
+    def _reads_input(self, result_item: ResultItem, input_path: str) -> bool:
+        """True when avifenc can read `input_path` itself.
+
+        Either a source format avifenc reads, or the PNG the pipeline already
+        pre-decoded for a format it cannot read. Passing a JPEG straight through
+        keeps its EXIF/XMP, which a decode to PNG would drop.
+        """
+        if input_path != result_item.filename:
+            return True
+        return result_item.mime_type in _ENCODER_INPUTS
 
     @override
     def build_command(
@@ -28,8 +42,7 @@ class AVIFCompressor(Compressor):
         encode_input = input_path
 
         # avifenc can't read AVIF input, so decode to a temporary PNG first.
-        # PNG input (native PNG or a conversion intermediate) feeds avifenc directly.
-        if not self._input_is_png(result_item, input_path):
+        if not self._reads_input(result_item, input_path):
             intermediate = self._intermediate_path(result_item)
             commands += decode_commands(result_item.mime_type, input_path, intermediate)
             encode_input = intermediate

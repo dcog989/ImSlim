@@ -1,3 +1,4 @@
+from functools import partial
 from typing import override
 
 from ..batch_options import BatchOptions
@@ -6,6 +7,7 @@ from ..commands import Command, tokens
 from ..compressor import Compressor
 from ..conversion import decode_commands
 from ..formats import CompressorType
+from ..jpeg_metadata import transfer_metadata
 from ..result_item import ResultItem
 
 
@@ -81,5 +83,15 @@ class JPEGCompressor(Compressor):
                 + t"{encoded_path}"
             )
             commands.append(Command(jpegtran, temp_files=(result_item.tmp_filename,)))
+        elif result_item.mime_type == "image/jpeg":
+            # Metadata is kept, but the encoder was fed a PNG decoded from the
+            # original and that PNG carries no EXIF/XMP, so copy it back over.
+            commands.append(self._metadata_command(result_item))
 
         return commands
+
+    @staticmethod
+    def _metadata_command(result_item: ResultItem) -> Command:
+        return Command(
+            action=partial(transfer_metadata, result_item.filename, result_item.tmp_filename)
+        )

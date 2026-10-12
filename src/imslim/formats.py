@@ -141,7 +141,7 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
         source_extensions=(".avif",),
         output_extension=".avif",
         target=True,
-        native_inputs=frozenset({"image/avif", "image/png"}),
+        native_inputs=frozenset({"image/avif", "image/jpeg", "image/png"}),
         decoder="avifdec",
         knobs=(
             Knob("avif-lossy-level", "level", 70, _("Lossy"), _QUALITY_HINT, 0, 100),
