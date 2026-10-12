@@ -1,9 +1,15 @@
 """Shared visual helpers for the settings tabs."""
 
 from PySide6.QtGui import QPalette
-from PySide6.QtWidgets import QFrame, QLabel, QSizePolicy
+from PySide6.QtWidgets import QFrame, QLabel, QSizePolicy, QSpinBox
 
 from ..theme import apply_muted_palette, combo_stylesheet, input_background_color
+
+# Horizontal inset of the text inside every input field. QLineEdit takes it from
+# the stylesheet, but a QSpinBox gives its internal edit field an explicit
+# geometry and ignores stylesheet padding, so the same value is applied through
+# QLineEdit.setTextMargins() in spinbox() to keep the two aligned.
+_INPUT_PADDING = 10
 
 
 def separator() -> QFrame:
@@ -35,11 +41,23 @@ def form_stylesheet() -> str:
     input_bg = input_background_color()
     return (
         combo_stylesheet()
-        + f"QSpinBox {{ padding: 0px 6px; min-height: 22px; background-color: {input_bg}; }}"
-        + f"QLineEdit {{ padding: 5px 10px; background-color: {input_bg}; }}"
+        + f"QSpinBox {{ min-height: 22px; background-color: {input_bg}; }}"
+        + f"QLineEdit {{ padding: 5px {_INPUT_PADDING}px; background-color: {input_bg}; }}"
         + "QPushButton { padding: 6px 16px; }"
         + "QCheckBox, QRadioButton { spacing: 8px; }"
     )
+
+
+def spinbox() -> QSpinBox:
+    """A QSpinBox whose value is inset like the QLineEdit and QComboBox fields.
+
+    Stylesheet padding on a QSpinBox does not move its internal edit field, so
+    the value would sit flush against the left frame; setTextMargins is the only
+    reliable way to inset it.
+    """
+    spin = QSpinBox()
+    spin.lineEdit().setTextMargins(_INPUT_PADDING, 0, _INPUT_PADDING, 0)
+    return spin
 
 
 def hint_label(hint: str) -> QLabel:

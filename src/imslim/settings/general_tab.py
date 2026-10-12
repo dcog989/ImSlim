@@ -20,7 +20,7 @@ from ..settings_manager import (
     SettingsManager,
     log_file_path,
 )
-from .style import separator
+from .style import separator, spinbox
 from .tab import bool_handler, int_handler, suspend_signals
 
 _LOG_LEVEL_LABELS: dict[str, str] = {
@@ -49,10 +49,10 @@ class GeneralTab(QWidget):
         self.btn_default_directory: QPushButton = QPushButton()
         self.btn_clear_default_directory: QPushButton = QPushButton()
         self.check_recursive: QCheckBox = QCheckBox()
-        self.spin_timeout: QSpinBox = QSpinBox()
+        self.spin_timeout: QSpinBox = spinbox()
         self.combo_log_level: QComboBox = QComboBox()
-        self.spin_log_max_size: QSpinBox = QSpinBox()
-        self.spin_log_backups: QSpinBox = QSpinBox()
+        self.spin_log_max_size: QSpinBox = spinbox()
+        self.spin_log_backups: QSpinBox = spinbox()
         self._build()
         with suspend_signals(self):
             self._load_values()

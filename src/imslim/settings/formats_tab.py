@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 from .._i18n import _
 from ..formats import FORMAT_BY_COMPRESSOR, FORMAT_SPECS, FormatSpec, Knob
 from ..settings_manager import SettingsManager
-from .style import hint_label
+from .style import hint_label, spinbox
 from .tab import bool_handler, int_handler, suspend_signals
 
 
@@ -97,7 +97,7 @@ class FormatsTab(QWidget):
         row.setContentsMargins(0, 0, 0, 0)
         label_widget = QLabel(knob.label)
         label_widget.setMinimumWidth(110)
-        spin = QSpinBox()
+        spin = spinbox()
         spin.setRange(knob.lower, knob.upper)
         _res = spin.valueChanged.connect(
             int_handler(self.settings, self.settings_changed.emit, knob.key)
