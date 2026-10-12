@@ -13,8 +13,16 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-VERSION="$("$ROOT/.venv/bin/python" -c 'import sys; sys.path.insert(0,"src"); print(__import__("imslim").__version__)')"
 ARCH="x86_64"
+# appimagetool warns and guesses the architecture unless ARCH is exported.
+export ARCH
+
+# uv rather than .venv/bin/... so a cold checkout works: uv run syncs the
+# environment first, and --directory keeps it independent of the caller's cwd.
+run_py() { uv run --directory "$ROOT" python "$@"; }
+run_pyinstaller() { uv run --directory "$ROOT" pyinstaller "$@"; }
+
+VERSION="$(run_py -c 'import imslim; print(imslim.__version__)')"
 OUT_DIR="$ROOT/dist"
 APPIMAGE_NAME="ImSlim-$VERSION-linux-$ARCH.AppImage"
 APP_DIR="$OUT_DIR/ImSlim.AppDir"
@@ -26,10 +34,10 @@ log() { printf '\033[1;36m[package]\033[0m %s\n' "$*"; }
 
 # Raster icon for the AppDir and desktop entry. Force the offscreen Qt
 # platform: icon rendering must not require a display (e.g. in CI).
-QT_QPA_PLATFORM=offscreen "$ROOT/.venv/bin/python" "$ROOT/scripts/make_icons.py"
+QT_QPA_PLATFORM=offscreen run_py "$ROOT/scripts/make_icons.py"
 
 # Build the onedir bundle (payload for the AppImage).
-"$ROOT/.venv/bin/pyinstaller" \
+run_pyinstaller \
     --noconfirm \
     --clean \
     --distpath "$OUT_DIR/pyinstaller" \
@@ -48,7 +56,7 @@ cp "$ROOT/assets/imslim.desktop" "$APP_DIR/imslim.desktop"
 for size in 16 32 64 128 256 512; do
     dir="$APP_DIR/usr/share/icons/hicolor/${size}x${size}/apps"
     mkdir -p "$dir"
-    QT_QPA_PLATFORM=offscreen "$ROOT/.venv/bin/python" - "$ROOT/build/icon/imslim.png" "$dir/imslim.png" "$size" <<'PY'
+    QT_QPA_PLATFORM=offscreen run_py - "$ROOT/build/icon/imslim.png" "$dir/imslim.png" "$size" <<'PY'
 import sys
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage
