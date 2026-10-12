@@ -5,6 +5,7 @@ from PySide6.QtCore import QObject, QThreadPool, Signal
 from .batch_options import BatchOptions
 from .batch_summary import BatchSummary
 from .compression_manager import CompressionManager
+from .conversion import is_converting
 from .result_item import ResultItem, ResultState
 from .settings_manager import SettingsManager
 from .workers import AnalyzeTask
@@ -55,6 +56,15 @@ class BatchFlow(QObject):
     @property
     def active(self) -> bool:
         return self._active
+
+    @property
+    def converting(self) -> bool:
+        """Whether this batch converts every input to the target format.
+
+        Read from the batch's settings snapshot rather than live settings, so a
+        settings edit mid-batch cannot change what the results page describes.
+        """
+        return self._options is not None and is_converting(self._options.target_format)
 
     def start(self, paths: list[str]) -> None:
         if self._shutting_down:

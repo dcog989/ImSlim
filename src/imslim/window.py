@@ -39,7 +39,6 @@ from .batch_flow import BatchFlow
 from .clipboard_intake import ClipboardIntake, urls_to_paths
 from .composition import AppContext
 from .compression_manager import CompressionManager
-from .conversion import is_converting
 from .formats import TARGET_SPECS, Format, image_filter
 from .icons import chevron_left_icon, download_icon, gear_icon, imslim_icon
 from .results_view import ResultsView
@@ -396,7 +395,7 @@ class ImSlimWindow(QWidget):
         self.flow.start(paths)
 
     def _show_items_ready(self) -> None:
-        self.results.set_converting(is_converting(self.settings.target_format))
+        self.results.set_converting(self.flow.converting)
         self.results.set_open_folder_enabled(self._uses_custom_output_folder())
         self.show_view(View.RESULTS)
 
@@ -415,8 +414,7 @@ class ImSlimWindow(QWidget):
         )
 
     def _update_summary(self) -> None:
-        converting = is_converting(self.settings.target_format)
-        self.results.set_summary(self.flow.summary.text(converting))
+        self.results.set_summary(self.flow.summary.text(self.flow.converting))
 
     # ----------------------------------------------------------------- file IO
     @override
