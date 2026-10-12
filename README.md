@@ -33,6 +33,16 @@ bash install_appimage.sh ImSlim-*-linux-x86_64.AppImage
 
 This copies the AppImage to `~/Applications`, adds ImSlim to your application menu, and registers it as the handler for the supported image types.
 
+## Command line
+
+```sh
+imslim [FILES...]    # compress the given files and folders
+imslim --help        # usage
+imslim --version     # version
+```
+
+Paths are handed to an already running ImSlim; without arguments the main window opens.
+
 ---
 
 ## Technical
