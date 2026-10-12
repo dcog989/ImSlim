@@ -4,6 +4,7 @@ build:
 check:
 	uv run ruff check
 	uv run basedpyright src/imslim
+	uv run pytest
 
 clean:
 	rm -rf .venv dist build src/*.egg-info .ruff_cache src/imslim/bin/linux-x86_64 && find . -name __pycache__ -type d -exec rm -rf {} +
