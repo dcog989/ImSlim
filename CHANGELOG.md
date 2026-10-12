@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.11.2 - 2026-10-12
+
+#### Bug Fixes
+
+- (639a462) defer PySide6 QtGui imports in image_utils - dcog989
+- - -
+
 ## v0.11.1 - 2026-10-12
 
 #### Bug Fixes
