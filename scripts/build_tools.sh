@@ -5,8 +5,8 @@
 # available versions; --check reports when a locked tool has a newer
 # version (exits 1 if any are behind).
 #
-# Incremental: a tool is only rebuilt when the pinned version differs from
-# the one recorded in $WORK/.versions, or when its output is missing.
+# Incremental: a tool is rebuilt only when its pinned version, its build
+# function (the flags it compiles with) or its output changes.
 #
 # Output: src/imslim/bin/linux-x86_64/  (each tool plus its LICENSE)
 #
@@ -56,15 +56,41 @@ CHECK=0
 NO_DEPS=0
 STRIP_ONLY=0
 
-# Hash the build script's configuration so changing build flags invalidates the
-# incremental-build cache even when pinned versions are unchanged. Hashing the
-# whole script is coarse but correct: any edit forces a rebuild. The hash is
-# recorded per tool (see record_version) so a changed script rebuilds each tool
-# once per run rather than on every time a shared dep is pulled in.
-script_config_hash() {
-    # $BASH_SOURCE may be relative; hash the canonical path so the result is
-    # independent of the current directory (build steps cd into $WORK).
-    sha256sum "$ROOT/scripts/build_tools.sh" | awk '{print $1}'
+# Hash the build-relevant part of this script so a changed build flag
+# invalidates the incremental-build cache even when the pinned version is
+# unchanged. Only each tool's own build_<tool> function is hashed, plus the
+# build_* functions it calls (transitively), so a shared-dep flag change also
+# rebuilds the tools that link it. Edits elsewhere (lock bookkeeping, svgo,
+# comments) leave the cache intact. Recorded per tool by record_version.
+extract_build_function() {
+    # Capture starts at build_<tool>'s `() {` line and ends at the first `}`
+    # in column 1, which is how every top-level function closes in this file.
+    awk -v fn="build_$1" '
+        $0 ~ "^" fn "\\(\\) \\{" { capture = 1 }
+        capture { print }
+        capture && /^}/ { exit }
+    ' "$ROOT/scripts/build_tools.sh"
+}
+
+tool_config_hash() {
+    local pending="$1" seen=" " body="" fn src dep
+    while [[ -n "$pending" ]]; do
+        fn="${pending%% *}"
+        pending="${pending#"$fn"}"
+        pending="${pending# }"
+        if [[ "$seen" == *" $fn "* ]]; then
+            continue
+        fi
+        seen+="$fn "
+        src="$(extract_build_function "$fn")"
+        body+="$src"$'\n'
+        while read -r dep; do
+            if [[ -n "$dep" ]]; then
+                pending+=" $dep"
+            fi
+        done < <(printf '%s\n' "$src" | grep -oE 'build_[a-z0-9_]+' | sed 's/^build_//' | sort -u)
+    done
+    printf '%s' "$body" | sha256sum | awk '{print $1}'
 }
 
 mkdir -p "$OUT" "$WORK" "$PREFIX"
@@ -281,7 +307,7 @@ record_version() {
     if [[ -f "$CONFIG_HASHES" ]]; then
         sed -i "/^$1 /d" "$CONFIG_HASHES"
     fi
-    printf '%s %s\n' "$1" "$(script_config_hash)" >> "$CONFIG_HASHES"
+    printf '%s %s\n' "$1" "$(tool_config_hash "$1")" >> "$CONFIG_HASHES"
 }
 
 need_build() {
@@ -294,8 +320,8 @@ need_build() {
     fi
     if [[ "$(recorded_version "$tool")" == "$version" && -f "$artifact" ]]; then
         # A missing hash counts as stale, so a fresh checkout or an upgrade from
-        # the old global-hash scheme rebuilds the tool once, then records it.
-        if [[ "$(recorded_config_hash "$tool")" == "$(script_config_hash)" ]]; then
+        # the old whole-script-hash scheme rebuilds the tool once, then records it.
+        if [[ "$(recorded_config_hash "$tool")" == "$(tool_config_hash "$tool")" ]]; then
             log "$tool: already up to date ($version), skipping"
             return 1
         fi
