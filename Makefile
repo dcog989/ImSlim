@@ -1,9 +1,6 @@
 build:
 	uv build
 
-bump:
-	cog bump --auto
-
 check:
 	uv run ruff check
 	uv run basedpyright src/imslim

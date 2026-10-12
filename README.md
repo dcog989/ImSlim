@@ -65,7 +65,6 @@ See `Makefile` for details:
 
 ```sh
 make build          # package / build the app
-make bump           # bump version + changelog via cog (cocogitto)
 make check          # runs ruff check + basedpyright
 make clean          # remove all build artifacts
 make distclean      # remove build tools - expensive!
