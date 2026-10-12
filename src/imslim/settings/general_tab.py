@@ -29,6 +29,7 @@ _LOG_LEVEL_INDEX = {level: index for index, level in enumerate(LOG_LEVELS)}
 
 class GeneralTab(QWidget):
     settings_changed: Signal = Signal()
+    log_settings_changed: Signal = Signal()
 
     def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -147,10 +148,10 @@ class GeneralTab(QWidget):
         )
         _res = self.combo_log_level.currentIndexChanged.connect(self._on_log_level_changed)
         _res = self.spin_log_max_size.valueChanged.connect(
-            int_handler(self.settings, self.settings_changed.emit, "log-max-size")
+            int_handler(self.settings, self.log_settings_changed.emit, "log-max-size")
         )
         _res = self.spin_log_backups.valueChanged.connect(
-            int_handler(self.settings, self.settings_changed.emit, "log-backups")
+            int_handler(self.settings, self.log_settings_changed.emit, "log-backups")
         )
 
     @staticmethod
@@ -232,7 +233,7 @@ class GeneralTab(QWidget):
     def _on_log_level_changed(self, index: int) -> None:
         self.settings.log_level = LOG_LEVELS[index]
         self._set_log_controls_state(LOG_LEVELS[index])
-        self.settings_changed.emit()
+        self.log_settings_changed.emit()
 
     def _set_log_controls_state(self, level: str) -> None:
         enabled = level != "NONE"

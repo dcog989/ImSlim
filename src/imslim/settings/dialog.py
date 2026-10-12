@@ -14,6 +14,7 @@ from .style import form_stylesheet
 
 class SettingsDialog(QDialog):
     settings_changed: Signal = Signal()
+    log_settings_changed: Signal = Signal()
 
     def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -41,6 +42,7 @@ class SettingsDialog(QDialog):
         layout.addWidget(buttons)
 
         _res = self.general_tab.settings_changed.connect(self.settings_changed.emit)
+        _res = self.general_tab.log_settings_changed.connect(self.log_settings_changed.emit)
         _res = self.formats_tab.settings_changed.connect(self.settings_changed.emit)
 
     def _on_tab_changed(self, index: int) -> None:

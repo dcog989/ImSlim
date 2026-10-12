@@ -531,7 +531,7 @@ class ImSlimWindow(QWidget):
         # Without this the parented dialog would be kept alive by the window
         # until it is destroyed, accumulating one per open.
         dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-        _res = dialog.settings_changed.connect(self._reconfigure_logging)
+        _res = dialog.log_settings_changed.connect(self._reconfigure_logging)
         # Clear on finished, not destroyed: finished fires synchronously inside
         # close() (before deleteLater), so the reference is never left dangling
         # and a reopen can't call close() on the already-deleted wrapper.
