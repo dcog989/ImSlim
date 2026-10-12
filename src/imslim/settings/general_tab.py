@@ -141,8 +141,10 @@ class GeneralTab(QWidget):
         form.addRow(self._build_log_link())
 
         _res = self.combo_save_method.currentIndexChanged.connect(self._on_save_method_changed)
-        _res = self.entry_output_folder.textChanged.connect(self._on_output_folder_changed)
-        _res = self.entry_default_directory.textChanged.connect(self._on_default_directory_changed)
+        # editingFinished, not textChanged: a path is typed character by
+        # character and each keystroke would otherwise be an atomic settings write.
+        _res = self.entry_output_folder.editingFinished.connect(self._commit_output_folder)
+        _res = self.entry_default_directory.editingFinished.connect(self._commit_default_directory)
         _res = self.spin_timeout.valueChanged.connect(
             int_handler(self.settings, self.settings_changed.emit, "compression-timeout")
         )
@@ -198,12 +200,18 @@ class GeneralTab(QWidget):
         else:
             self.combo_save_method.setToolTip("")
 
-    def _on_output_folder_changed(self, text: str) -> None:
-        self.settings.output_folder = text.strip()
+    def _commit_output_folder(self) -> None:
+        text = self.entry_output_folder.text().strip()
+        if text == self.settings.output_folder:
+            return
+        self.settings.output_folder = text
         self.settings_changed.emit()
 
-    def _on_default_directory_changed(self, text: str) -> None:
-        self.settings.default_open_dialog_directory = text.strip()
+    def _commit_default_directory(self) -> None:
+        text = self.entry_default_directory.text().strip()
+        if text == self.settings.default_open_dialog_directory:
+            return
+        self.settings.default_open_dialog_directory = text
         self.settings_changed.emit()
 
     def _browse_default_directory(self) -> None:
@@ -213,10 +221,13 @@ class GeneralTab(QWidget):
             self.entry_default_directory.text() or "",
         )
         if folder:
+            # setText does not emit editingFinished, so commit explicitly.
             self.entry_default_directory.setText(folder)
+            self._commit_default_directory()
 
     def _clear_default_directory(self) -> None:
         self.entry_default_directory.setText("")
+        self._commit_default_directory()
 
     def _browse_output_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
@@ -226,9 +237,11 @@ class GeneralTab(QWidget):
         )
         if folder:
             self.entry_output_folder.setText(folder)
+            self._commit_output_folder()
 
     def _clear_output_folder(self) -> None:
         self.entry_output_folder.setText("")
+        self._commit_output_folder()
 
     def _on_log_level_changed(self, index: int) -> None:
         self.settings.log_level = LOG_LEVELS[index]
