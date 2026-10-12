@@ -105,12 +105,15 @@ class SettingsManager:
 
     def set_boolean(self, key: str, value: bool) -> None:
         self._settings.setValue(key, bool(value))
+        self._settings.sync()
 
     def set_int(self, key: str, value: int) -> None:
         self._settings.setValue(key, int(value))
+        self._settings.sync()
 
     def set_string(self, key: str, value: str) -> None:
         self._settings.setValue(key, str(value))
+        self._settings.sync()
 
     def sync(self) -> None:
         self._settings.sync()
