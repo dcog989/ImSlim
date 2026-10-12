@@ -317,6 +317,11 @@ class ImSlimApp(QApplication):
         self.setApplicationName(_APP_NAME)
         self.setOrganizationName(_APP_NAME)
         self.setApplicationDisplayName(_APP_NAME)
+        # Wayland matches a toplevel to installed .desktop files by name to pick
+        # the dock icon and title; without this Qt falls back to the executable
+        # basename, which never matches imslim.desktop. On X11 the same value
+        # becomes WM_CLASS.
+        self.setDesktopFileName(SOCKET_NAME)
         self.win: ImSlimWindow | None = None
 
     def run(self) -> int:
