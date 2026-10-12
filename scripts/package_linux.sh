@@ -29,7 +29,7 @@ log() { printf '\033[1;36m[package]\033[0m %s\n' "$*"; }
 QT_QPA_PLATFORM=offscreen "$ROOT/.venv/bin/python" "$ROOT/scripts/make_icons.py"
 
 # Build the onedir bundle (payload for the AppImage).
-IMSLIM_ONE_FILE=0 "$ROOT/.venv/bin/pyinstaller" \
+"$ROOT/.venv/bin/pyinstaller" \
     --noconfirm \
     --clean \
     --distpath "$OUT_DIR/pyinstaller" \
