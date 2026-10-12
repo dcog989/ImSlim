@@ -24,14 +24,14 @@
 - `src/imslim/compressors/` — per-format compressors (png, jpeg, webp, avif, jxl, svg)
 - `src/imslim/compression_manager.py` — thread-pool orchestration of compressors
 - `src/imslim/assets/imslim.svg` — main window logo
-- Tests: none yet (no test suite currently present)
+- Tests: `tests/` (pytest unit tests for naming, version parsing and percent math)
 
 ### Commands
 
 - Install: `uv sync`
 - Dev: `uv run imslim` (or `python -m imslim`)
 - Build bundled tools: `./scripts/build_tools.sh` (populates `src/imslim/bin/linux-x86_64/`); run after a fresh clone so the app has its backends
-- Test: no test suite configured
+- Test: `uv run pytest`
 - Type-check: `uv run basedpyright src/imslim`
 - Lint: `uv run ruff check`
 - Format: `uv run ruff format .`
