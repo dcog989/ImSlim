@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.11.1 - 2026-10-12
+
+#### Bug Fixes
+
+- (1726c8d) defer PySide6 QtGui import in image_convert - dcog989
+
+- (9bc47a7) include perf commits in the changelog - dcog989
+- - -
+
 ## v0.11.0 - 2026-10-12
 
 #### Features
