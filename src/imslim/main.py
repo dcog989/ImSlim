@@ -11,6 +11,7 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
 from . import __version__
+from ._i18n import _
 from ._logging import configure_logging
 from .binary_resolver import KNOWN_TOOLS, resolve_tool
 from .composition import build_app_context
@@ -114,10 +115,33 @@ _PRIMARY_POLL_SECONDS = 0.05
 # Never block on the primary lock: a held lock means another launch owns the app.
 _LOCK_TIMEOUT_MS = 0
 
+_USAGE = _(
+    """Usage: imslim [FILES...]
+
+Compress image files and folders. Without any files the main window opens.
+
+  -h, --help     Show this help and exit.
+  -V, --version  Show the version and exit."""
+)
+
+
+def _info_request(argv: list[str]) -> str | None:
+    """Text to print for the informational flags, or None to open the UI."""
+    if any(arg in ("-h", "--help") for arg in argv):
+        return _USAGE
+    if any(arg in ("-V", "--version") for arg in argv):
+        return f"{_APP_NAME} {__version__}"
+    return None
+
 
 def _local_paths(argv: list[str]) -> list[str]:
+    """Local paths from the command line, ignoring options."""
     paths: list[str] = []
     for arg in argv:
+        # Options are not paths: passing "-x" on would report "This file doesn't
+        # exist." for a file named "-x".
+        if arg.startswith("-"):
+            continue
         url = QUrl.fromUserInput(arg)
         path = url.toLocalFile() or arg
         if path:
@@ -318,6 +342,12 @@ class ImSlimApp(QApplication):
 
 
 def main() -> None:
+    info = _info_request(sys.argv[1:])
+    if info is not None:
+        # Answer before building QApplication: these must work where no window
+        # could open at all (ssh, cron, a missing display).
+        print(info)
+        sys.exit(0)
     app = ImSlimApp(sys.argv)
     sys.exit(app.run())
 
