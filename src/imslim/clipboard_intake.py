@@ -46,6 +46,20 @@ class ClipboardIntake(QObject):
         if directory is not None:
             shutil.rmtree(directory, ignore_errors=True)
 
+    def cleanup_unless_used(self, paths: list[str]) -> None:
+        """Drop the pasted-image temp dir unless the given batch reads from it.
+
+        A new paste saves its source into that dir before reporting it, so
+        removing the dir here would fail the batch that just started.
+        """
+        directory = self._paste_temp_dir
+        if directory is None:
+            return
+        prefix = directory + os.sep
+        if any(path.startswith(prefix) for path in paths):
+            return
+        self.cleanup()
+
     def _read_image(self, attempts: int) -> None:
         # On Wayland, image data is transferred asynchronously from the
         # clipboard owner, so the first read may come back empty. Retry on a

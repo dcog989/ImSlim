@@ -376,9 +376,12 @@ class ImSlimWindow(QWidget):
         if self.flow.active:
             return
         self.show_view(View.HOME)
+        self._reset_results()
+        self.clipboard.cleanup()
+
+    def _reset_results(self) -> None:
         self.results.clear()
         self.flow.reset()
-        self.clipboard.cleanup()
 
     # ------------------------------------------------------- compression flow
     def compress_files(self, paths: list[str]) -> None:
@@ -387,6 +390,8 @@ class ImSlimWindow(QWidget):
                 self, _("Compression in progress"), _("Wait for the current compression to finish.")
             )
             return
+        self._reset_results()
+        self.clipboard.cleanup_unless_used(paths)
         self.show_view(View.LOADING)
         self.flow.start(paths)
 
