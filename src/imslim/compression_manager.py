@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+from collections import deque
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 
@@ -24,6 +25,11 @@ logger = logging.getLogger(__name__)
 # Bound on how long shutdown waits for the compression worker to unwind and
 # clean up temp files after cancellation; the kill grace is far shorter.
 _SHUTDOWN_TIMEOUT_SECONDS = 5.0
+
+# How many compressions may sit queued ahead of the pool per worker. Without a
+# cap a 100k-image batch submits a Future per file before the first finishes;
+# two per worker keeps every worker fed while overlapping submit with completion.
+_MAX_PENDING_PER_WORKER = 2
 
 
 class CompressionManager:
@@ -106,9 +112,10 @@ class CompressionManager:
     ) -> None:
         # Avoid oversubscribing: encode tools (e.g. cwebp -mt) already thread internally.
         max_workers = max(1, (os.cpu_count() or 1) // 2)
+        max_pending = max_workers * _MAX_PENDING_PER_WORKER
         try:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                futures: list[Future[None]] = []
+                pending: deque[Future[None]] = deque()
                 break_index = len(result_items)
                 for index, result_item in enumerate(result_items):
                     if context.cancelled:
@@ -119,7 +126,11 @@ class CompressionManager:
                         result_item.set_error(_("Format of this file is not supported."))
                         c_update_result_item(result_item)
                         continue
-                    futures.append(
+                    if len(pending) >= max_pending:
+                        # Await the oldest so the queue stays bounded; results
+                        # are still collected in submission order.
+                        pending.popleft().result()
+                    pending.append(
                         executor.submit(
                             self._pipeline.run,
                             compressor,
@@ -130,8 +141,8 @@ class CompressionManager:
                         )
                     )
 
-                for future in futures:
-                    future.result()
+                while pending:
+                    pending.popleft().result()
 
                 if context.cancelled:
                     for result_item in result_items[break_index:]:
