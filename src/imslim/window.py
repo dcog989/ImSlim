@@ -343,6 +343,7 @@ class ImSlimWindow(QWidget):
 
     def enable_compression(self, enable: bool) -> None:
         self.clear_button.setEnabled(enable)
+        self.act_clear.setEnabled(enable)
         self.results.set_busy(not enable)
 
     def stop_compression(self) -> None:
@@ -372,6 +373,8 @@ class ImSlimWindow(QWidget):
             _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
     def clear_results(self) -> None:
+        if self.flow.active:
+            return
         self.show_view(View.HOME)
         self.results.clear()
         self.flow.reset()
