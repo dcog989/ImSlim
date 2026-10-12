@@ -1,3 +1,5 @@
+.PHONY: build check clean distclean fix init install install-appimage package-linux require-tools run tools translations uninstall upgrade
+
 build: require-tools
 	uv build
 
