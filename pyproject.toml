@@ -30,6 +30,12 @@ line-length = 100
 target-version = "py314"
 
 [tool.ruff.lint]
-ignore = [
-  "BLE001",  # broad excepts intentionally surface external tool failures to the user
-]
+# Defaults only (E4/E7/E9/F). The broad `except Exception` blocks on the
+# external-tool paths are intentional, so BLE001 is left unselected rather than
+# ignored: an `ignore` for a rule that is never selected is dead config.
+
+[tool.basedpyright]
+# Pin what CI enforces so a bare `basedpyright` run agrees with the workflows
+# and the cog hook: basedpyright's own default mode, over the app package only.
+typeCheckingMode = "recommended"
+include = ["src/imslim"]
