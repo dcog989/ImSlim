@@ -12,6 +12,15 @@ from .format import sizeof_fmt
 logger = logging.getLogger(__name__)
 
 
+def worker_count(minimum: int = 1) -> int:
+    """Half the logical cores, never below ``minimum``.
+
+    Encode tools already thread internally, so saturating every core is
+    wasteful; single-core boxes still get a floor to stay responsive.
+    """
+    return max(minimum, (os.cpu_count() or 1) // 2)
+
+
 def static_about_pairs() -> list[tuple[str, str]]:
     python_version = platform.python_version()
     try:

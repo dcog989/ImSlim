@@ -9,14 +9,14 @@ from .batch_options import BatchOptions
 from .image_utils import get_image_paths_from_folder
 from .result_item import ResultItem
 from .result_item_manager import ResultItemManager, is_generated_output
-from .system_info import tool_version_pairs
+from .system_info import tool_version_pairs, worker_count
 
 logger = logging.getLogger(__name__)
 
 # Shared pool for one-shot tasks (version probe etc.). Thumbnails keep their own
 # pool so their thread budget stays independent.
 _TASK_POOL = QThreadPool()
-_TASK_POOL.setMaxThreadCount(max(2, (os.cpu_count() or 2) // 2))
+_TASK_POOL.setMaxThreadCount(worker_count(minimum=2))
 
 # Holds every started task until it finishes, so a running QRunnable is never
 # garbage-collected (and its C++ object destroyed) mid-run; _release drops it on

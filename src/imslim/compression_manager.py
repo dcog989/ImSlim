@@ -1,5 +1,4 @@
 import logging
-import os
 import threading
 from collections import deque
 from collections.abc import Callable
@@ -19,6 +18,7 @@ from .formats import (
 )
 from .pipeline import CompressionPipeline
 from .result_item import ResultItem, ResultState
+from .system_info import worker_count
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ class CompressionManager:
         context: CompressionContext,
     ) -> None:
         # Avoid oversubscribing: encode tools (e.g. cwebp -mt) already thread internally.
-        max_workers = max(1, (os.cpu_count() or 1) // 2)
+        max_workers = worker_count()
         max_pending = max_workers * _MAX_PENDING_PER_WORKER
         try:
             with ThreadPoolExecutor(max_workers=max_workers) as executor:

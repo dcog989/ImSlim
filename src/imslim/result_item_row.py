@@ -30,6 +30,7 @@ from .format import savings_percent, sizeof_fmt
 from .icons import circle_off_icon, shield_alert_icon, triangle_alert_icon
 from .image_utils import create_thumbnail_qimage
 from .result_item import ResultItem, ResultState
+from .system_info import worker_count
 from .theme import style_menu
 from .workers import Task
 
@@ -37,7 +38,7 @@ from .workers import Task
 # row. The cap follows compression_manager's reasoning (decode is cheap but
 # saturating every core is wasteful); it is never zero even on a single-core box.
 _THUMBNAIL_POOL = QThreadPool()
-_THUMBNAIL_POOL.setMaxThreadCount(max(2, (os.cpu_count() or 2) // 2))
+_THUMBNAIL_POOL.setMaxThreadCount(worker_count(minimum=2))
 
 
 class _ThumbnailTask(Task):
