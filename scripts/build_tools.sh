@@ -17,6 +17,7 @@
 #   ./scripts/build_tools.sh --check    # exit 1 if a locked tool is behind latest
 #   ./scripts/build_tools.sh --force    # rebuild everything regardless
 #   ./scripts/build_tools.sh --no-deps   # skip the apt dependency install (CI already installs them)
+#   ./scripts/build_tools.sh --strip-only # strip the existing binaries and exit
 #
 # Tools / sources:
 #   libjxl  (cjxl djxl)                   -> pinned release tag
@@ -49,6 +50,7 @@ FORCE=0
 UPDATE_LOCK=0
 CHECK=0
 NO_DEPS=0
+STRIP_ONLY=0
 
 # Hash the build script's configuration so changing build flags invalidates the
 # incremental-build cache even when pinned versions are unchanged. Hashing the
@@ -316,6 +318,25 @@ cmake_release_build() {
         "$@"
     cmake --build build -j"$JOBS"
     cmake --install build
+}
+
+# Symbols and debug info are dead weight in a shipped AppImage (tens of MB, most
+# of it node's): the tools are only ever executed, never debugged from the
+# bundle. Runs once over the whole output after the builds.
+strip_binaries() {
+    if ! command -v strip >/dev/null 2>&1; then
+        log "strip not found; leaving bundled binaries unstripped"
+        return
+    fi
+    local tool stripped=0
+    for tool in "$OUT"/*; do
+        [[ -f "$tool" ]] || continue
+        # ELF only: the dir also holds svgo's shell wrapper and LICENSE files.
+        [[ "$(head -c 4 "$tool")" == $'\x7fELF' ]] || continue
+        strip --strip-unneeded "$tool"
+        stripped=$((stripped + 1))
+    done
+    log "stripped $stripped bundled binaries in $OUT"
 }
 
 # ---------------------------------------------------------------------------
@@ -695,6 +716,7 @@ main() {
             --update|-u) UPDATE_LOCK=1 ;;
             --check|-c) CHECK=1 ;;
             --no-deps|-n) NO_DEPS=1 ;;
+            --strip-only|-s) STRIP_ONLY=1 ;;
             *) groups+=("$arg") ;;
         esac
     done
@@ -702,6 +724,11 @@ main() {
     if [[ "$CHECK" -eq 1 ]]; then
         check_lock
         exit $?
+    fi
+
+    if [[ "$STRIP_ONLY" -eq 1 ]]; then
+        strip_binaries
+        exit 0
     fi
 
     [[ ${#groups[@]} -eq 0 ]] && groups=("${BUILD_GROUPS[@]}")
@@ -713,6 +740,8 @@ main() {
         log "checking $group"
         ( "build_$group" )
     done
+
+    strip_binaries
 
     if [[ "$UPDATE_LOCK" -eq 1 ]]; then
         cp "$VERSIONS" "$LOCK"
