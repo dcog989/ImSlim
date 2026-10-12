@@ -1,12 +1,11 @@
 from .binary_resolver import resolve_tool
 from .commands import Command
-from .formats import DECODER_TOOLS, is_converting, native_inputs
+from .formats import DECODER_TOOLS, is_converting
 from .image_convert import to_png
 
 __all__ = [
     "decode_commands",
     "is_converting",
-    "native_inputs",
 ]
 
 

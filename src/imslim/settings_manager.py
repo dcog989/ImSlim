@@ -48,7 +48,12 @@ class _SettingDescriptor(Protocol[_T]):
 
 
 def _setting[T](key: str, _type: type[T]) -> _SettingDescriptor[T]:
-    """Build a property binding an attribute name to a settings key."""
+    """Build a property binding an attribute name to a settings key.
+
+    `_type` is never read at runtime; it exists so the value type is bound at
+    the call sites (e.g. `lossy = _setting("lossy", bool)`), which the type
+    checker otherwise cannot infer.
+    """
 
     def getter(self: SettingsManager) -> T:
         return cast(T, self._get(key))  # pyright: ignore[reportPrivateUsage]
@@ -131,9 +136,6 @@ class SettingsManager:
     def knob(self, key: str) -> int | bool:
         """Read a per-format setting by its table-defined key."""
         return cast("int | bool", self._get(key))
-
-    def set_knob(self, key: str, value: int | bool) -> None:
-        self._set(key, value)
 
     @property
     def target_format(self) -> Format:

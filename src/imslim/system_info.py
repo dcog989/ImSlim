@@ -71,14 +71,6 @@ def system_info_pairs() -> list[tuple[str, str]]:
     return pairs
 
 
-def debug_pairs() -> list[tuple[str, str]]:
-    return [
-        *static_about_pairs(),
-        *system_info_pairs(),
-        *tool_version_pairs(),
-    ]
-
-
 def _distro() -> tuple[str, str]:
     # platform.* reports the kernel, not the distribution; read os-release.
     try:
