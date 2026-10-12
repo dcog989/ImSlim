@@ -78,7 +78,12 @@ def _info_icons(color: QColor) -> tuple[QIcon, QIcon, QIcon]:
 
 def _savings_text(item: ResultItem) -> str:
     """Format the per-item saving; blank for states that have no saving."""
-    if item.state in (ResultState.CANCELLED, ResultState.ERROR, ResultState.SKIPPED):
+    if item.state in (
+        ResultState.IDLE,
+        ResultState.CANCELLED,
+        ResultState.ERROR,
+        ResultState.SKIPPED,
+    ):
         return ""
     percent = savings_percent(item.size, item.new_size) if item.size > 0 else 0
     return f"{percent}%"
@@ -233,7 +238,7 @@ class ResultItemRow(QWidget):
                 subtitle = sizeof_fmt(item.size)
         self.subtitle_label.setText(subtitle)
         self.savings_label.setText(_savings_text(item))
-        self.savings_label.setVisible(not running)
+        self.savings_label.setVisible(item.state is not ResultState.IDLE and not running)
 
         self.skipped_button.setVisible(item.state is ResultState.SKIPPED)
         self.error_button.setVisible(
