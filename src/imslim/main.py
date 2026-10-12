@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable
 from typing import cast
 
-from PySide6.QtCore import QObject, QStandardPaths, QTimer, QUrl
+from PySide6.QtCore import QLockFile, QObject, QStandardPaths, QTimer, QUrl
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
@@ -107,6 +107,12 @@ _WRITE_TIMEOUT_MS = 500
 # never triggers readChannelFinished) must not hold a buffer entry forever.
 _SWEEP_INTERVAL_MS = 5000
 _IDLE_TIMEOUT_MS = 10000
+# A launch that lost the primary race waits this long for the winner's socket,
+# which appears a few statements after it takes the lock.
+_PRIMARY_WAIT_SECONDS = 2.0
+_PRIMARY_POLL_SECONDS = 0.05
+# Never block on the primary lock: a held lock means another launch owns the app.
+_LOCK_TIMEOUT_MS = 0
 
 
 def _local_paths(argv: list[str]) -> list[str]:
@@ -135,19 +141,31 @@ def _socket_name(name: str) -> str:
     return os.path.join(temp, f"{name}-{os.getuid()}")
 
 
+def _lock_path(name: str) -> str:
+    """Path of the lock file that serializes the primary decision."""
+    if sys.platform == "win32":
+        # The socket is a named pipe, not a path, so anchor the lock in temp.
+        temp = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.TempLocation)
+        return os.path.join(temp, f"{name}.lock")
+    return f"{_socket_name(name)}.lock"
+
+
 class SingleInstance(QObject):
     """Single-instance gate over a local socket.
 
     The first process becomes the primary and listens on a named socket;
     later processes forward their command-line paths to it, which the primary
-    delivers through the `on_paths` callback. A background sweep reaps
-    connections that connect but never send data, so a hung or malformed
-    client cannot accumulate buffer entries indefinitely.
+    delivers through the `on_paths` callback. An exclusive lock file makes the
+    primary decision atomic, so two simultaneous launches cannot both call
+    QLocalServer.removeServer() and unlink each other's socket. A background
+    sweep reaps connections that connect but never send data, so a hung or
+    malformed client cannot accumulate buffer entries indefinitely.
     """
 
     def __init__(self, name: str, on_paths: Callable[[list[str]], None]) -> None:
         super().__init__()
         self._socket: str = _socket_name(name)
+        self._lock: QLockFile = QLockFile(_lock_path(name))
         self._on_paths: Callable[[list[str]], None] = on_paths
         self._server: QLocalServer | None = None
         self._conn_buffer: dict[QLocalSocket, bytearray] = {}
@@ -158,12 +176,47 @@ class SingleInstance(QObject):
         self._sweep_timer.setInterval(_SWEEP_INTERVAL_MS)
         _res = self._sweep_timer.timeout.connect(self._sweep_stale_connections)
 
-    def become_primary(self) -> None:
+    def become_primary(self, paths: list[str]) -> bool:
+        """Become the primary listener, or forward `paths` to the running one.
+
+        Returns False when another instance accepted the paths, so the caller
+        should exit. If the gate cannot be taken but nobody answers, this still
+        listens rather than leaving the user with no window at all.
+        """
+        if self.send_paths(paths):
+            return False
+        # A lock file serializes the decision: without it two launches that both
+        # miss a running primary would each removeServer() the other's socket.
+        # QLockFile also clears a lock file left behind by a crashed instance.
+        if not self._lock.tryLock(_LOCK_TIMEOUT_MS):
+            # Another launch won the race and owns the primary role. Its server
+            # may not be up yet, so wait for it before listening, which would
+            # unlink its socket.
+            if self._forward_when_ready(paths):
+                return False
+            logger.warning("Primary instance is not answering; listening anyway")
         self._server = QLocalServer()
         _res = self._server.removeServer(self._socket)
         self.is_primary = self._server.listen(self._socket)
         if self.is_primary:
             _res = self._server.newConnection.connect(self._on_new_connection)
+        else:
+            logger.warning("Could not listen on %s; continuing without it", self._socket)
+        return True
+
+    def _forward_when_ready(self, paths: list[str]) -> bool:
+        """Forward `paths` once the primary's server is up.
+
+        Polls because QLocalSocket gives up immediately when the socket file is
+        missing, so waitForConnected cannot span the winner's startup.
+        """
+        deadline = time.monotonic() + _PRIMARY_WAIT_SECONDS
+        while True:
+            if self.send_paths(paths):
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(_PRIMARY_POLL_SECONDS)
 
     def send_paths(self, paths: list[str]) -> bool:
         socket = QLocalSocket()
@@ -238,9 +291,8 @@ class ImSlimApp(QApplication):
     def run(self) -> int:
         paths = _local_paths(self.arguments()[1:])
         single = SingleInstance(SOCKET_NAME, self._on_foreign_paths)
-        if single.send_paths(paths):
+        if not single.become_primary(paths):
             return 0
-        single.become_primary()
 
         # Only the primary process owns the log file; a forwarded launch must
         # not open (or rotate) the same file out from under it.
