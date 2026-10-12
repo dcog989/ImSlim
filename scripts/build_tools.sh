@@ -137,6 +137,28 @@ locked_version() {
     awk -v t="$1" '$1 == t { print $2 }' "$LOCK" 2>/dev/null | tail -n 1
 }
 
+# `--update` may only build a subset of groups (or run after `clean`, when the
+# version cache is empty), so the lock is rebuilt from the recorded versions
+# *falling back to the existing pins* rather than copied from the cache, which
+# would drop every tool the run did not touch.
+refresh_lock() {
+    local tool version pinned=0
+    : > "$WORK/.lock-new"
+    for tool in "${REPORT_TOOLS[@]}"; do
+        version="$(recorded_version "$tool")"
+        [[ -n "$version" ]] || version="$(locked_version "$tool")"
+        [[ -n "$version" ]] || continue
+        printf '%s %s\n' "$tool" "$version" >> "$WORK/.lock-new"
+        pinned=$((pinned + 1))
+    done
+    if [[ "$pinned" -eq 0 ]]; then
+        log "refusing to refresh tools.lock: no versions resolved"
+        rm -f "$WORK/.lock-new"
+        return 0
+    fi
+    mv "$WORK/.lock-new" "$LOCK"
+}
+
 # Single source of truth for the tool list: upstream location and how each
 # tool's latest version is resolved. Adding a tool means adding an entry here
 # plus its build_<tool> function.
@@ -744,7 +766,7 @@ main() {
     strip_binaries
 
     if [[ "$UPDATE_LOCK" -eq 1 ]]; then
-        cp "$VERSIONS" "$LOCK"
+        refresh_lock
         log "tools.lock refreshed"
     fi
     log "done — tools up to date in $OUT"
