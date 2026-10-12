@@ -28,7 +28,7 @@
 #   libwebp (cwebp)                       -> pinned release tag
 #   libavif (avifenc avifdec)             -> pinned release tag
 #   gifsicle                              -> pinned release tag
-#   node + svgo                           -> pinned node, pinned svgo
+#   node + svgo                           -> pinned node, svgo pinned by svgo/package-lock.json
 #
 # Shared static dependencies (built into $PREFIX, linked into the tools so the
 # bundled binaries are self-contained and do not depend on distro packages):
@@ -46,6 +46,10 @@ PREFIX="$WORK/prefix"
 VERSIONS="$WORK/.versions"
 LOCK="$ROOT/tools.lock"
 CONFIG_HASHES="$WORK/.config-hashes"
+# svgo's dependency tree is pinned by a committed npm lockfile so two builds of
+# the same svgo release produce identical bytes; tools.lock remains the single
+# source for the requested version.
+SVGO_LOCK_DIR="$ROOT/svgo"
 FORCE=0
 UPDATE_LOCK=0
 CHECK=0
@@ -669,6 +673,11 @@ installed_svgo_version() {
         "$OUT/svgo-dist/node_modules/svgo/package.json" 2>/dev/null || true
 }
 
+svgo_lock_version() {
+    python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["dependencies"]["svgo"])' \
+        "$SVGO_LOCK_DIR/package.json" 2>/dev/null || true
+}
+
 build_svgo() {
     local node_ver svgo_ver
     node_ver="$(target_version node)"
@@ -713,9 +722,23 @@ build_svgo() {
     chmod +x "$OUT/node"
 
     if [[ "$node_current" -eq 0 || "$svgo_current" -eq 0 ]]; then
-        log "svgo: installing svgo $svgo_ver"
         rm -rf "$OUT/svgo-dist"
-        "$WORK/node/bin/npm" install --prefix "$OUT/svgo-dist" "svgo@$svgo_ver" --no-audit --no-fund
+        mkdir -p "$OUT/svgo-dist"
+        if [[ -f "$SVGO_LOCK_DIR/package-lock.json" && "$(svgo_lock_version)" == "$svgo_ver" ]]; then
+            log "svgo: installing svgo $svgo_ver from the committed lock"
+            cp "$SVGO_LOCK_DIR/package.json" "$SVGO_LOCK_DIR/package-lock.json" "$OUT/svgo-dist/"
+            "$WORK/node/bin/npm" ci --prefix "$OUT/svgo-dist" --no-audit --no-fund
+        else
+            # A release the lock does not pin (e.g. right after --update) is
+            # resolved once here and written back, so the next build is exact.
+            log "svgo: svgo $svgo_ver is not in the committed lock; resolving it"
+            printf '{\n  "dependencies": {\n    "svgo": "%s"\n  }\n}\n' "$svgo_ver" \
+                > "$OUT/svgo-dist/package.json"
+            "$WORK/node/bin/npm" install --prefix "$OUT/svgo-dist" --no-audit --no-fund
+            mkdir -p "$SVGO_LOCK_DIR"
+            cp "$OUT/svgo-dist/package.json" "$OUT/svgo-dist/package-lock.json" "$SVGO_LOCK_DIR/"
+            log "svgo: refreshed $SVGO_LOCK_DIR/package-lock.json — commit it to pin this build"
+        fi
     fi
 
     cat > "$OUT/svgo" <<'EOF'
