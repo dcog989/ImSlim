@@ -1,5 +1,10 @@
-build:
+build: require-tools
 	uv build
+
+# The bundled tools are gitignored, so a fresh checkout would otherwise package
+# a wheel that cannot compress anything. Fail the build instead.
+require-tools:
+	python3 scripts/check_bundled_tools.py
 
 check:
 	uv run ruff check

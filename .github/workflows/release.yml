@@ -101,7 +101,13 @@ jobs:
         run: ./scripts/build_tools.sh --no-deps
 
       - name: Build wheel
-        run: uv build
+        run: make build
+
+      # The payload is linux-x86_64 binaries, so the wheel must not look
+      # installable anywhere else (uv_build always tags pure-Python wheels
+      # py3-none-any).
+      - name: Retag wheel as linux-x86_64
+        run: uvx --from wheel wheel tags --remove --platform-tag linux_x86_64 dist/*.whl
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
