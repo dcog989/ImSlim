@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.11.3 - 2026-10-15
+
+#### Bug Fixes
+
+- (a70de83) make every form field share one inset and stop stretching - dcog989
+
+- (b38a81f) set the Wayland desktop file name so the dock shows ImSlim's icon - dcog989
+- - -
+
 ## v0.11.2 - 2026-10-12
 
 #### Bug Fixes
