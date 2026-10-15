@@ -2,6 +2,11 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import QApplication, QMenu, QWidget
 
+# Horizontal inset between an input's text and its frame, shared by every
+# field so the QLineEdit and QComboBox values start at the same x and a
+# QSpinBox value ends the same distance from its step buttons.
+INPUT_PADDING = 10
+
 
 def input_background_color() -> str:
     """Background for input fields, lifted just above the window color.
@@ -25,7 +30,8 @@ def combo_stylesheet() -> str:
     combo, which is required for the internal padding to shift the text.
     """
     return (
-        f"QComboBox {{ padding: 3px 12px 5px 12px; background-color: {input_background_color()}; }}"
+        f"QComboBox {{ padding: 3px {INPUT_PADDING}px 5px {INPUT_PADDING}px; "
+        + f"background-color: {input_background_color()}; }}"
     )
 
 

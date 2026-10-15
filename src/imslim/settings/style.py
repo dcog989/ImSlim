@@ -1,15 +1,10 @@
 """Shared visual helpers for the settings tabs."""
 
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QFrame, QLabel, QSizePolicy, QSpinBox
 
-from ..theme import apply_muted_palette, combo_stylesheet, input_background_color
-
-# Horizontal inset of the text inside every input field. QLineEdit takes it from
-# the stylesheet, but a QSpinBox gives its internal edit field an explicit
-# geometry and ignores stylesheet padding, so the same value is applied through
-# QLineEdit.setTextMargins() in spinbox() to keep the two aligned.
-_INPUT_PADDING = 10
+from ..theme import INPUT_PADDING, apply_muted_palette, combo_stylesheet, input_background_color
 
 
 def separator() -> QFrame:
@@ -42,21 +37,35 @@ def form_stylesheet() -> str:
     return (
         combo_stylesheet()
         + f"QSpinBox {{ min-height: 22px; background-color: {input_bg}; }}"
-        + f"QLineEdit {{ padding: 5px {_INPUT_PADDING}px; background-color: {input_bg}; }}"
+        + f"QLineEdit {{ padding: 5px {INPUT_PADDING}px; background-color: {input_bg}; }}"
         + "QPushButton { padding: 6px 16px; }"
         + "QCheckBox, QRadioButton { spacing: 8px; }"
     )
 
 
-def spinbox() -> QSpinBox:
-    """A QSpinBox whose value is inset like the QLineEdit and QComboBox fields.
+class _PaddedSpinBox(QSpinBox):
+    """A QSpinBox whose size hint accounts for its right text margin.
 
-    Stylesheet padding on a QSpinBox does not move its internal edit field, so
-    the value would sit flush against the left frame; setTextMargins is the only
-    reliable way to inset it.
+    QAbstractSpinBox sizes itself from the longest value and ignores the text
+    margins set on its internal edit field, so without this the value is
+    clipped down to the first digit.
     """
-    spin = QSpinBox()
-    spin.lineEdit().setTextMargins(_INPUT_PADDING, 0, _INPUT_PADDING, 0)
+
+    def sizeHint(self) -> QSize:
+        return super().sizeHint() + QSize(INPUT_PADDING, 0)
+
+
+def spinbox() -> QSpinBox:
+    """The spin box shared by every settings tab.
+
+    The value is right-aligned so it always ends the same distance from the
+    step buttons whatever its digit count, and the right margin is the only
+    inset it needs then. Stylesheet padding on a QSpinBox does not move its
+    internal edit field, so setTextMargins is the only reliable way to inset it.
+    """
+    spin = _PaddedSpinBox()
+    spin.lineEdit().setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+    spin.lineEdit().setTextMargins(0, 0, INPUT_PADDING, 0)
     return spin
 
 

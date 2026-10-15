@@ -61,6 +61,9 @@ class GeneralTab(QWidget):
         form = QFormLayout(self)
         form.setContentsMargins(16, 16, 16, 16)
         form.setVerticalSpacing(16)
+        # Combos and spin boxes sit at their content width; only the path line
+        # edits grow, so numeric/choice fields don't stretch across the dialog.
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow)
 
         self.combo_save_method.addItems(
             [
