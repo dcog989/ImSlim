@@ -253,7 +253,7 @@ class ImSlimWindow(QWidget):
 
         select_files = QPushButton(_("Select Files"))
         select_files.setMinimumHeight(36)
-        select_files.setFixedWidth(200)
+        select_files.setFixedWidth(150)
         select_files.setCursor(Qt.CursorShape.PointingHandCursor)
         _res = select_files.clicked.connect(self.on_select)
         select_files.setStyleSheet(lozenge)
@@ -261,7 +261,7 @@ class ImSlimWindow(QWidget):
 
         select_dir = QPushButton(_("Select Directory"))
         select_dir.setMinimumHeight(36)
-        select_dir.setFixedWidth(200)
+        select_dir.setFixedWidth(150)
         select_dir.setCursor(Qt.CursorShape.PointingHandCursor)
         _res = select_dir.clicked.connect(self.on_select_folder)
         select_dir.setStyleSheet(lozenge)
