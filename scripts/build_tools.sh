@@ -328,7 +328,11 @@ need_build() {
         log "$tool: build config changed, rebuilding"
         return 0
     fi
-    log "$tool: new version available ($version), building"
+    if [[ "$UPDATE_LOCK" -eq 1 ]]; then
+        log "$tool: new version available ($version), building"
+    else
+        log "$tool: rebuilding ($version)"
+    fi
     return 0
 }
 

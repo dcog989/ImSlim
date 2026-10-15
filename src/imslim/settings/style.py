@@ -1,5 +1,7 @@
 """Shared visual helpers for the settings tabs."""
 
+from typing import override
+
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QPalette
 from PySide6.QtWidgets import QFrame, QLabel, QSizePolicy, QSpinBox
@@ -51,6 +53,7 @@ class _PaddedSpinBox(QSpinBox):
     clipped down to the first digit.
     """
 
+    @override
     def sizeHint(self) -> QSize:
         return super().sizeHint() + QSize(INPUT_PADDING, 0)
 

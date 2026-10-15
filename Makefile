@@ -15,7 +15,7 @@ check:
 	uv run pytest
 
 clean:
-	rm -rf .venv dist build src/*.egg-info .ruff_cache && find . -name __pycache__ -type d -exec rm -rf {} +
+	rm -rf .venv dist build src/*.egg-info .ruff_cache .pytest_cache && find . -name __pycache__ -type d -exec rm -rf {} +
 
 # The bundled tools are deliberately kept out of `clean`: rebuilding them takes
 # minutes (and re-clones every source into .build).
