@@ -1,8 +1,8 @@
 # ImSlim
 
-A Linux image compressor / converter for all common image formats. Lossless or lossy, individually or in batch.
+A Linux image compressor / converter for all common image formats. Lossless or lossy, individually or in batch. <any image type> -> <any image type>.
 
-Inspired by and extends [Curtail](https://github.com/Huluti/Curtail).
+Inspired by [Curtail](https://github.com/Huluti/Curtail) - feature parity + much more.
 
 ![screen-1](assets/screen-1.webp)
 ![screen-2](assets/screen-2.webp)

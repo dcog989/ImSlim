@@ -160,4 +160,3 @@ jobs:
             scripts/install_appimage.sh
             CHANGELOG.md
           body_path: release-body.md
-          generate_release_notes: true
