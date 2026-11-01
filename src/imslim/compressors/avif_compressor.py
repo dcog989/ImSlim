@@ -5,16 +5,16 @@ from ..binary_resolver import resolve_tool
 from ..commands import Command, tokens
 from ..compressor import Compressor
 from ..conversion import decode_commands
-from ..formats import CompressorType
+from ..formats import CompressorType, Format, native_inputs
 from ..result_item import ResultItem
 
 # tune=iq + 10-bit depth is the best quality/size operating point for libaom.
 _ENCODE_BIT_DEPTH = 10
 # avifenc --speed range is 0-10 (slowest/best to fastest/worst).
 _MAX_SPEED = 10
-# Source formats avifenc reads itself; any other source is decoded to PNG first.
-# Kept in step with the AVIF entry's native_inputs in formats.py.
-_ENCODER_INPUTS = frozenset({"image/jpeg", "image/png"})
+# Source formats avifenc reads itself, derived from the AVIF target's native
+# inputs minus AVIF itself, which avifenc cannot read.
+_ENCODER_INPUTS = native_inputs(Format.AVIF) - {"image/avif"}
 
 
 class AVIFCompressor(Compressor):

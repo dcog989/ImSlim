@@ -19,7 +19,7 @@ _SOURCE = "photo"
 _TMP = "photo.tmp"
 _PNG_INTERMEDIATE = "photo.tmp.png"
 _JPEG_ENCODED = "photo.tmp.enc.jpg"
-_WEBP_INTERMEDIATE = "photo.tmp.src.png"
+_WEBP_INTERMEDIATE = "photo.tmp.png"
 
 
 def _cmd(line: str) -> list[str]:

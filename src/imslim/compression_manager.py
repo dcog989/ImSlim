@@ -9,12 +9,12 @@ from .batch_options import BatchOptions
 from .command_runner import CompressionContext
 from .compressor import Compressor
 from .compressors import ALL_COMPRESSORS
-from .conversion import is_converting
 from .formats import (
     CONFIGURED_COMPRESSOR_TYPES,
     FORMAT_BY_KEY,
     MIME_TO_FORMAT,
     CompressorType,
+    is_converting,
 )
 from .pipeline import CompressionPipeline
 from .result_item import ResultItem, ResultState

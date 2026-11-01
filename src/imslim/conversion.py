@@ -1,12 +1,7 @@
 from .binary_resolver import resolve_tool
 from .commands import Command
-from .formats import DECODER_TOOLS, is_converting
+from .formats import DECODER_TOOLS
 from .image_convert import to_png
-
-__all__ = [
-    "decode_commands",
-    "is_converting",
-]
 
 
 def decode_commands(source_mime: str, source: str, destination: str) -> list[Command]:

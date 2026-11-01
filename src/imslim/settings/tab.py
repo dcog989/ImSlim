@@ -23,21 +23,19 @@ def suspend_signals(widget: QWidget) -> Generator[None]:
         yield
 
 
-def bool_handler(
-    settings: SettingsManager, changed: Callable[[], None], key: str
-) -> Callable[[bool], None]:
+def bool_handler(settings: SettingsManager, key: str) -> Callable[[bool], None]:
     def handler(checked: bool) -> None:
         settings.set_boolean(key, checked)
-        changed()
 
     return handler
 
 
 def int_handler(
-    settings: SettingsManager, changed: Callable[[], None], key: str
+    settings: SettingsManager, key: str, changed: Callable[[], None] | None = None
 ) -> Callable[[int], None]:
     def handler(value: int) -> None:
         settings.set_int(key, value)
-        changed()
+        if changed is not None:
+            changed()
 
     return handler

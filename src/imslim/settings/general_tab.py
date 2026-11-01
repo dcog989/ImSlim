@@ -34,7 +34,6 @@ _LOG_LEVEL_INDEX = {level: index for index, level in enumerate(LOG_LEVELS)}
 
 
 class GeneralTab(QWidget):
-    settings_changed: Signal = Signal()
     log_settings_changed: Signal = Signal()
 
     def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
@@ -106,9 +105,7 @@ class GeneralTab(QWidget):
         default_directory_row.addWidget(self.btn_clear_default_directory)
 
         self.check_recursive.setText(_("Compress sub-directories"))
-        _res = self.check_recursive.toggled.connect(
-            bool_handler(self.settings, self.settings_changed.emit, "recursive")
-        )
+        _res = self.check_recursive.toggled.connect(bool_handler(self.settings, "recursive"))
 
         self.spin_timeout.setRange(1, 300)
         self.spin_timeout.setSuffix("s")
@@ -155,14 +152,14 @@ class GeneralTab(QWidget):
         _res = self.entry_output_folder.editingFinished.connect(self._commit_output_folder)
         _res = self.entry_default_directory.editingFinished.connect(self._commit_default_directory)
         _res = self.spin_timeout.valueChanged.connect(
-            int_handler(self.settings, self.settings_changed.emit, "compression-timeout")
+            int_handler(self.settings, "compression-timeout")
         )
         _res = self.combo_log_level.currentIndexChanged.connect(self._on_log_level_changed)
         _res = self.spin_log_max_size.valueChanged.connect(
-            int_handler(self.settings, self.log_settings_changed.emit, "log-max-size")
+            int_handler(self.settings, "log-max-size", self.log_settings_changed.emit)
         )
         _res = self.spin_log_backups.valueChanged.connect(
-            int_handler(self.settings, self.log_settings_changed.emit, "log-backups")
+            int_handler(self.settings, "log-backups", self.log_settings_changed.emit)
         )
 
     @staticmethod
@@ -191,7 +188,6 @@ class GeneralTab(QWidget):
     def _on_save_method_changed(self, index: int) -> None:
         self.settings.save_method = index
         self._set_save_method_state(index)
-        self.settings_changed.emit()
 
     def _set_save_method_state(self, save_method: int) -> None:
         output_folder = save_method == SAVE_OUTPUT_FOLDER
@@ -214,14 +210,12 @@ class GeneralTab(QWidget):
         if text == self.settings.output_folder:
             return
         self.settings.output_folder = text
-        self.settings_changed.emit()
 
     def _commit_default_directory(self) -> None:
         text = self.entry_default_directory.text().strip()
         if text == self.settings.default_open_dialog_directory:
             return
         self.settings.default_open_dialog_directory = text
-        self.settings_changed.emit()
 
     def _browse_default_directory(self) -> None:
         folder = QFileDialog.getExistingDirectory(

@@ -1,4 +1,3 @@
-from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QGridLayout,
@@ -18,8 +17,6 @@ from .tab import bool_handler, int_handler, suspend_signals
 
 
 class FormatsTab(QWidget):
-    settings_changed: Signal = Signal()
-
     def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.settings: SettingsManager = settings
@@ -60,9 +57,7 @@ class FormatsTab(QWidget):
                 layout.addLayout(self._spin_row(knob))
             else:
                 check = QCheckBox(knob.label)
-                _res = check.toggled.connect(
-                    bool_handler(self.settings, self.settings_changed.emit, knob.key)
-                )
+                _res = check.toggled.connect(bool_handler(self.settings, knob.key))
                 self._checks.append((check, knob.key))
                 layout.addWidget(check)
                 layout.addWidget(hint_label(knob.hint))
@@ -99,9 +94,7 @@ class FormatsTab(QWidget):
         label_widget.setMinimumWidth(110)
         spin = spinbox()
         spin.setRange(knob.lower, knob.upper)
-        _res = spin.valueChanged.connect(
-            int_handler(self.settings, self.settings_changed.emit, knob.key)
-        )
+        _res = spin.valueChanged.connect(int_handler(self.settings, knob.key))
         self._spins.append((spin, knob.key))
         row.addWidget(label_widget)
         row.addStretch(1)

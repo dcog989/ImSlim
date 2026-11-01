@@ -19,10 +19,6 @@ class WEBPCompressor(Compressor):
     def get_file_type(cls) -> CompressorType:
         return CompressorType.WEBP
 
-    @override
-    def _intermediate_path(self, result_item: ResultItem) -> str:
-        return result_item.tmp_filename + ".src.png"
-
     def _needs_conversion(self, result_item: ResultItem, input_path: str) -> bool:
         return result_item.mime_type in _CONVERTED_MIME_TYPES and not self._input_is_png(
             result_item, input_path
