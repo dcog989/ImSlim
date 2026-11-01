@@ -1,5 +1,7 @@
+import atexit
 import logging
 import logging.handlers
+import queue
 from pathlib import Path
 
 from .settings_manager import SettingsManager, log_file_path
@@ -13,6 +15,17 @@ _LOG_LEVEL_VALUES: dict[str, int] = {
 LOG_LEVELS: tuple[str, ...] = ("NONE", *_LOG_LEVEL_VALUES)
 _LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
 
+_listener: logging.handlers.QueueListener | None = None
+
+
+def _stop_listener() -> None:
+    """Flush queued records before the interpreter shuts the file handler down."""
+    if _listener is not None:
+        _listener.stop()
+
+
+_res = atexit.register(_stop_listener)
+
 
 def configure_logging(settings: SettingsManager | None = None) -> None:
     """Install console and rotating-file handlers from the log settings.
@@ -22,13 +35,22 @@ def configure_logging(settings: SettingsManager | None = None) -> None:
     previously installed handlers are removed (file handlers closed) first;
     a level of NONE disables logging entirely.
 
+    Records reach the handlers through a queue: worker threads log while the
+    settings dialog may be closing the old file handler, and writing to a
+    closed stream from another thread raises.
+
     ``settings`` may be passed in to reuse the live SettingsManager instance
     (whose writes are not synced to disk until close); a fresh instance reads
     stale values mid-edit.
     """
+    global _listener
+
     settings = settings or SettingsManager()
 
     root = logging.getLogger()
+    if _listener is not None:
+        _listener.stop()
+        _listener = None
     for handler in root.handlers[:]:
         root.removeHandler(handler)
         handler.close()
@@ -56,6 +78,13 @@ def configure_logging(settings: SettingsManager | None = None) -> None:
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
 
+    records: queue.SimpleQueue[logging.LogRecord] = queue.SimpleQueue()
+    queue_handler = logging.handlers.QueueHandler(records)
+    queue_handler.setLevel(level)
+    _listener = logging.handlers.QueueListener(
+        records, file_handler, console_handler, respect_handler_level=True
+    )
+    _listener.start()
+
     root.setLevel(level)
-    root.addHandler(file_handler)
-    root.addHandler(console_handler)
+    root.addHandler(queue_handler)
