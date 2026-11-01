@@ -554,7 +554,8 @@ build_mozjpeg() {
         -DENABLE_STATIC=ON \
         -DENABLE_SHARED=OFF \
         -DWITH_JPEG8=ON \
-        -DPNG_SUPPORTED=OFF
+        -DPNG_SUPPORTED=OFF \
+        -DCMAKE_INSTALL_LIBDIR="$PREFIX/lib"
 
     cp "$PREFIX/bin/jpegtran" "$OUT/jpegtran"
     chmod +x "$OUT/jpegtran"
@@ -608,9 +609,12 @@ build_pngquant() {
 # libwebp (cwebp)
 # ---------------------------------------------------------------------------
 build_webp() {
-    # cwebp reads PNG input, so its static libpng/zlib must be built first.
+    # cwebp reads PNG and JPEG input, so its static libpng/zlib and the static
+    # libjpeg (mozjpeg) must be built first; without libjpeg cwebp refuses
+    # every JPEG source.
     build_zlib
     build_libpng
+    build_mozjpeg
     local url=https://github.com/webmproject/libwebp.git
     local tag; tag="$(target_version webp)"
     need_build webp "$tag" cwebp || return 0
@@ -619,6 +623,8 @@ build_webp() {
 
     cmake_release_build "$PREFIX" \
         -DCMAKE_PREFIX_PATH="$PREFIX" \
+        -DJPEG_INCLUDE_DIR="$PREFIX/include" \
+        -DJPEG_LIBRARY="$PREFIX/lib/libjpeg.a" \
         -DBUILD_SHARED_LIBS=OFF \
         -DWEBP_LINK_STATIC=ON \
         -DWEBP_BUILD_CWEBP=ON \
@@ -628,7 +634,6 @@ build_webp() {
         -DWEBP_BUILD_IMG2WEBP=OFF \
         -DWEBP_BUILD_VWEBP=OFF \
         -DWEBP_BUILD_WEBPINFO=OFF \
-        -DCMAKE_DISABLE_FIND_PACKAGE_JPEG=TRUE \
         -DCMAKE_DISABLE_FIND_PACKAGE_GIF=TRUE
 
     cp "$PREFIX/bin/cwebp" "$OUT/cwebp"
