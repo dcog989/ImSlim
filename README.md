@@ -19,7 +19,9 @@ Inspired by and extends [Curtail](https://github.com/Huluti/Curtail).
 - optionally strip metadata (EXIF/XMP/JUMBF), reset file attributes.
 - save output next to the original, to a custom folder, or backup->overwrite originals.
 - recurse directories for batch compression.
-- configurable timeout for compression / conversion operations.
+- drop files or folders on the window, or paste copied files or an image with `Ctrl+V`.
+- configurable compression timeout, log level and log rotation.
+- follows the system light/dark theme; UI strings are translatable.
 
 ## Installation
 
@@ -59,9 +61,21 @@ ImSlim is built with Python / PySide6. The compression libraries are built from 
 - [gifsicle](https://www.lcdf.org/gifsicle/)
 - [svgo](https://github.com/svg/svgo)
 
+The AppImage and wheel carry these binaries, so no system tools are needed at runtime. Logs are written to `~/.local/state/ImSlim/imslim.log` (rotating; level and retention are set in the settings dialog).
+
 ### Development
 
-See `Makefile` for details:
+Requires Python 3.14+, [`uv`](https://docs.astral.sh/uv/), and — for the bundled tools — a C/C++ toolchain (CMake, Ninja, pkg-config, curl, git); `scripts/build_tools.sh` installs what the distro package manager (apt/pacman) provides and downloads a pinned Node for svgo. Translations need GNU gettext.
+
+```sh
+git clone https://github.com/dcog989/ImSlim
+cd ImSlim
+make init     # uv sync
+make tools    # build src/imslim/bin/linux-x86_64/
+make run
+```
+
+See the `Makefile` for everything else:
 
 ```sh
 make build          # build the wheel + sdist
