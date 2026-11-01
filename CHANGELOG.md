@@ -3,6 +3,31 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v0.11.4 - 2026-11-01
+
+#### Bug Fixes
+
+- (08f4406) build cwebp with static libjpeg so JPEG input works - dcog989
+
+- (a577892) match the settings gear height to the header combos - dcog989
+
+- (afdf263) accept every file and path the user gives - dcog989
+
+- (414cc77) write through a queue so reconfiguring cannot hit a closed file - dcog989
+
+- (46a8fb7) protect output files and clean up reliably - dcog989
+
+- (70c2d27) prefer the most specific Qt plugin root - dcog989
+
+#### Performance
+
+- (773a3e7) bound decode work and UI updates during big batches - dcog989
+
+#### Refactoring
+
+- (32274da) remove dead wiring and duplicated format tables - dcog989
+- - -
+
 ## v0.11.3 - 2026-10-15
 
 #### Bug Fixes
