@@ -38,7 +38,6 @@ from ._logging import configure_logging
 from .batch_flow import BatchFlow
 from .clipboard_intake import ClipboardIntake, urls_to_paths
 from .composition import AppContext
-from .compression_manager import CompressionManager
 from .formats import TARGET_SPECS, Format, image_filter
 from .icons import chevron_left_icon, download_icon, gear_icon, imslim_icon
 from .results_view import ResultsView
@@ -60,8 +59,10 @@ class ImSlimWindow(QWidget):
         super().__init__()
         self.app: QApplication = app
         self.settings: SettingsManager = context.settings
-        self.manager: CompressionManager = context.manager
         self.flow: BatchFlow = context.flow
+        # Paths that arrived while a batch was running; started when it ends.
+        self._pending_paths: list[str] = []
+        self._batch_output_folder: str = ""
         self.clipboard: ClipboardIntake = ClipboardIntake(self.app.clipboard(), self)
         self.setWindowTitle("ImSlim")
         self.setWindowIcon(imslim_icon())
@@ -344,6 +345,16 @@ class ImSlimWindow(QWidget):
         self.clear_button.setEnabled(enable)
         self.act_clear.setEnabled(enable)
         self.results.set_busy(not enable)
+        if enable:
+            self._drain_pending()
+
+    def _drain_pending(self) -> None:
+        """Start a batch that arrived while the previous one was running."""
+        if self.flow.active or not self._pending_paths:
+            return
+        paths = self._pending_paths
+        self._pending_paths = []
+        self.compress_files(paths)
 
     def stop_compression(self) -> None:
         self.flow.cancel()
@@ -367,8 +378,8 @@ class ImSlimWindow(QWidget):
         return self.settings.save_method == SAVE_OUTPUT_FOLDER and bool(self.settings.output_folder)
 
     def open_output_folder(self) -> None:
-        folder = self.settings.output_folder
-        if self._uses_custom_output_folder() and os.path.isdir(folder):
+        folder = self._batch_output_folder
+        if folder and os.path.isdir(folder):
             _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
     def clear_results(self) -> None:
@@ -385,9 +396,9 @@ class ImSlimWindow(QWidget):
     # ------------------------------------------------------- compression flow
     def compress_files(self, paths: list[str]) -> None:
         if self.flow.active:
-            _res = QMessageBox.information(
-                self, _("Compression in progress"), _("Wait for the current compression to finish.")
-            )
+            # Queue instead of dropping: this is how "Open with ImSlim" arrives
+            # from the file manager while a long batch is still running.
+            self._pending_paths.extend(paths)
             return
         self._reset_results()
         self.clipboard.cleanup_unless_used(paths)
@@ -395,23 +406,30 @@ class ImSlimWindow(QWidget):
         self.flow.start(paths)
 
     def _show_items_ready(self) -> None:
+        # Snapshot the destination: the batch writes there even if settings change.
+        self._batch_output_folder = (
+            self.settings.output_folder if self._uses_custom_output_folder() else ""
+        )
         self.results.set_converting(self.flow.converting)
-        self.results.set_open_folder_enabled(self._uses_custom_output_folder())
+        self.results.set_open_folder_enabled(bool(self._batch_output_folder))
         self.show_view(View.RESULTS)
 
     def _on_analyze_no_files(self) -> None:
         self.show_view(View.HOME)
         _res = QMessageBox.information(self, _("No files found"), _("No files found"))
+        self._drain_pending()
 
     def _on_analyze_output_error(self) -> None:
         self.show_view(View.HOME)
         _res = QMessageBox.warning(self, _("Error"), _("Can't create the output folder."))
+        self._drain_pending()
 
     def _on_analyze_failed(self) -> None:
         self.show_view(View.HOME)
         _res = QMessageBox.warning(
             self, _("Error"), _("An unexpected error occurred while analyzing the images.")
         )
+        self._drain_pending()
 
     def _update_summary(self) -> None:
         self.results.set_summary(self.flow.summary.text(self.flow.converting))

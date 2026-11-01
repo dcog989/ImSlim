@@ -140,7 +140,7 @@ def _info_request(argv: list[str]) -> str | None:
 
 
 def _local_paths(argv: list[str]) -> list[str]:
-    """Local paths from the command line, ignoring options."""
+    """Absolute local paths from the command line, ignoring options."""
     paths: list[str] = []
     for arg in argv:
         # Options are not paths: passing "-x" on would report "This file doesn't
@@ -150,7 +150,9 @@ def _local_paths(argv: list[str]) -> list[str]:
         url = QUrl.fromUserInput(arg)
         path = url.toLocalFile() or arg
         if path:
-            paths.append(path)
+            # A forwarded launch resolves paths in the primary's cwd, so they
+            # must be absolute (and "~" expanded) before leaving this process.
+            paths.append(os.path.abspath(os.path.expanduser(path)))
     return paths
 
 

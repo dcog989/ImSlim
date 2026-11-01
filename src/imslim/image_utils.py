@@ -60,7 +60,9 @@ def get_image_paths_from_folder(
                     if recursive:
                         images.extend(get_image_paths_from_folder(entry.path, True, is_cancelled))
                     continue
-                if entry.is_file(follow_symlinks=False) and is_image_path(entry.name):
+                # Files may be symlinks (only the directory walk must not follow
+                # links, or a cycle would recurse forever).
+                if entry.is_file() and is_image_path(entry.name):
                     images.append(entry.path)
     except OSError as err:
         logger.warning("Could not read folder %s: %s", folder_path, err)
