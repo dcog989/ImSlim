@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     QStackedWidget,
     QToolButton,
     QVBoxLayout,
@@ -336,7 +337,8 @@ class ImSlimWindow(QWidget):
         button.setIcon(icon)
         button.setIconSize(QSize(20, 20))
         button.setToolTip(tooltip)
-        button.setFixedSize(32, 32)
+        button.setFixedWidth(32)
+        button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         button.setStyleSheet("QToolButton { padding: 0; }")
         _res = button.clicked.connect(handler)
         return button
