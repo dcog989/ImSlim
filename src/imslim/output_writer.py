@@ -1,12 +1,11 @@
 import logging
 import os
-import shutil
 import stat
 from pathlib import Path
 
 from ._i18n import _
 from .batch_options import BatchOptions
-from .conversion import is_converting
+from .formats import is_converting
 from .result_item import ResultItem, ResultState
 from .settings_manager import SAVE_BACKUP_OVERWRITE
 
@@ -38,8 +37,9 @@ class OutputWriter:
         )
         if overwriting:
             try:
-                # Path.copy() drops metadata, so keep copy2 for a faithful backup.
-                _res = shutil.copy2(result_item.filename, result_item.backup_filename)
+                # Rename, not copy: the backup stays in the same folder, so this
+                # keeps the original's metadata at no extra disk IO.
+                os.replace(result_item.filename, result_item.backup_filename)
             except OSError as err:
                 result_item.set_error(_("Can't backup the original file"), str(err))
                 logger.error(result_item.error_details_message)
@@ -51,6 +51,11 @@ class OutputWriter:
             # same-filesystem rename instead of a copy+delete (double disk IO).
             _res = Path(result_item.tmp_filename).move(final_path)
         except OSError as err:
+            if overwriting:
+                try:
+                    os.replace(result_item.backup_filename, result_item.filename)
+                except OSError:
+                    logger.error("Could not restore the original file: %s", result_item.filename)
             result_item.set_error(_("Can't write the compressed file"), str(err))
             logger.error(result_item.error_details_message)
             return

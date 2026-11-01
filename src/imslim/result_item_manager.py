@@ -1,13 +1,13 @@
 import os
 import re
 import time
+from uuid import uuid4
 
 from PySide6.QtCore import QMimeDatabase
 
 from ._i18n import _
 from .batch_options import BatchOptions
-from .conversion import is_converting
-from .formats import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS, TARGET_EXTENSIONS
+from .formats import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS, TARGET_EXTENSIONS, is_converting
 from .image_utils import is_animated_image
 from .result_item import ResultItem
 from .settings_manager import SAVE_BACKUP_OVERWRITE, SAVE_OUTPUT_FOLDER
@@ -87,9 +87,11 @@ class ResultItemManager:
             else ""
         )
 
+        # Random token: a predictable name in a shared folder could be a
+        # symlink another user pre-created for the encoders to write through.
         output_dir = os.path.dirname(result_item.new_filename)
         result_item.tmp_filename = os.path.join(
-            output_dir, f".{os.path.basename(result_item.new_filename)}.tmp"
+            output_dir, f".{os.path.basename(result_item.new_filename)}.{uuid4().hex[:8]}.tmp"
         )
 
         return result_item

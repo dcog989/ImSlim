@@ -61,7 +61,7 @@ def report_command_error(result_item: ResultItem, err: Exception, options: Batch
 def log_outcome(result_item: ResultItem) -> None:
     if result_item.state is ResultState.SKIPPED:
         logger.info("Skipped %s: output not smaller than input", result_item.filename)
-    elif result_item.size > 0:
+    elif result_item.state is ResultState.DONE and result_item.size > 0:
         savings = savings_percent(result_item.size, result_item.new_size)
         logger.info(
             "Compressed %s: %d -> %d bytes (%d%% saved)",

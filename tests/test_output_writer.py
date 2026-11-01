@@ -67,6 +67,25 @@ def test_finalize_overwrite_backs_up_before_replacing(tmp_path) -> None:
     assert not tmp_file.exists()
 
 
+def test_finalize_restores_the_original_when_the_replace_fails(tmp_path, monkeypatch) -> None:
+    source = tmp_path / "photo.png"
+    source.write_bytes(_ORIGINAL)
+    tmp_file = _tmp_file(tmp_path)
+    backup = tmp_path / "photo.BAK.20240102030405.png"
+    item = _item(source, tmp_file, backup=backup)
+
+    def fail_move(_self, _target) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr("pathlib.Path.move", fail_move)
+
+    OutputWriter().finalize(item, _options(SAVE_BACKUP_OVERWRITE))
+
+    assert item.state is ResultState.ERROR
+    assert source.read_bytes() == _ORIGINAL
+    assert not backup.exists()
+
+
 def test_finalize_skips_output_that_is_not_smaller(tmp_path) -> None:
     source = tmp_path / "photo.png"
     source.write_bytes(_COMPRESSED)
