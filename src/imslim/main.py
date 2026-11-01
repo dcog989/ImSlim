@@ -94,7 +94,8 @@ def _extend_plugin_paths() -> None:
     run after the QApplication is constructed.
     """
     current = QApplication.libraryPaths()
-    for root in _system_plugin_roots():
+    # Reverse so the most specific root (multiarch) ends up first.
+    for root in reversed(_system_plugin_roots()):
         if root not in current:
             current.insert(0, root)
     QApplication.setLibraryPaths(current)
