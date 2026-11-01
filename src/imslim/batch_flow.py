@@ -1,11 +1,11 @@
 import logging
 
-from PySide6.QtCore import QObject, QThreadPool, Signal
+from PySide6.QtCore import QObject, QThreadPool, QTimer, Signal
 
 from .batch_options import BatchOptions
 from .batch_summary import BatchSummary
 from .compression_manager import CompressionManager
-from .conversion import is_converting
+from .formats import is_converting
 from .result_item import ResultItem, ResultState
 from .settings_manager import SettingsManager
 from .workers import AnalyzeTask
@@ -15,6 +15,9 @@ logger = logging.getLogger(__name__)
 # Bound on how long shutdown waits for the analyze thread to notice cancellation
 # between files; folder walks check it per entry.
 _ANALYZE_SHUTDOWN_TIMEOUT_MS = 5000
+# The summary line is a few counters; repainting it per finished image is wasted
+# layout work in a large batch.
+_SUMMARY_INTERVAL_MS = 100
 
 
 class BatchFlow(QObject):
@@ -48,6 +51,10 @@ class BatchFlow(QObject):
         self._analyze_pool: QThreadPool = QThreadPool()
         self._analyze_pool.setMaxThreadCount(1)
         self._options: BatchOptions | None = None
+        self._summary_timer: QTimer = QTimer(self)
+        self._summary_timer.setSingleShot(True)
+        self._summary_timer.setInterval(_SUMMARY_INTERVAL_MS)
+        _res = self._summary_timer.timeout.connect(self.summary_changed.emit)
         _res = self.result_updated.connect(self._on_result_updated)
         # The manager emits this from its own thread; the queued connection
         # delivers _on_compression_enabled on the UI thread.
@@ -101,6 +108,7 @@ class BatchFlow(QObject):
         self._manager.shutdown()
 
     def reset(self) -> None:
+        self._summary_timer.stop()
         self.summary.reset()
         self.summary_changed.emit()
 
@@ -153,7 +161,8 @@ class BatchFlow(QObject):
                 )
                 self.summary.record_compressed(saved_bytes)
         self.summary.record_done()
-        self.summary_changed.emit()
+        if not self._summary_timer.isActive():
+            self._summary_timer.start()
 
     def _on_no_files(self) -> None:
         self._active = False

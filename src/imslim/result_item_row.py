@@ -30,15 +30,15 @@ from .format import savings_percent, sizeof_fmt
 from .icons import circle_off_icon, shield_alert_icon, triangle_alert_icon
 from .image_utils import create_thumbnail_qimage
 from .result_item import ResultItem, ResultState
-from .system_info import worker_count
 from .theme import style_menu
 from .workers import Task
 
-# Shared, bounded pool: a batch of hundreds of rows must not spawn a thread per
-# row. The cap follows compression_manager's reasoning (decode is cheap but
-# saturating every core is wasteful); it is never zero even on a single-core box.
+# Thumbnails are background work while compression owns the other cores, so one
+# worker is enough; PNG has no scaled decode, and a wider pool would compete.
 _THUMBNAIL_POOL = QThreadPool()
-_THUMBNAIL_POOL.setMaxThreadCount(worker_count(minimum=2))
+_THUMBNAIL_POOL.setMaxThreadCount(1)
+
+_THUMBNAIL_SIZE = 48
 
 
 class _ThumbnailTask(Task):
@@ -133,11 +133,19 @@ class _SelectableLabel(QLabel):
 
 
 class ResultItemRow(QWidget):
-    def __init__(self, result_item: ResultItem, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        result_item: ResultItem,
+        parent: QWidget | None = None,
+        *,
+        with_thumbnail: bool = True,
+    ) -> None:
         super().__init__(parent)
         self.result_item: ResultItem = result_item
 
         self.thumbnail: _ClickableThumbnail = _ClickableThumbnail()
+        self.thumbnail.setFixedSize(_THUMBNAIL_SIZE, _THUMBNAIL_SIZE)
+        self.thumbnail.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.thumbnail.setCursor(Qt.CursorShape.PointingHandCursor)
         _res = self.thumbnail.clicked.connect(self._open_compressed)
         self.title_label: QLabel = QLabel(result_item.filename)
@@ -185,10 +193,12 @@ class ResultItemRow(QWidget):
         layout.addWidget(self.warning_button)
         layout.addWidget(self.error_button)
 
-        task = _ThumbnailTask(result_item.filename, 48)
-        self._thumbnail_task: _ThumbnailTask | None = task
-        _res = task.loaded.connect(self._set_thumbnail)
-        _THUMBNAIL_POOL.start(task)
+        self._thumbnail_task: _ThumbnailTask | None = None
+        if with_thumbnail:
+            task = _ThumbnailTask(result_item.filename, _THUMBNAIL_SIZE)
+            self._thumbnail_task = task
+            _res = task.loaded.connect(self._set_thumbnail)
+            _THUMBNAIL_POOL.start(task)
 
         self.refresh()
 
@@ -209,13 +219,10 @@ class ResultItemRow(QWidget):
         task.abandon()
 
     @staticmethod
-    def _make_info_button(handler: Callable[..., None], icon: QIcon | None = None) -> QToolButton:
+    def _make_info_button(handler: Callable[..., None], icon: QIcon) -> QToolButton:
         button = QToolButton()
-        if icon is None:
-            button.setText("i")
-        else:
-            button.setIcon(icon)
-            button.setIconSize(QSize(16, 16))
+        button.setIcon(icon)
+        button.setIconSize(QSize(16, 16))
         button.setToolTip(_("More Information"))
         button.setVisible(False)
         _res = button.clicked.connect(handler)

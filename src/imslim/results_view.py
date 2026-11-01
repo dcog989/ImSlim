@@ -26,6 +26,9 @@ _ROW_CHUNK_SIZE = 50
 # folders with tens of thousands of images, so only the first rows are listed;
 # the batch summary still counts every item.
 _MAX_ROWS = 500
+# PNG has no scaled decode, so a thumbnail costs a full decode. Only the rows a
+# user is likely to look at get one.
+_MAX_THUMBNAILS = 100
 
 
 def _make_tool_button(text: str, tooltip: str) -> QToolButton:
@@ -189,7 +192,7 @@ class ResultsView(ResultsPage):
         self.results_container.setUpdatesEnabled(False)
         try:
             for result_item in batch:
-                row = ResultItemRow(result_item)
+                row = ResultItemRow(result_item, with_thumbnail=self._row_count < _MAX_THUMBNAILS)
                 self._apply_row_alternation(row, self._row_count)
                 self.rows_layout.addWidget(row)
                 self._rows[result_item] = row
