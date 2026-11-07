@@ -75,8 +75,6 @@ make tools    # build src/imslim/bin/linux-x86_64/
 make run
 ```
 
-See the `Makefile` for everything else:
-
 ```sh
 make build          # build the wheel + sdist
 make check          # runs ruff check + ruff format check + basedpyright + pytest
@@ -91,6 +89,12 @@ make tools          # runs build / update script for image libraries
 make translations   # extract strings and rebuild translation catalogs
 make uninstall      # remove the uv tool, desktop entry, icon and AppImage
 make upgrade        # refresh dependency lockfile to newest versions
+```
+
+```sh
+uv tool upgrade imslim       # just imslim
+uv lock --upgrade && uv sync # this project's Python deps (run in src/dicmerge)
+uv tool upgrade --all        # global uv-installed tools
 ```
 
 UI strings are wrapped in `_()` from `imslim._i18n`, which loads gettext catalogs from `src/imslim/locale/`. Add a language with `./scripts/translations.sh init <lang>`, edit its `.po`, then
