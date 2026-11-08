@@ -182,7 +182,9 @@ def form_stylesheet() -> str:
         + f"QSpinBox {{ min-height: 22px; background-color: {input_bg}; }}"
         + f"QLineEdit {{ padding: 5px {INPUT_PADDING}px; background-color: {input_bg}; }}"
         + "QPushButton { padding: 6px 16px; }"
-        + "QCheckBox, QRadioButton { spacing: 8px; }"
+        # The pane's checkboxes have no text (their label sits beside them), so
+        # the style's text spacing would leave them inset from the right edge.
+        + "QCheckBox, QRadioButton { spacing: 0px; }"
     )
 
 

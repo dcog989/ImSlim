@@ -11,8 +11,8 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QFileDialog,
-    QFormLayout,
     QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -94,7 +94,7 @@ class OptionsView(QWidget):
 
         content = QWidget()
         form = QVBoxLayout(content)
-        form.setContentsMargins(12, 12, 12, 12)
+        form.setContentsMargins(8, 12, 8, 12)
         form.setSpacing(8)
 
         self.combo_format: QComboBox = self._combo(
@@ -104,11 +104,12 @@ class OptionsView(QWidget):
         self.combo_format.setCurrentIndex(self._format_index())
         _res = self.combo_format.currentIndexChanged.connect(self._on_format_changed)
 
-        format_row = QHBoxLayout()
-        format_row.setContentsMargins(0, 0, 0, 0)
-        format_row.setSpacing(4)
-        format_row.addWidget(self.combo_format, 1)
-        format_row.addWidget(self._info_button())
+        format_widget = QWidget()
+        format_layout = QHBoxLayout(format_widget)
+        format_layout.setContentsMargins(0, 0, 0, 0)
+        format_layout.setSpacing(4)
+        format_layout.addWidget(self.combo_format)
+        format_layout.addWidget(self._info_button())
 
         self.combo_destination: QComboBox = self._combo(
             tuple(label for label, _value in _DESTINATIONS),
@@ -139,21 +140,9 @@ class OptionsView(QWidget):
         )
         self.check_timestamp_dir.setChecked(self.settings.timestamp_dir)
         _res = self.check_timestamp_dir.toggled.connect(self._on_timestamp_dir)
-
-        fields = self._form_layout()
-        fields.addRow(_("Output format"), format_row)
-        fields.addRow(_("Destination"), self.combo_destination)
-        fields.addRow("", self.output_folder_row)
-        form.addLayout(fields)
-        self._output_fields: QFormLayout = fields
-
-        self._timestamp_fields: QFormLayout = self._form_layout()
         self._timestamp_row: QWidget = self._check_row(
             _("New timestamped directory"), self.check_timestamp_dir
         )
-        self._timestamp_fields.addRow(self._timestamp_row)
-        form.addLayout(self._timestamp_fields)
-        form.addWidget(self._divider())
 
         self.check_recursive: QCheckBox = self._check(_("Include sub-directories"))
         self.check_recursive.setChecked(self.settings.recursive)
@@ -173,14 +162,6 @@ class OptionsView(QWidget):
         )
         self.check_skip_if_larger.setChecked(self.settings.skip_if_larger)
         _res = self.check_skip_if_larger.toggled.connect(self._on_skip_if_larger)
-
-        files = self._form_layout()
-        files.addRow(self._check_row(_("Include sub-directories"), self.check_recursive))
-        files.addRow(self._check_row(_("Keep EXIF and metadata"), self.check_metadata))
-        files.addRow(self._check_row(_("Keep file attributes"), self.check_attributes))
-        files.addRow(self._check_row(_("Skip if result is larger"), self.check_skip_if_larger))
-        form.addLayout(files)
-        form.addWidget(self._divider())
 
         self.combo_compression: QComboBox = self._combo(
             (_("Lossy"), _("Lossless")),
@@ -204,16 +185,32 @@ class OptionsView(QWidget):
         )
         _res = self.spin_timeout.valueChanged.connect(self._on_timeout)
 
-        fields = self._form_layout()
-        fields.addRow(_("Compression mode"), self.combo_compression)
-
         self.knobs_container: QWidget = QWidget()
         self.knobs_layout: QVBoxLayout = QVBoxLayout(self.knobs_container)
         self.knobs_layout.setContentsMargins(0, 0, 0, 0)
         self.knobs_layout.setSpacing(8)
-        fields.addRow(self.knobs_container)
-        fields.addRow(_("Tool timeout"), self.spin_timeout)
-        form.addLayout(fields)
+
+        # Labels on the left, each field at its own width on the right.
+        self._grid: QGridLayout = QGridLayout()
+        self._grid.setContentsMargins(0, 0, 0, 0)
+        self._grid.setHorizontalSpacing(8)
+        self._grid.setVerticalSpacing(6)
+        self._grid.setColumnStretch(0, 1)
+        self._add_field(_("Output format"), format_widget)
+        self._add_field(_("Destination"), self.combo_destination)
+        self._add_field("", self.output_folder_row, fill=True)
+        self._add_wide(self._divider())
+        self._add_wide(self._timestamp_row)
+        self._add_wide(self._check_row(_("Include sub-directories"), self.check_recursive))
+        self._add_wide(self._check_row(_("Keep EXIF and metadata"), self.check_metadata))
+        self._add_wide(self._check_row(_("Keep file attributes"), self.check_attributes))
+        self._add_wide(self._check_row(_("Skip if result is larger"), self.check_skip_if_larger))
+        self._add_wide(self._divider())
+        self._add_field(_("Tool timeout"), self.spin_timeout)
+        self._add_wide(self._divider())
+        self._add_field(_("Compression mode"), self.combo_compression)
+        self._add_wide(self.knobs_container)
+        form.addLayout(self._grid)
 
         form.addStretch(1)
         self._update_destination_state()
@@ -283,20 +280,26 @@ class OptionsView(QWidget):
         combo.addItems(items)
         combo.setStyleSheet(combo_stylesheet())
         combo.setToolTip(f"<div style='width: 280px'>{html.escape(tooltip)}</div>")
-        # The pane is narrow: let a combo shrink and elide its current item
-        # instead of forcing a horizontal scrollbar on the whole form.
-        combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
-        combo.setMinimumContentsLength(6)
+        # The field column right-aligns each field, so its width must not change
+        # with the current item: size to the longest entry instead.
+        combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         return combo
 
-    @staticmethod
-    def _form_layout() -> QFormLayout:
-        fields = QFormLayout()
-        fields.setContentsMargins(0, 0, 0, 0)
-        fields.setHorizontalSpacing(8)
-        fields.setVerticalSpacing(6)
-        fields.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
-        return fields
+    def _add_field(self, label: str, field: QWidget, *, fill: bool = False) -> None:
+        """One label on the left, its field at its own width on the right."""
+        row = self._grid.rowCount()
+        if label:
+            text = QLabel(label)
+            self._grid.addWidget(
+                text, row, 0, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            )
+        if fill:
+            self._grid.addWidget(field, row, 1)
+        else:
+            self._grid.addWidget(field, row, 1, Qt.AlignmentFlag.AlignRight)
+
+    def _add_wide(self, widget: QWidget) -> None:
+        self._grid.addWidget(widget, self._grid.rowCount(), 0, 1, 2)
 
     @staticmethod
     def _check(label: str) -> QCheckBox:
@@ -317,12 +320,11 @@ class OptionsView(QWidget):
         if hint:
             text.setToolTip(hint)
         layout.addWidget(text)
-        layout.addWidget(check)
+        layout.addStretch(1)
         if hint:
             info = self._info_button(label, partial(self._show_note_dialog, label, hint))
-            info.setFixedSize(18, 18)
             layout.addWidget(info)
-        layout.addStretch(1)
+        layout.addWidget(check)
         return row
 
     @staticmethod
@@ -418,10 +420,20 @@ class OptionsView(QWidget):
             knobs_row = QHBoxLayout()
             knobs_row.setContentsMargins(0, 0, 0, 0)
             knobs_row.setSpacing(16)
-            for knob in spec.knobs:
-                knobs_row.addWidget(self._knob_widget(knob))
             knobs_row.addStretch(1)
-            layout.addLayout(knobs_row)
+            # Flags get their own line: a checkbox beside two level knobs makes
+            # the row wider than the pane.
+            flags: list[QWidget] = []
+            for knob in spec.knobs:
+                widget = self._knob_widget(knob)
+                if knob.kind == "flag":
+                    flags.append(widget)
+                else:
+                    knobs_row.addWidget(widget)
+            if knobs_row.count() > 1:
+                layout.addLayout(knobs_row)
+            for widget in flags:
+                layout.addWidget(widget)
             self.knobs_layout.addWidget(group)
             self.knobs_layout.addWidget(self._divider())
         if self._knob_widgets:
@@ -432,6 +444,7 @@ class OptionsView(QWidget):
         layout = QHBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
+        layout.addStretch(1)
         if knob.kind == "flag":
             check = QCheckBox()
             check.setAccessibleName(knob.label)
@@ -527,12 +540,10 @@ class OptionsView(QWidget):
 
     def _update_destination_state(self) -> None:
         custom = self.settings.save_method == SAVE_OUTPUT_FOLDER
-        self._output_fields.setRowVisible(self.output_folder_row, custom)
+        self.output_folder_row.setVisible(custom)
         # A backup is written beside the original, so there is no destination
         # directory for a timestamped one.
-        self._timestamp_fields.setRowVisible(
-            self._timestamp_row, self.settings.save_method != SAVE_BACKUP_OVERWRITE
-        )
+        self._timestamp_row.setVisible(self.settings.save_method != SAVE_BACKUP_OVERWRITE)
 
     def _commit_output_folder(self) -> None:
         text = self.entry_output_folder.text().strip()
