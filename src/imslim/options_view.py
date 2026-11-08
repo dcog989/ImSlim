@@ -1,6 +1,7 @@
 """Column 2: output options and the Process button."""
 
 import html
+from collections.abc import Callable
 from functools import partial
 
 from PySide6.QtCore import QSize, Qt, QUrl, Signal
@@ -44,7 +45,7 @@ from .theme import accent_colors, combo_stylesheet, form_stylesheet, spinbox
 # (label, save method) in the order the design lists them.
 _DESTINATIONS: tuple[tuple[str, int], ...] = (
     (_("Overwrite original"), SAVE_BACKUP_OVERWRITE),
-    (_("Next to the original"), SAVE_NEXT_TO_ORIGINAL),
+    (_("Next to original"), SAVE_NEXT_TO_ORIGINAL),
     (_("Specified directory"), SAVE_OUTPUT_FOLDER),
 )
 
@@ -307,16 +308,23 @@ class OptionsView(QWidget):
         layout.addWidget(line)
         return divider
 
-    def _info_button(self) -> QPushButton:
-        button = QPushButton("i")
+    def _info_button(
+        self, tooltip: str | None = None, action: Callable[[], None] | None = None
+    ) -> QPushButton:
+        button = QPushButton("!")
         button.setFixedSize(28, 28)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.setToolTip(_("Format notes"))
+        button.setToolTip(tooltip or _("Format notes"))
         button.setStyleSheet("QPushButton { padding: 0; }")
-        _res = button.clicked.connect(self._show_format_notes)
+        _res = button.clicked.connect(action or self._show_format_notes)
         return button
 
     def _show_format_notes(self) -> None:
+        self._show_note_dialog(
+            _("Format notes"), "\n\n".join(_format_notes(self.settings.target_format))
+        )
+
+    def _show_note_dialog(self, title_text: str, text: str) -> None:
         dialog = QDialog(self)
         dialog.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         dialog.setModal(True)
@@ -329,12 +337,12 @@ class OptionsView(QWidget):
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(10)
-        title = QLabel(_("Format notes"))
+        title = QLabel(title_text)
         font = title.font()
         font.setBold(True)
         title.setFont(font)
         layout.addWidget(title)
-        notes = QLabel("\n\n".join(_format_notes(self.settings.target_format)))
+        notes = QLabel(text)
         notes.setWordWrap(True)
         notes.setMinimumWidth(280)
         layout.addWidget(notes)
@@ -407,6 +415,13 @@ class OptionsView(QWidget):
             self._knob_widgets.append((check, knob))
             label.setBuddy(check)
             layout.addWidget(check)
+            if knob.hint:
+                layout.addWidget(
+                    self._info_button(
+                        knob.label,
+                        partial(self._show_note_dialog, knob.label, knob.hint),
+                    )
+                )
             return row
         spin = spinbox()
         spin.setRange(knob.lower, knob.upper)
