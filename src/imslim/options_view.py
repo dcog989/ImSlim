@@ -9,12 +9,13 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
     QFileDialog,
+    QFormLayout,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QScrollArea,
     QSpinBox,
@@ -90,7 +91,7 @@ class OptionsView(QWidget):
         content = QWidget()
         form = QVBoxLayout(content)
         form.setContentsMargins(12, 12, 12, 12)
-        form.setSpacing(10)
+        form.setSpacing(8)
 
         self.combo_format: QComboBox = self._combo(
             (_("Same as input"), *(spec.display for spec in TARGET_SPECS)),
@@ -100,9 +101,10 @@ class OptionsView(QWidget):
         _res = self.combo_format.currentIndexChanged.connect(self._on_format_changed)
 
         format_row = QHBoxLayout()
+        format_row.setContentsMargins(0, 0, 0, 0)
+        format_row.setSpacing(4)
         format_row.addWidget(self.combo_format, 1)
         format_row.addWidget(self._info_button())
-        form.addLayout(self._labelled(_("Output format"), format_row))
 
         self.combo_destination: QComboBox = self._combo(
             tuple(label for label, _value in _DESTINATIONS),
@@ -113,7 +115,6 @@ class OptionsView(QWidget):
         )
         self.combo_destination.setCurrentIndex(self._destination_index())
         _res = self.combo_destination.currentIndexChanged.connect(self._on_destination_changed)
-        form.addLayout(self._labelled(_("Destination"), self.combo_destination))
 
         self.entry_output_folder: QLineEdit = QLineEdit()
         self.entry_output_folder.setPlaceholderText(_("Choose a folder"))
@@ -126,38 +127,60 @@ class OptionsView(QWidget):
         folder_layout.setContentsMargins(0, 0, 0, 0)
         folder_layout.addWidget(self.entry_output_folder, 1)
         folder_layout.addWidget(browse)
-        form.addWidget(self.output_folder_row)
 
-        self.check_timestamp_dir: QCheckBox = QCheckBox(_("New timestamped directory"))
+        self.check_timestamp_dir: QCheckBox = QCheckBox()
+        self.check_timestamp_dir.setAccessibleName(_("New timestamped directory"))
         self.check_timestamp_dir.setToolTip(
             _("Write the results into an imslim-<timestamp> directory inside the destination.")
         )
         self.check_timestamp_dir.setChecked(self.settings.timestamp_dir)
         _res = self.check_timestamp_dir.toggled.connect(self._on_timestamp_dir)
-        form.addWidget(self.check_timestamp_dir)
 
-        self.check_recursive: QCheckBox = QCheckBox(_("Include sub-directories"))
+        fields = self._form_layout()
+        fields.addRow(_("Output format"), format_row)
+        fields.addRow(_("Destination"), self.combo_destination)
+        fields.addRow("", self.output_folder_row)
+        form.addLayout(fields)
+        self._output_fields: QFormLayout = fields
+
+        timestamp_fields = self._form_layout()
+        timestamp_fields.addRow(_("New timestamped directory"), self.check_timestamp_dir)
+        form.addLayout(timestamp_fields)
+        form.addWidget(self._divider())
+
+        self.check_recursive: QCheckBox = self._check(_("Include sub-directories"))
         self.check_recursive.setChecked(self.settings.recursive)
         _res = self.check_recursive.toggled.connect(self._on_recursive)
-        form.addWidget(self.check_recursive)
 
-        self.check_metadata: QCheckBox = QCheckBox(_("Keep EXIF and metadata"))
+        self.check_metadata: QCheckBox = self._check(_("Keep EXIF and metadata"))
         self.check_metadata.setChecked(self.settings.metadata)
         _res = self.check_metadata.toggled.connect(self._on_metadata)
-        form.addWidget(self.check_metadata)
 
-        self.check_attributes: QCheckBox = QCheckBox(_("Keep file attributes"))
+        self.check_attributes: QCheckBox = self._check(_("Keep file attributes"))
         self.check_attributes.setChecked(self.settings.file_attributes)
         _res = self.check_attributes.toggled.connect(self._on_attributes)
-        form.addWidget(self.check_attributes)
 
-        self.check_skip_if_larger: QCheckBox = QCheckBox(_("Skip if the result is larger"))
+        self.check_skip_if_larger: QCheckBox = self._check(_("Skip if the result is larger"))
         self.check_skip_if_larger.setToolTip(
             _("Keep the original when compressing would not make the file smaller.")
         )
         self.check_skip_if_larger.setChecked(self.settings.skip_if_larger)
         _res = self.check_skip_if_larger.toggled.connect(self._on_skip_if_larger)
-        form.addWidget(self.check_skip_if_larger)
+
+        files = self._form_layout()
+        files.addRow(_("Include sub-directories"), self.check_recursive)
+        files.addRow(_("Keep EXIF and metadata"), self.check_metadata)
+        files.addRow(_("Keep file attributes"), self.check_attributes)
+        files.addRow(_("Skip if the result is larger"), self.check_skip_if_larger)
+        form.addLayout(files)
+        form.addWidget(self._divider())
+
+        self.combo_compression: QComboBox = self._combo(
+            (_("Lossy"), _("Lossless")),
+            _("Lossy is much smaller with some quality loss; lossless keeps the pixels exact."),
+        )
+        self.combo_compression.setCurrentIndex(0 if self.settings.lossy else 1)
+        _res = self.combo_compression.currentIndexChanged.connect(self._on_compression_changed)
 
         self.spin_timeout: QSpinBox = spinbox()
         self.spin_timeout.setRange(1, 300)
@@ -170,21 +193,17 @@ class OptionsView(QWidget):
             )
         )
         _res = self.spin_timeout.valueChanged.connect(self._on_timeout)
-        form.addLayout(self._labelled(_("Tool timeout"), self.spin_timeout))
 
-        self.combo_compression: QComboBox = self._combo(
-            (_("Lossy"), _("Lossless")),
-            _("Lossy is much smaller with some quality loss; lossless keeps the pixels exact."),
-        )
-        self.combo_compression.setCurrentIndex(0 if self.settings.lossy else 1)
-        _res = self.combo_compression.currentIndexChanged.connect(self._on_compression_changed)
-        form.addLayout(self._labelled(_("Compression"), self.combo_compression))
+        fields = self._form_layout()
+        fields.addRow(_("Compression mode"), self.combo_compression)
 
         self.knobs_container: QWidget = QWidget()
         self.knobs_layout: QVBoxLayout = QVBoxLayout(self.knobs_container)
         self.knobs_layout.setContentsMargins(0, 0, 0, 0)
         self.knobs_layout.setSpacing(8)
-        form.addWidget(self.knobs_container)
+        fields.addRow(self.knobs_container)
+        fields.addRow(_("Tool timeout"), self.spin_timeout)
+        form.addLayout(fields)
 
         form.addStretch(1)
         self._update_destination_state()
@@ -242,18 +261,34 @@ class OptionsView(QWidget):
         combo.addItems(items)
         combo.setStyleSheet(combo_stylesheet())
         combo.setToolTip(f"<div style='width: 280px'>{html.escape(tooltip)}</div>")
+        # The pane is narrow: let a combo shrink and elide its current item
+        # instead of forcing a horizontal scrollbar on the whole form.
+        combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        combo.setMinimumContentsLength(6)
         return combo
 
     @staticmethod
-    def _labelled(text: str, field: QWidget | QHBoxLayout) -> QVBoxLayout:
-        column = QVBoxLayout()
-        column.setSpacing(2)
-        column.addWidget(QLabel(text))
-        if isinstance(field, QWidget):
-            column.addWidget(field)
-        else:
-            column.addLayout(field)
-        return column
+    def _form_layout() -> QFormLayout:
+        fields = QFormLayout()
+        fields.setContentsMargins(0, 0, 0, 0)
+        fields.setHorizontalSpacing(8)
+        fields.setVerticalSpacing(6)
+        fields.setRowWrapPolicy(QFormLayout.RowWrapPolicy.DontWrapRows)
+        return fields
+
+    @staticmethod
+    def _check(label: str) -> QCheckBox:
+        """A checkbox whose text lives in the label column like every option."""
+        check = QCheckBox()
+        check.setAccessibleName(label)
+        return check
+
+    @staticmethod
+    def _divider() -> QFrame:
+        divider = QFrame()
+        divider.setFixedHeight(1)
+        divider.setStyleSheet("background-color: palette(mid); border: none;")
+        return divider
 
     @staticmethod
     def _text_button(text: str, handler: Callable[[], None]) -> QToolButton:
@@ -276,8 +311,32 @@ class OptionsView(QWidget):
         return button
 
     def _show_format_notes(self) -> None:
-        notes = _format_notes(self.settings.target_format)
-        _res = QMessageBox.information(self, _("Format notes"), "\n\n".join(notes))
+        dialog = QDialog(self)
+        dialog.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        dialog.setModal(True)
+        dialog.setStyleSheet(
+            "QDialog {"
+            + " background-color: palette(window);"
+            + " border: 1px solid palette(mid);"
+            + "}"
+        )
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setSpacing(10)
+        title = QLabel(_("Format notes"))
+        font = title.font()
+        font.setBold(True)
+        title.setFont(font)
+        layout.addWidget(title)
+        notes = QLabel("\n\n".join(_format_notes(self.settings.target_format)))
+        notes.setWordWrap(True)
+        notes.setMinimumWidth(280)
+        layout.addWidget(notes)
+        close = QPushButton(_("Close"))
+        close.setDefault(True)
+        _res = close.clicked.connect(dialog.accept)
+        layout.addWidget(close, 0, Qt.AlignmentFlag.AlignRight)
+        _res = dialog.exec()
 
     # ------------------------------------------------------------------- knobs
     def _rebuild_knobs(self) -> None:
@@ -297,6 +356,8 @@ class OptionsView(QWidget):
         else:
             specs = tuple(spec for spec in FORMAT_SPECS if spec.knobs and spec.target)
 
+        if any(spec.knobs for spec in specs):
+            self.knobs_layout.addWidget(self._divider())
         for spec in specs:
             if not spec.knobs:
                 continue
@@ -309,33 +370,43 @@ class OptionsView(QWidget):
             title_font.setBold(True)
             title.setFont(title_font)
             layout.addWidget(title)
+            knobs_row = QHBoxLayout()
+            knobs_row.setContentsMargins(0, 0, 0, 0)
+            knobs_row.setSpacing(16)
             for knob in spec.knobs:
-                layout.addWidget(self._knob_widget(knob))
+                knobs_row.addWidget(self._knob_widget(knob))
+            knobs_row.addStretch(1)
+            layout.addLayout(knobs_row)
             self.knobs_layout.addWidget(group)
+            self.knobs_layout.addWidget(self._divider())
         if self._knob_widgets:
             self._update_knob_state()
 
     def _knob_widget(self, knob: Knob) -> QWidget:
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        label = QLabel(knob.label)
+        label.setToolTip(knob.hint)
+        layout.addWidget(label)
         if knob.kind == "flag":
-            check = QCheckBox(knob.label)
+            check = QCheckBox()
+            check.setAccessibleName(knob.label)
             check.setToolTip(knob.hint)
             check.setChecked(bool(self.settings.knob(knob.key)))
             _res = check.toggled.connect(partial(self._on_knob_flag, knob.key))
             self._knob_widgets.append((check, knob))
-            return check
-        row = QWidget()
-        layout = QHBoxLayout(row)
-        layout.setContentsMargins(0, 0, 0, 0)
-        label = QLabel(knob.label)
-        label.setToolTip(knob.hint)
+            label.setBuddy(check)
+            layout.addWidget(check)
+            return row
         spin = spinbox()
         spin.setRange(knob.lower, knob.upper)
         spin.setValue(int(self.settings.knob(knob.key)))
         spin.setToolTip(knob.hint)
         _res = spin.valueChanged.connect(partial(self._on_knob_level, knob.key))
         self._knob_widgets.append((spin, knob))
-        layout.addWidget(label)
-        layout.addStretch(1)
+        label.setBuddy(spin)
         layout.addWidget(spin)
         return row
 
@@ -398,7 +469,7 @@ class OptionsView(QWidget):
 
     def _update_destination_state(self) -> None:
         custom = self.settings.save_method == SAVE_OUTPUT_FOLDER
-        self.output_folder_row.setVisible(custom)
+        self._output_fields.setRowVisible(self.output_folder_row, custom)
         # A backup is written beside the original, so there is no destination
         # directory for a timestamped one.
         self.check_timestamp_dir.setEnabled(self.settings.save_method != SAVE_BACKUP_OVERWRITE)
