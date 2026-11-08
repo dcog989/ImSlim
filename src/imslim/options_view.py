@@ -5,7 +5,7 @@ from collections.abc import Callable
 from functools import partial
 
 from PySide6.QtCore import QSize, Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QStandardItemModel
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -55,7 +55,10 @@ _BMP_TIFF_NOTE = _(
 )
 _SVG_NOTE = _("SVG images are always compressed losslessly.")
 _ANIMATION_NOTE = _("Converting an animated image keeps only its first frame.")
-_JPEG_NOTE = _("JPEG cannot encode losslessly; Lossless encodes at the highest quality instead.")
+_JPEG_NOTE = _("JPEG has no lossless encoder, so it is always compressed lossily.")
+# Index of each mode in the compression combo.
+_LOSSY_INDEX = 0
+_LOSSLESS_INDEX = 1
 
 
 def _format_notes(target: Format) -> list[str]:
@@ -183,8 +186,11 @@ class OptionsView(QWidget):
             (_("Lossy"), _("Lossless")),
             _("Lossy is much smaller with some quality loss; lossless keeps the pixels exact."),
         )
-        self.combo_compression.setCurrentIndex(0 if self.settings.lossy else 1)
+        self.combo_compression.setCurrentIndex(
+            _LOSSY_INDEX if self.settings.lossy else _LOSSLESS_INDEX
+        )
         _res = self.combo_compression.currentIndexChanged.connect(self._on_compression_changed)
+        self._update_compression_mode()
 
         self.spin_timeout: QSpinBox = spinbox()
         self.spin_timeout.setRange(1, 300)
@@ -479,8 +485,17 @@ class OptionsView(QWidget):
 
     def _on_format_changed(self, index: int) -> None:
         self.settings.target_format = Format.KEEP if index <= 0 else TARGET_SPECS[index - 1].key
+        self._update_compression_mode()
         self._rebuild_knobs()
         self.options_changed.emit()
+
+    def _update_compression_mode(self) -> None:
+        """JPEG has no lossless encoder, so Lossless is not offered for it."""
+        model = self.combo_compression.model()
+        if isinstance(model, QStandardItemModel):
+            model.item(_LOSSLESS_INDEX).setEnabled(self.settings.target_format is not Format.JPEG)
+        if self.settings.target_format is Format.JPEG:
+            self.combo_compression.setCurrentIndex(_LOSSY_INDEX)
 
     def _on_compression_changed(self, index: int) -> None:
         self.settings.lossy = index == 0
