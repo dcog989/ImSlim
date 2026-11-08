@@ -124,16 +124,21 @@ class ResultItemManager:
             output_dir, f".{os.path.basename(result_item.new_filename)}.{uuid4().hex[:8]}.tmp"
         )
 
-    def create_new_filename(self, path: str, mime: str) -> str:
+    def create_new_filename(self, path: str, mime: str, *, create_dir: bool = True) -> str:
+        """The output path for `path`; `create_dir` false only predicts it."""
         if is_converting(self.options.target_format):
             # Conversion always writes a new file in the target's format; it
             # must never overwrite a source that may have a different extension.
             return self._output_path(
-                path, _OUTPUT_MARKER, mime, TARGET_EXTENSIONS[self.options.target_format]
+                path,
+                _OUTPUT_MARKER,
+                mime,
+                TARGET_EXTENSIONS[self.options.target_format],
+                create_dir=create_dir,
             )
         if self.options.save_method == SAVE_BACKUP_OVERWRITE and mime not in OUTPUT_EXTENSIONS:
             return path
-        return self._output_path(path, _OUTPUT_MARKER, mime)
+        return self._output_path(path, _OUTPUT_MARKER, mime, create_dir=create_dir)
 
     def create_backup_filename(self, path: str, mime: str) -> str:
         return self._output_path(path, _BACKUP_MARKER, mime)
@@ -147,7 +152,7 @@ class ResultItemManager:
         # Overwriting in place has no destination folder to put a directory in.
         return self.options.timestamp_dir and self.options.save_method != SAVE_BACKUP_OVERWRITE
 
-    def _output_parent(self, path: str) -> str:
+    def _output_parent(self, path: str, *, create_dir: bool = True) -> str:
         parent = (
             self.options.output_folder
             if self.options.save_method == SAVE_OUTPUT_FOLDER and self.options.output_folder
@@ -156,7 +161,7 @@ class ResultItemManager:
         if not self._uses_timestamp_dir():
             return parent
         stamp_dir = os.path.join(parent, f"{_OUTPUT_MARKER}-{self._batch_timestamp}")
-        if stamp_dir not in self._timestamp_dirs:
+        if create_dir and stamp_dir not in self._timestamp_dirs:
             try:
                 os.makedirs(stamp_dir, exist_ok=True)
             except OSError as err:
@@ -166,7 +171,13 @@ class ResultItemManager:
         return stamp_dir
 
     def _output_path(
-        self, path: str, marker: str, mime: str, extension_override: str | None = None
+        self,
+        path: str,
+        marker: str,
+        mime: str,
+        extension_override: str | None = None,
+        *,
+        create_dir: bool = True,
     ) -> str:
         basename = os.path.basename(path)
         stem, extension = os.path.splitext(basename)
@@ -175,7 +186,7 @@ class ResultItemManager:
             if extension_override is not None
             else OUTPUT_EXTENSIONS.get(mime, extension)
         )
-        parent = self._output_parent(path)
+        parent = self._output_parent(path, create_dir=create_dir)
         if self._uses_timestamp_dir():
             base = os.path.join(parent, stem)
         else:

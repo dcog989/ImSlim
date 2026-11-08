@@ -134,6 +134,14 @@ class BatchFlow(QObject):
             self.compression_enabled.emit,
         )
 
+    def planned_destination(self, result_item: ResultItem) -> str:
+        """Where this file would be written now, timestamped directory included."""
+        options = BatchOptions.from_settings(self._settings)
+        manager = ResultItemManager(options)
+        return manager.create_new_filename(
+            result_item.filename, result_item.mime_type, create_dir=False
+        )
+
     def preview(
         self,
         result_item: ResultItem,

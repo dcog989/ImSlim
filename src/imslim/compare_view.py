@@ -253,12 +253,32 @@ class CompareView(QWidget):
         header_layout.addWidget(self.size_label)
         header_layout.addWidget(self.time_label)
 
+        self.processed_path: ElidedLabel = ElidedLabel()
+        self.processed_size: QLabel = QLabel()
+        self.processed_savings: QLabel = QLabel()
+        for label in (self.processed_size, self.processed_savings):
+            apply_muted_palette(label)
+        processed_header = QWidget()
+        processed_header_layout = QHBoxLayout(processed_header)
+        processed_header_layout.setContentsMargins(12, 6, 12, 6)
+        processed_header_layout.setSpacing(12)
+        processed_header_layout.addWidget(self.processed_path, 1)
+        processed_header_layout.addWidget(self.processed_size)
+        processed_header_layout.addWidget(self.processed_savings)
+        processed_container = QWidget()
+        processed_layout = QVBoxLayout(processed_container)
+        processed_layout.setContentsMargins(0, 0, 0, 0)
+        processed_layout.setSpacing(0)
+        processed_layout.addWidget(processed_header)
+        processed_layout.addWidget(self._processed, 1)
+
         splitter = QSplitter(Qt.Orientation.Vertical)
         splitter.setHandleWidth(4)
         splitter.setStyleSheet(splitter_stylesheet())
         _res = splitter.addWidget(self._original)
-        _res = splitter.addWidget(self._processed)
+        _res = splitter.addWidget(processed_container)
         splitter.setChildrenCollapsible(False)
+        _res = splitter.setSizes([1, 1])
         self._splitter: QSplitter = splitter
         _res = splitter.handle(1).installEventFilter(self)
 
@@ -299,14 +319,30 @@ class CompareView(QWidget):
         )
         self._load(self._original, path, _("Loading…"))
 
-    def show_processed(self, path: str | None) -> None:
+    def show_processed(
+        self,
+        path: str | None,
+        size: int = 0,
+        savings: int = 0,
+        *,
+        destination: str | None = None,
+    ) -> None:
+        """Show `path` and label it with `destination` when they differ."""
         if path is None:
             self.clear_processed()
             return
+        shown = destination or path
+        self.processed_path.setText(shown)
+        self.processed_path.setToolTip(shown)
+        self.processed_size.setText(sizeof_fmt(size) if size else "")
+        self.processed_savings.setText(f"{savings}%" if size else "")
         self._load(self._processed, path, _("Loading…"))
 
     def clear_processed(self, placeholder: str | None = None) -> None:
         self._tokens[self._processed] = -1
+        self.processed_path.setText("")
+        self.processed_size.setText("")
+        self.processed_savings.setText("")
         self._processed.set_placeholder(placeholder or _("The processed image appears here."))
 
     def clear(self) -> None:

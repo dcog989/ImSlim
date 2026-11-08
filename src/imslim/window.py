@@ -30,6 +30,7 @@ from .clipboard_intake import ClipboardIntake, urls_to_paths
 from .compare_view import CompareView
 from .composition import AppContext
 from .dialogs import AboutDialog, CompletionDialog, ProgressDialog
+from .format import savings_percent
 from .formats import MIME_TO_FORMAT, TARGET_EXTENSIONS, image_filter, is_converting
 from .icons import imslim_icon
 from .options_view import OptionsView
@@ -258,7 +259,11 @@ class ImSlimWindow(QWidget):
             and os.path.exists(result_item.new_filename)
         )
         if has_result:
-            self.compare.show_processed(result_item.new_filename)
+            self.compare.show_processed(
+                result_item.new_filename,
+                result_item.new_size,
+                savings_percent(result_item.size, result_item.new_size),
+            )
         elif self.flow.active:
             # No preview runs mid-batch, so the source is the only reference.
             self.compare.show_processed(result_item.filename)
@@ -321,7 +326,12 @@ class ImSlimWindow(QWidget):
             or result.state is not ResultState.DONE
         ):
             return
-        self.compare.show_processed(result.new_filename)
+        self.compare.show_processed(
+            result.new_filename,
+            result.new_size,
+            savings_percent(result.size, result.new_size),
+            destination=self.flow.planned_destination(item),
+        )
         # Drop the previous preview file: the pane already holds its pixels.
         for name in os.listdir(self._preview_dir):
             if name != os.path.basename(result.new_filename):
