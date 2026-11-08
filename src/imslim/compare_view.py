@@ -12,6 +12,7 @@ from PySide6.QtGui import (
     QPaintEvent,
     QPalette,
     QResizeEvent,
+    QShowEvent,
     QWheelEvent,
 )
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSplitter, QVBoxLayout, QWidget
@@ -265,6 +266,7 @@ class CompareView(QWidget):
         processed_header_layout.addWidget(self.processed_path, 1)
         processed_header_layout.addWidget(self.processed_size)
         processed_header_layout.addWidget(self.processed_savings)
+        self._processed_header: QWidget = processed_header
         processed_container = QWidget()
         processed_layout = QVBoxLayout(processed_container)
         processed_layout.setContentsMargins(0, 0, 0, 0)
@@ -278,7 +280,6 @@ class CompareView(QWidget):
         _res = splitter.addWidget(self._original)
         _res = splitter.addWidget(processed_container)
         splitter.setChildrenCollapsible(False)
-        _res = splitter.setSizes([1, 1])
         self._splitter: QSplitter = splitter
         _res = splitter.handle(1).installEventFilter(self)
 
@@ -305,9 +306,23 @@ class CompareView(QWidget):
     @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if event.type() == QEvent.Type.MouseButtonDblClick:
-            self._splitter.setSizes([1, 1])
+            self._split_evenly()
             return True
         return super().eventFilter(watched, event)
+
+    @override
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self._split_evenly()
+
+    def _split_evenly(self) -> None:
+        """Give both images half the height; the after header sits on top."""
+        header = self._processed_header.height() or self._processed_header.sizeHint().height()
+        total = self._splitter.height() - self._splitter.handleWidth()
+        half = (total - header) // 2
+        if half <= 0:
+            return
+        self._splitter.setSizes([half, half + header])
 
     def show_original(self, path: str, size: int = 0, mtime: float = 0.0) -> None:
         """Show `path` on top and its name, size and timestamp in the header."""
