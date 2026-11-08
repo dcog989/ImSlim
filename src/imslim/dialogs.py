@@ -92,7 +92,10 @@ class ProgressDialog(QDialog):
             return
         self.bar.setRange(0, total)
         self.bar.setValue(done)
-        self.label.setText(_("{done} of {total} images").format(done=done, total=total))
+        # A figure space is digit-width, so the centred counter keeps its place
+        # when the done count gains a digit.
+        done_text = str(done).rjust(len(str(total)), "\u2007")
+        self.label.setText(_("{done} of {total} images").format(done=done_text, total=total))
 
 
 def batch_size_totals(result_items: list[ResultItem]) -> tuple[int, int]:
