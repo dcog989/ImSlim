@@ -360,7 +360,9 @@ class OptionsView(QWidget):
         if is_converting(target):
             specs = (FORMAT_BY_KEY[target],)
         else:
-            specs = tuple(spec for spec in FORMAT_SPECS if spec.knobs and spec.target)
+            # Keeping the source format means any of them can be the output;
+            # show every format's knobs, not only the conversion targets.
+            specs = tuple(spec for spec in FORMAT_SPECS if spec.knobs)
 
         if any(spec.knobs for spec in specs):
             self.knobs_layout.addWidget(self._divider())
