@@ -43,7 +43,7 @@ from .theme import accent_colors, combo_stylesheet, form_stylesheet, spinbox
 
 # (label, save method) in the order the design lists them.
 _DESTINATIONS: tuple[tuple[str, int], ...] = (
-    (_("Overwrite the original (backup)"), SAVE_BACKUP_OVERWRITE),
+    (_("Overwrite original"), SAVE_BACKUP_OVERWRITE),
     (_("Next to the original"), SAVE_NEXT_TO_ORIGINAL),
     (_("Specified directory"), SAVE_OUTPUT_FOLDER),
 )
@@ -160,7 +160,7 @@ class OptionsView(QWidget):
         self.check_attributes.setChecked(self.settings.file_attributes)
         _res = self.check_attributes.toggled.connect(self._on_attributes)
 
-        self.check_skip_if_larger: QCheckBox = self._check(_("Skip if the result is larger"))
+        self.check_skip_if_larger: QCheckBox = self._check(_("Skip if result is larger"))
         self.check_skip_if_larger.setToolTip(
             _("Keep the original when compressing would not make the file smaller.")
         )
@@ -171,7 +171,7 @@ class OptionsView(QWidget):
         files.addRow(_("Include sub-directories"), self.check_recursive)
         files.addRow(_("Keep EXIF and metadata"), self.check_metadata)
         files.addRow(_("Keep file attributes"), self.check_attributes)
-        files.addRow(_("Skip if the result is larger"), self.check_skip_if_larger)
+        files.addRow(_("Skip if result is larger"), self.check_skip_if_larger)
         form.addLayout(files)
         form.addWidget(self._divider())
 

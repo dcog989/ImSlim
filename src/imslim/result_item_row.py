@@ -136,9 +136,6 @@ class ResultItemRow(QWidget):
         _res = self.thumbnail.clicked.connect(self.clicked.emit)
         self.title_label: ElidedLabel = ElidedLabel(os.path.basename(result_item.filename))
         self.title_label.setToolTip(result_item.filename)
-        title_font = self.title_label.font()
-        title_font.setBold(True)
-        self.title_label.setFont(title_font)
         # The name keeps priority; the size/timestamp summary gives way first.
         self.title_label.setMinimumWidth(60)
         self.title_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
