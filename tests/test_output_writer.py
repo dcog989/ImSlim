@@ -22,6 +22,8 @@ def _options(
     output_folder: str = "",
     target_format: Format = Format.KEEP,
     file_attributes: bool = False,
+    *,
+    skip_if_larger: bool = True,
 ) -> BatchOptions:
     return BatchOptions(
         save_method=save_method,
@@ -33,6 +35,7 @@ def _options(
         file_attributes=file_attributes,
         compression_timeout=60,
         knobs=FORMAT_DEFAULT_KNOBS,
+        skip_if_larger=skip_if_larger,
     )
 
 
@@ -176,3 +179,16 @@ def test_finalize_restores_mode_and_times(tmp_path) -> None:
     assert stat.S_IMODE(final.st_mode) == 0o640
     assert final.st_atime == pytest.approx(1_700_000_000, abs=1)
     assert final.st_mtime == pytest.approx(1_700_000_000, abs=1)
+
+
+def test_finalize_keeps_a_larger_output_when_skip_is_disabled(tmp_path) -> None:
+    source = tmp_path / "photo.png"
+    source.write_bytes(_COMPRESSED)
+    tmp_file = _tmp_file(tmp_path, b"a much larger compressed result")
+    new_file = tmp_path / "photo.imslim.20240102030405.png"
+    item = _item(source, tmp_file, new_filename=new_file)
+
+    OutputWriter().finalize(item, _options(SAVE_NEXT_TO_ORIGINAL, skip_if_larger=False))
+
+    assert item.state is not ResultState.SKIPPED
+    assert new_file.read_bytes() == b"a much larger compressed result"

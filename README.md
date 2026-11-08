@@ -18,8 +18,13 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail) - feature parity + much
 - convert any input format to any supported output format.
 - optionally strip metadata (EXIF/XMP/JUMBF), reset file attributes.
 - save output next to the original, to a custom folder, or backup->overwrite originals.
+- optionally write the results into an `imslim-<timestamp>` directory.
+- skip files whose compressed result would be larger.
 - recurse directories for batch compression.
+- three-column window: queue, options, and a live original/processed comparison.
+- right-click a queued file for Copy Path and Properties (dimensions, byte size, EXIF, timestamps).
 - drop files or folders on the window, or paste copied files or an image with `Ctrl+V`.
+- ImSlimNow: process files straight from a file manager, without the main window.
 - configurable compression timeout, log level and log rotation.
 - follows the system light/dark theme; UI strings are translatable.
 
@@ -38,12 +43,13 @@ This copies the AppImage to `~/Applications`, adds ImSlim to your application me
 ## Command line
 
 ```sh
-imslim [FILES...]    # compress the given files and folders
-imslim --help        # usage
-imslim --version     # version
+imslim [FILES...]        # queue the given files and folders, then open the window
+imslim --now FILES...    # process them immediately, without the main window
+imslim --help            # usage
+imslim --version         # version
 ```
 
-Paths are handed to an already running ImSlim; without arguments the main window opens.
+Paths are handed to an already running ImSlim; without arguments the main window opens. ImSlimNow takes no single-instance lock, so it runs alongside the GUI and exits with `0` on success, `1` when some files failed and `2` on a usage or environment error.
 
 ---
 
@@ -61,7 +67,7 @@ ImSlim is built with Python / PySide6. The compression libraries are built from 
 - [gifsicle](https://www.lcdf.org/gifsicle/)
 - [svgo](https://github.com/svg/svgo)
 
-The AppImage and wheel carry these binaries, so no system tools are needed at runtime. Logs are written to `~/.local/state/ImSlim/imslim.log` (rotating; level and retention are set in the settings dialog).
+The AppImage and wheel carry these binaries, so no system tools are needed at runtime. Logs are written to `~/.local/state/ImSlim/imslim.log` (rotating).
 
 ### Development
 
@@ -107,4 +113,4 @@ UI strings are wrapped in `_()` from `imslim._i18n`, which loads gettext catalog
 
 ## License
 
-[GNU General Public License v3](LICENSE)
+[GNU General Public License v3.0](LICENSE)

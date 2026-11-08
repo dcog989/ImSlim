@@ -30,18 +30,14 @@ _res = atexit.register(_stop_listener)
 def configure_logging(settings: SettingsManager | None = None) -> None:
     """Install console and rotating-file handlers from the log settings.
 
-    Re-entrant: runs at startup and again whenever the log settings change in
-    the settings dialog, so those changes take effect without a restart. Any
-    previously installed handlers are removed (file handlers closed) first;
-    a level of NONE disables logging entirely.
+    Re-entrant: a second call replaces the handlers, which keeps tests and the
+    ImSlimNow entry point from stacking output. Any previously installed
+    handlers are removed (file handlers closed) first; a level of NONE disables
+    logging entirely.
 
     Records reach the handlers through a queue: worker threads log while the
-    settings dialog may be closing the old file handler, and writing to a
-    closed stream from another thread raises.
-
-    ``settings`` may be passed in to reuse the live SettingsManager instance
-    (whose writes are not synced to disk until close); a fresh instance reads
-    stale values mid-edit.
+    old file handler is being closed, and writing to a closed stream from
+    another thread raises.
     """
     global _listener
 

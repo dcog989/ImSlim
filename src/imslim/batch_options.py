@@ -24,6 +24,8 @@ class BatchOptions:
     file_attributes: bool
     compression_timeout: int
     knobs: Mapping[str, int | bool]
+    skip_if_larger: bool = True
+    timestamp_dir: bool = False
 
     @classmethod
     def from_settings(cls, settings: SettingsManager) -> BatchOptions:
@@ -37,6 +39,8 @@ class BatchOptions:
             file_attributes=settings.file_attributes,
             compression_timeout=settings.compression_timeout,
             knobs={key: settings.knob(key) for key in FORMAT_KNOB_KEYS},
+            skip_if_larger=settings.skip_if_larger,
+            timestamp_dir=settings.timestamp_dir,
         )
 
     def flag(self, key: str) -> bool:

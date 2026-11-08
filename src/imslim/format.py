@@ -2,16 +2,24 @@ import functools
 
 from PySide6.QtCore import QLocale
 
+# KB is the smallest unit shown and one decimal is as fine as it gets; above
+# 100 units the fraction is noise in a list, so it is dropped.
+_SIZE_UNITS: tuple[str, ...] = ("KB", "MB", "GB", "TB")
+_MIN_KB = 0.1
+_MAX_FRACTION_VALUE = 100.0
+
 
 def sizeof_fmt(num: float | None) -> str:
     if num is None or num < 0:
         return ""
-    value = float(num)
-    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
-        if value < 1024.0 or unit == "TiB":
-            if unit == "B":
-                return f"{int(value)} {unit}"
-            return f"{value:.1f}".replace(".", _decimal_separator()) + f" {unit}"
+    value = float(num) / 1024.0
+    if value < _MIN_KB:
+        return "0.1 KB"
+    for unit in _SIZE_UNITS:
+        if value < 1024.0 or unit == _SIZE_UNITS[-1]:
+            if value < _MAX_FRACTION_VALUE:
+                return f"{value:.1f}".replace(".", _decimal_separator()) + f" {unit}"
+            return f"{value:.0f} {unit}"
         value /= 1024.0
     return ""
 

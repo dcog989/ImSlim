@@ -8,22 +8,26 @@
 
 ### Key Files
 
-- `src/imslim/main.py` — entry point / application bootstrap, CLI args (`--help`/`--version`) and single-instance server
-- `src/imslim/window.py` — main window UI, mode toggle, home view, drag & drop
-- `src/imslim/results_view.py` — `ResultsView`: results page, chunked result rows, busy overlay
+- `src/imslim/main.py` — entry point / application bootstrap, CLI args (`--help`/`--version`/`--now`), single-instance server and the ImSlimNow path
+- `src/imslim/window.py` — main window: three-column splitter (queue / options / comparison), drag & drop, batch lifecycle and the completion dialog
+- `src/imslim/queue_view.py` — column 1: persistent file queue, multi-select, view toggle, thumbnail zoom, per-file state
+- `src/imslim/options_view.py` — column 2: format, destination, checkboxes, per-format knobs and the Process button
+- `src/imslim/compare_view.py` / `preview.py` — column 3: zoomable/pannable original-vs-processed split; preview decode uses the bundled decoders for formats Qt cannot read
+- `src/imslim/dialogs.py` — batch progress dialog, completion summary and the About window
+- `src/imslim/properties.py` / `exif.py` — per-file Properties dialog (exact dimensions, byte size, EXIF) and its minimal, dependency-free EXIF/TIFF reader
+- `src/imslim/now.py` — `NowRunner`: ImSlimNow's analyze→compress run, dialogs and exit codes
 - `src/imslim/result_item.py` / `result_item_manager.py` / `result_item_row.py` — per-file state, intake/analysis and the results row widget (thumbnails)
 - `src/imslim/clipboard_intake.py` — `ClipboardIntake`: paste-to-paths (URLs or saved image) and temp-dir cleanup
 - `src/imslim/composition.py` — `AppContext` / `build_app_context()`: assembles settings, compression manager and batch flow
-- `src/imslim/batch_flow.py` / `batch_options.py` / `batch_summary.py` — one analyze→compress→summary batch, its immutable options snapshot and its counters
+- `src/imslim/batch_flow.py` / `batch_options.py` / `batch_summary.py` — analysis and the analyze→compress→summary batch, its immutable options snapshot and its counters
 - `src/imslim/workers.py` — pooled background tasks (analyze, version probe)
-- `src/imslim/settings/` — settings dialog: `dialog.py` hosts the tabbed `SettingsDialog`, with one widget per tab (`general_tab.py`, `formats_tab.py`, `about_tab.py`), shared signal/handler helpers in `tab.py` and shared styling in `style.py`
 - `src/imslim/settings_manager.py` — persistent settings/state store (`log_file_path()` included)
 - `src/imslim/commands.py` — `Command` (`argv` or in-process `action`, plus `temp_files`) and `tokens`
 - `src/imslim/compressor.py` — `Compressor` ABC: subclasses produce pure command lists in `build_command()`
 - `src/imslim/command_runner.py` — `CommandRunner` (killable subprocess execution) and `CompressionContext` (batch cancellation)
 - `src/imslim/pipeline.py` — `CompressionPipeline`: runs a compressor's commands, finalizes output, cleans up and reports errors
 - `src/imslim/conversion.py` — `decode_commands()`: bundled decoder or Qt fallback that turns any source into PNG
-- `src/imslim/output_writer.py` — `OutputWriter`: moves the temp result into place (skip-if-larger, backups, attributes)
+- `src/imslim/output_writer.py` — `OutputWriter`: moves the temp result into place (optional skip-if-larger, backups, attributes)
 - `src/imslim/binary_resolver.py` — resolves bundled/PATH compression tools (`KNOWN_TOOLS`)
 - `src/imslim/image_convert.py` — Qt-based decode-to-PNG helper (BMP/TIFF → cwebp input)
 - `src/imslim/jpeg_metadata.py` — `transfer_metadata()`: carries EXIF/XMP/JUMBF from the source onto the JPEG output (or drops it)
@@ -39,6 +43,7 @@
 
 - Install: `uv sync`
 - Dev: `uv run imslim` (or `python -m imslim`; `make run`)
+- Headless batch: `uv run imslim --now FILES...`
 - Build bundled tools: `./scripts/build_tools.sh` (populates `src/imslim/bin/linux-x86_64/`); run after a fresh clone so the app has its backends. Pinned in `tools.lock`; `--update` refreshes pins, `--check` reports stale ones
 - Test: `uv run pytest`
 - Type-check: `uv run basedpyright src/imslim`
@@ -60,7 +65,7 @@
 
 ### Common Patterns
 
-- Add a setting: Add key + accessors in `src/imslim/settings_manager.py`, expose it in the relevant tab under `src/imslim/settings/`, and consume it via `BatchOptions` / the relevant compressor under `src/imslim/compressors/`.
+- Add a setting: Add key + accessors in `src/imslim/settings_manager.py`, expose it in `src/imslim/options_view.py` (or the About view for app-level info), and consume it via `BatchOptions` / the relevant compressor under `src/imslim/compressors/`.
 - Add a format: Create a compressor subclass in `src/imslim/compressors/`, add it to `ALL_COMPRESSORS` in `src/imslim/compressors/__init__.py`, and add a `FormatSpec` to `FORMAT_SPECS` in `src/imslim/formats.py` (MIME + extensions, decoder, knobs). Every lookup table, the file-dialog filter, the settings defaults and the format selector are derived from it.
 - Add a decoder: map the source MIME to a bundled tool in `DECODER_TOOLS` (`src/imslim/formats.py`), add the tool to `KNOWN_TOOLS` in `src/imslim/binary_resolver.py` and build it in `scripts/build_tools.sh` + `tools.lock`. Without a decoder, `decode_commands()` falls back to Qt decoding via `image_convert.to_png()`.
 - Translate a string: wrap it in `_()` from `imslim._i18n`, then run `./scripts/translations.sh all`. Add a language with `./scripts/translations.sh init <lang>`, translate its `.po`, and rerun.

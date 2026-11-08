@@ -50,6 +50,11 @@ MimeType=image/png;image/jpeg;image/gif;image/webp;image/avif;image/jxl;image/sv
 EOF
 fi
 
+if [[ -f "$ROOT/assets/imslim-now.desktop" ]]; then
+    sed "s|^Exec=.*|Exec=\"$TARGET\" --now %F|" "$ROOT/assets/imslim-now.desktop" \
+        > "$DESKTOP_DIR/imslim-now.desktop"
+fi
+
 ICON_SOURCE="$ROOT/src/imslim/assets/imslim.svg"
 if [[ -f "$ICON_SOURCE" ]]; then
     install -Dm644 "$ICON_SOURCE" "$ICON_DIR/imslim.svg"

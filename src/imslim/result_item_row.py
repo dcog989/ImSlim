@@ -1,27 +1,25 @@
 import os
+import time
 from collections.abc import Callable
 from typing import override
 
-from PySide6.QtCore import QSize, Qt, QThreadPool, QUrl, Signal
+from PySide6.QtCore import QSize, Qt, QThreadPool, Signal
 from PySide6.QtGui import (
-    QAction,
     QColor,
     QContextMenuEvent,
-    QDesktopServices,
-    QGuiApplication,
     QIcon,
     QImage,
     QMouseEvent,
+    QPalette,
     QPixmap,
 )
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
-    QMenu,
     QMessageBox,
     QProgressBar,
+    QSizePolicy,
     QToolButton,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -29,8 +27,10 @@ from ._i18n import _
 from .format import savings_percent, sizeof_fmt
 from .icons import circle_off_icon, shield_alert_icon, triangle_alert_icon
 from .image_utils import create_thumbnail_qimage
+from .item_menu import build_item_menu
 from .result_item import ResultItem, ResultState
-from .theme import style_menu
+from .theme import accent_color, muted_color
+from .widgets import ElidedLabel
 from .workers import Task
 
 # Thumbnails are background work while compression owns the other cores, so one
@@ -99,64 +99,54 @@ class _ClickableThumbnail(QLabel):
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
-        super().mouseReleaseEvent(event)
-
-
-class _SelectableLabel(QLabel):
-    """Selectable label whose text menu matches the app's styled menus.
-
-    QLabel's built-in context menu bypasses style_menu, so the standard Copy
-    and Select All actions are rebuilt here with the shared styling.
-    """
+        # Accept so the release does not also reach the row and select twice.
+        event.accept()
 
     @override
-    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         event.accept()
-        menu = QMenu(self)
-        style_menu(menu)
-        copy = QAction(_("Copy"), menu)
-        copy.setEnabled(bool(self.selectedText()))
-        _res = copy.triggered.connect(self._copy_selection)
-        select_all = QAction(_("Select All"), menu)
-        _res = select_all.triggered.connect(self._select_all)
-        menu.addAction(copy)
-        menu.addAction(select_all)
-        _res = menu.exec(event.globalPos())
-
-    def _copy_selection(self) -> None:
-        text = self.selectedText()
-        if text:
-            QGuiApplication.clipboard().setText(text)
-
-    def _select_all(self) -> None:
-        self.setSelection(0, len(self.text()))
 
 
 class ResultItemRow(QWidget):
+    clicked: Signal = Signal()
+
     def __init__(
         self,
         result_item: ResultItem,
         parent: QWidget | None = None,
         *,
         with_thumbnail: bool = True,
+        thumbnail_size: int = _THUMBNAIL_SIZE,
+        show_date: bool = True,
     ) -> None:
         super().__init__(parent)
         self.result_item: ResultItem = result_item
+        self._show_date: bool = show_date
+        self._alternate: bool = False
+        self._selected: bool = False
+        # Captured before any background override so a repaint does not blend
+        # an already-blended color into itself.
+        self._base_palette: QPalette = self.palette()
 
         self.thumbnail: _ClickableThumbnail = _ClickableThumbnail()
-        self.thumbnail.setFixedSize(_THUMBNAIL_SIZE, _THUMBNAIL_SIZE)
+        self.thumbnail.setFixedSize(thumbnail_size, thumbnail_size)
+        self.thumbnail.setVisible(with_thumbnail)
         self.thumbnail.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.thumbnail.setCursor(Qt.CursorShape.PointingHandCursor)
-        _res = self.thumbnail.clicked.connect(self._open_compressed)
-        self.title_label: QLabel = QLabel(result_item.filename)
+        _res = self.thumbnail.clicked.connect(self.clicked.emit)
+        self.title_label: ElidedLabel = ElidedLabel(os.path.basename(result_item.filename))
+        self.title_label.setToolTip(result_item.filename)
         title_font = self.title_label.font()
         title_font.setBold(True)
         self.title_label.setFont(title_font)
-        self.title_label.setWordWrap(True)
-        self.subtitle_label: _SelectableLabel = _SelectableLabel()
+        # The name keeps priority; the size/timestamp summary gives way first.
+        self.title_label.setMinimumWidth(60)
+        self.title_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        self.subtitle_label: ElidedLabel = ElidedLabel()
         self.subtitle_label.setObjectName("rowSubtitle")
-        self.subtitle_label.setWordWrap(True)
-        self.subtitle_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.subtitle_label.setSizePolicy(
+            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
+        )
 
         self.savings_label: QLabel = QLabel()
         self.savings_label.setObjectName("rowSavings")
@@ -177,16 +167,12 @@ class ResultItemRow(QWidget):
             self._show_warning_info, warning_icon
         )
 
-        text_vbox = QVBoxLayout()
-        text_vbox.setSpacing(0)
-        text_vbox.addWidget(self.title_label)
-        text_vbox.addWidget(self.subtitle_label)
-
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 8, 12, 8)
         layout.setSpacing(8)
         layout.addWidget(self.thumbnail)
-        layout.addLayout(text_vbox, 1)
+        layout.addWidget(self.title_label, 1)
+        layout.addWidget(self.subtitle_label)
         layout.addWidget(self.savings_label)
         layout.addWidget(self.spinner)
         layout.addWidget(self.skipped_button)
@@ -195,7 +181,7 @@ class ResultItemRow(QWidget):
 
         self._thumbnail_task: _ThumbnailTask | None = None
         if with_thumbnail:
-            task = _ThumbnailTask(result_item.filename, _THUMBNAIL_SIZE)
+            task = _ThumbnailTask(result_item.filename, thumbnail_size)
             self._thumbnail_task = task
             _res = task.loaded.connect(self._set_thumbnail)
             _THUMBNAIL_POOL.start(task)
@@ -205,7 +191,12 @@ class ResultItemRow(QWidget):
     def _set_thumbnail(self, image: QImage | None) -> None:
         self._thumbnail_task = None
         if image is None:
+            # Qt cannot read AVIF/JXL here; a format badge keeps the row readable
+            # without spawning a decoder process per listed file.
+            extension = os.path.splitext(self.result_item.filename)[1].lstrip(".")
+            self.thumbnail.setText(extension.upper() or "?")
             return
+        self.thumbnail.setText("")
         self.thumbnail.setPixmap(QPixmap.fromImage(image))
 
     def stop_thumbnail_loader(self) -> None:
@@ -244,6 +235,8 @@ class ResultItemRow(QWidget):
                 subtitle = _("Already optimal")
             case _:
                 subtitle = sizeof_fmt(item.size)
+                if self._show_date and item.mtime > 0:
+                    subtitle += " · " + time.strftime("%Y-%m-%d %H:%M", time.localtime(item.mtime))
         self.subtitle_label.setText(subtitle)
         self.savings_label.setText(_savings_text(item))
         self.savings_label.setVisible(item.state is not ResultState.IDLE and not running)
@@ -253,6 +246,38 @@ class ResultItemRow(QWidget):
             item.state is ResultState.ERROR and bool(item.error_details_message)
         )
         self.warning_button.setVisible(bool(item.warning_message) and not running)
+
+    def set_selected(self, selected: bool) -> None:
+        if selected == self._selected:
+            return
+        self._selected = selected
+        self._apply_background()
+
+    def set_alternate(self, alternate: bool) -> None:
+        if alternate == self._alternate:
+            return
+        self._alternate = alternate
+        self._apply_background()
+
+    def _apply_background(self) -> None:
+        palette = QPalette(self._base_palette)
+        window = palette.color(QPalette.ColorRole.Window)
+        base = palette.color(QPalette.ColorRole.Base)
+        if self._selected:
+            color = muted_color(accent_color(), base, 0.55)
+        elif self._alternate:
+            color = muted_color(base, window, 0.6)
+        else:
+            color = window
+        palette.setColor(QPalette.ColorRole.Window, color)
+        self.setPalette(palette)
+        self.setAutoFillBackground(True)
+
+    @override
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
 
     def _show_skipped_info(self) -> None:
         _res = QMessageBox.information(
@@ -284,53 +309,9 @@ class ResultItemRow(QWidget):
     @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         # Accept unconditionally so the window's paste menu does not appear when
-        # right-clicking a row; the menu itself offers original-file actions even
-        # when the compression produced no output.
+        # right-clicking a row.
         event.accept()
-
-        menu = QMenu(self)
-        style_menu(menu)
-        if self._compressed_exists():
-            open_image = QAction(_("Open Image"), menu)
-            _res = open_image.triggered.connect(self._open_compressed)
-            show_in_folder = QAction(_("Show in Folder"), menu)
-            _res = show_in_folder.triggered.connect(self._show_in_folder)
-            menu.addAction(open_image)
-            menu.addAction(show_in_folder)
-        if self._original_exists():
-            show_original = QAction(_("Show Original in Folder"), menu)
-            _res = show_original.triggered.connect(self._show_original_in_folder)
-            menu.addAction(show_original)
-        if self.result_item.state is ResultState.ERROR and self.result_item.error_details_message:
-            copy_error = QAction(_("Copy Error Details"), menu)
-            _res = copy_error.triggered.connect(self._copy_error_details)
-            menu.addAction(copy_error)
+        menu = build_item_menu(self.result_item, self)
         if menu.isEmpty():
             return
         _res = menu.exec(event.globalPos())
-
-    def _compressed_exists(self) -> bool:
-        return bool(self.result_item.new_filename) and os.path.exists(self.result_item.new_filename)
-
-    def _open_compressed(self) -> None:
-        if not self._compressed_exists():
-            return
-        _res = QDesktopServices.openUrl(QUrl.fromLocalFile(self.result_item.new_filename))
-
-    def _show_in_folder(self) -> None:
-        if not self._compressed_exists():
-            return
-        folder = os.path.dirname(self.result_item.new_filename)
-        _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
-
-    def _original_exists(self) -> bool:
-        return bool(self.result_item.filename) and os.path.exists(self.result_item.filename)
-
-    def _show_original_in_folder(self) -> None:
-        if not self._original_exists():
-            return
-        folder = os.path.dirname(self.result_item.filename)
-        _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
-
-    def _copy_error_details(self) -> None:
-        QGuiApplication.clipboard().setText(self.result_item.error_details_message)

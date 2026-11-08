@@ -3,7 +3,11 @@ import pytest
 from imslim.batch_options import BatchOptions
 from imslim.formats import Format
 from imslim.result_item_manager import ResultItemManager, is_generated_output
-from imslim.settings_manager import SAVE_NEXT_TO_ORIGINAL, SAVE_OUTPUT_FOLDER
+from imslim.settings_manager import (
+    SAVE_BACKUP_OVERWRITE,
+    SAVE_NEXT_TO_ORIGINAL,
+    SAVE_OUTPUT_FOLDER,
+)
 
 _TIMESTAMP = "20240102030405"
 
@@ -13,7 +17,12 @@ def frozen_timestamp(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("imslim.result_item_manager.time.strftime", lambda _fmt: _TIMESTAMP)
 
 
-def _options(save_method: int = SAVE_NEXT_TO_ORIGINAL, output_folder: str = "") -> BatchOptions:
+def _options(
+    save_method: int = SAVE_NEXT_TO_ORIGINAL,
+    output_folder: str = "",
+    *,
+    timestamp_dir: bool = False,
+) -> BatchOptions:
     return BatchOptions(
         save_method=save_method,
         target_format=Format.KEEP,
@@ -24,6 +33,7 @@ def _options(save_method: int = SAVE_NEXT_TO_ORIGINAL, output_folder: str = "") 
         file_attributes=True,
         compression_timeout=60,
         knobs={},
+        timestamp_dir=timestamp_dir,
     )
 
 
@@ -106,3 +116,30 @@ def test_begin_batch_reports_unwritable_output_folder(tmp_path) -> None:
     manager = ResultItemManager(_options(SAVE_OUTPUT_FOLDER, str(blocker / "nested")))
 
     assert manager.begin_batch() is False
+
+
+def test_timestamp_dir_holds_plain_output_names(tmp_path, frozen_timestamp: None) -> None:
+    source = tmp_path / "photo.png"
+    source.write_bytes(b"x")
+    manager = ResultItemManager(_options(timestamp_dir=True))
+    assert manager.begin_batch()
+
+    item = manager.build(str(source))
+    manager.prepare(item)
+
+    stamp_dir = tmp_path / f"imslim-{_TIMESTAMP}"
+    assert item.new_filename == str(stamp_dir / "photo.png")
+    assert stamp_dir.is_dir()
+    assert is_generated_output(item.new_filename)
+
+
+def test_timestamp_dir_is_ignored_when_overwriting_in_place(tmp_path) -> None:
+    source = tmp_path / "photo.png"
+    source.write_bytes(b"x")
+    manager = ResultItemManager(_options(SAVE_BACKUP_OVERWRITE, timestamp_dir=True))
+    assert manager.begin_batch()
+
+    item = manager.build(str(source))
+    manager.prepare(item)
+
+    assert item.new_filename == str(source)

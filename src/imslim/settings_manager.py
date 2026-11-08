@@ -24,6 +24,11 @@ def log_file_path() -> str:
     return os.path.join(base, "ImSlim", _LOG_FILE_NAME)
 
 
+def config_file_path() -> str:
+    """Absolute path of the QSettings file that stores the app's options."""
+    return QSettings("ImSlim", "ImSlim").fileName()
+
+
 def _coerce_bool(raw: object) -> bool:
     if isinstance(raw, bool):
         return raw
@@ -76,8 +81,12 @@ BASE_DEFAULTS: dict[str, str | int | bool] = {
     "recursive": True,
     "metadata": True,
     "file-attributes": True,
+    "skip-if-larger": True,
+    "timestamp-dir": False,
     "lossy": False,
-    "compression-timeout": 15,
+    "view-mode": "details",
+    "thumbnail-size": 64,
+    "compression-timeout": 30,
     "log-level": "INFO",
     "log-max-size": 2,
     "log-backups": 3,
@@ -163,6 +172,19 @@ class SettingsManager:
     def window_geometry(self, value: bytes) -> None:
         self._settings.setValue("window-geometry", QByteArray(value))
 
+    @property
+    def layout_state(self) -> bytes:
+        raw = self._settings.value("layout-state", b"")
+        if isinstance(raw, QByteArray):
+            return bytes(raw.data())
+        if isinstance(raw, (bytes, bytearray)):
+            return bytes(raw)
+        return b""
+
+    @layout_state.setter
+    def layout_state(self, value: bytes) -> None:
+        self._settings.setValue("layout-state", QByteArray(value))
+
     save_method = _setting("save-method", int)
     output_folder = _setting("output-folder", str)
     default_open_dialog_directory = _setting("default-open-dialog-directory", str)
@@ -170,6 +192,10 @@ class SettingsManager:
     recursive = _setting("recursive", bool)
     metadata = _setting("metadata", bool)
     file_attributes = _setting("file-attributes", bool)
+    skip_if_larger = _setting("skip-if-larger", bool)
+    timestamp_dir = _setting("timestamp-dir", bool)
+    view_mode = _setting("view-mode", str)
+    thumbnail_size = _setting("thumbnail-size", int)
     compression_timeout = _setting("compression-timeout", int)
     log_level = _setting("log-level", str)
     log_max_size = _setting("log-max-size", int)

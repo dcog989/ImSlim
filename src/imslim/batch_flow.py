@@ -7,6 +7,7 @@ from .batch_summary import BatchSummary
 from .compression_manager import CompressionManager
 from .formats import is_converting
 from .result_item import ResultItem, ResultState
+from .result_item_manager import ResultItemManager
 from .settings_manager import SettingsManager
 from .workers import AnalyzeTask
 
@@ -21,15 +22,16 @@ _SUMMARY_INTERVAL_MS = 100
 
 
 class BatchFlow(QObject):
-    """Orchestrates one analyze→compress→update batch.
+    """Orchestrates analysis and the analyze→compress→update batch.
 
-    Owns the compression manager, the analyze worker, and the batch summary;
-    emits signals the window renders. All state mutations happen on the UI
-    thread: worker results arrive via queued signal connections.
+    Analysis and compression are separate steps: the queue collects files
+    first, and Process starts a batch over them. All state mutations happen on
+    the UI thread; worker results arrive via queued signal connections.
     """
 
     item_added: Signal = Signal(ResultItem)
     items_ready: Signal = Signal()
+    batch_started: Signal = Signal()
     compression_enabled: Signal = Signal(bool)
     summary_changed: Signal = Signal()
     no_files: Signal = Signal()
@@ -44,6 +46,7 @@ class BatchFlow(QObject):
         self.summary: BatchSummary = BatchSummary()
         self._active: bool = False
         self._compressing: bool = False
+        self._batch_pending: bool = False
         self._shutting_down: bool = False
         self._analyze_worker: AnalyzeTask | None = None
         # Dedicated single-thread pool so shutdown can wait for exactly this
@@ -51,6 +54,11 @@ class BatchFlow(QObject):
         self._analyze_pool: QThreadPool = QThreadPool()
         self._analyze_pool.setMaxThreadCount(1)
         self._options: BatchOptions | None = None
+        # Items already tallied for the running batch. A RUNNING update can be
+        # delivered after the worker already moved the item to DONE (the signals
+        # are queued), so the state read here is not a reliable "first terminal
+        # update" marker; the item identity is.
+        self._counted: set[ResultItem] = set()
         self._summary_timer: QTimer = QTimer(self)
         self._summary_timer.setSingleShot(True)
         self._summary_timer.setInterval(_SUMMARY_INTERVAL_MS)
@@ -73,8 +81,9 @@ class BatchFlow(QObject):
         """
         return self._options is not None and is_converting(self._options.target_format)
 
-    def start(self, paths: list[str]) -> None:
-        if self._shutting_down:
+    def analyze(self, paths: list[str]) -> None:
+        """Collect and inspect `paths`; the caller decides when to process them."""
+        if self._shutting_down or self._active:
             return
         self._active = True
         self._options = BatchOptions.from_settings(self._settings)
@@ -85,9 +94,49 @@ class BatchFlow(QObject):
         _res = worker.output_folder_error.connect(self._on_output_folder_error)
         _res = worker.analysis_failed.connect(self._on_analyze_failed)
         _res = worker.finished.connect(self._on_analyze_finished)
+        self.compression_enabled.emit(False)
         self._analyze_pool.start(worker)
 
+    def start_batch(self, result_items: list[ResultItem]) -> None:
+        """Prepare `result_items` with a fresh options snapshot and compress them."""
+        if self._shutting_down or self._active or not result_items:
+            return
+        self._batch_pending = True
+        options = BatchOptions.from_settings(self._settings)
+        manager = ResultItemManager(options)
+        if not manager.begin_batch():
+            self.output_folder_error.emit()
+            return
+        self._options = options
+        self._counted.clear()
+        self.summary.reset()
+        to_process: list[ResultItem] = []
+        for result_item in result_items:
+            manager.prepare(result_item)
+            self.summary.record_added()
+            if result_item.state is ResultState.ERROR:
+                # Failed analysis (missing or unsupported): already final.
+                self.result_updated.emit(result_item)
+            else:
+                to_process.append(result_item)
+        self._active = True
+        self._compressing = True
+        self.batch_started.emit()
+        self.compression_enabled.emit(False)
+        if not to_process:
+            self._finish_batch()
+            return
+        self._manager.compress(
+            to_process,
+            options,
+            self.result_updated.emit,
+            self.compression_enabled.emit,
+        )
+
     def cancel(self) -> None:
+        worker = self._analyze_worker
+        if worker is not None:
+            worker.cancel()
         self._manager.cancel()
 
     def shutdown(self) -> None:
@@ -112,30 +161,24 @@ class BatchFlow(QObject):
         self.summary.reset()
         self.summary_changed.emit()
 
+    def _finish_batch(self) -> None:
+        self._compressing = False
+        self._active = False
+        self.compression_enabled.emit(True)
+
     def _on_items_ready(self, result_items: list[ResultItem]) -> None:
         if self._shutting_down:
             return
-        options = self._options
-        if options is None:
-            raise RuntimeError("items arrived before a batch was started")
+        self._active = False
+        self._batch_pending = False
         for result_item in result_items:
-            self.summary.record_added()
             self.item_added.emit(result_item)
-            if result_item.state is ResultState.ERROR:
-                self.result_updated.emit(result_item)
-
-        result_items = [item for item in result_items if item.state is not ResultState.ERROR]
-
         self.items_ready.emit()
-        self.compression_enabled.emit(False)
-
-        self._compressing = True
-        self._manager.compress(
-            result_items,
-            options,
-            self.result_updated.emit,
-            self.compression_enabled.emit,
-        )
+        # A listener may have started a batch synchronously from items_ready;
+        # only re-enable the UI when the queue is left waiting for Process.
+        if not self._batch_pending and not self._compressing:
+            self._active = False
+            self.compression_enabled.emit(True)
 
     def _on_compression_enabled(self, enabled: bool) -> None:
         self._active = not enabled
@@ -146,6 +189,9 @@ class BatchFlow(QObject):
         # RUNNING is an interim UI refresh, not a terminal outcome to tally.
         if result_item.state is ResultState.RUNNING:
             return
+        if result_item in self._counted:
+            return
+        self._counted.add(result_item)
         match result_item.state:
             case ResultState.ERROR:
                 self.summary.record_failed()
@@ -167,17 +213,23 @@ class BatchFlow(QObject):
     def _on_no_files(self) -> None:
         self._active = False
         self.no_files.emit()
+        self.compression_enabled.emit(True)
 
     def _on_output_folder_error(self) -> None:
         self._active = False
         self.output_folder_error.emit()
+        self.compression_enabled.emit(True)
 
     def _on_analyze_failed(self) -> None:
         self._active = False
         self.analyze_failed.emit()
+        self.compression_enabled.emit(True)
 
     def _on_analyze_finished(self) -> None:
-        if not self._compressing:
-            self._active = False
         # Task deletes itself once finished; just drop our reference.
         self._analyze_worker = None
+        # Cancelled analysis emits nothing else, so it is the only path that
+        # still has to re-enable the UI here.
+        if self._active and not self._compressing:
+            self._active = False
+            self.compression_enabled.emit(True)

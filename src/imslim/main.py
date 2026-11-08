@@ -15,6 +15,7 @@ from ._i18n import _
 from ._logging import configure_logging
 from .binary_resolver import KNOWN_TOOLS, resolve_tool
 from .composition import build_app_context
+from .now import EXIT_USAGE, NowRunner
 from .system_info import static_about_pairs, system_info_pairs
 from .window import ImSlimWindow
 
@@ -54,7 +55,8 @@ def _configure_platform_theme() -> None:
 
 def _log_startup() -> None:
     """Record a session opener so the log is never empty just from launching."""
-    logger.info("ImSlim %s starting", __version__)
+    app_name = QApplication.applicationDisplayName() or _APP_NAME
+    logger.info("%s %s starting", app_name, __version__)
     if not logger.isEnabledFor(logging.DEBUG):
         return
     for label, value in (*static_about_pairs(), *system_info_pairs()):
@@ -122,9 +124,11 @@ _LOCK_TIMEOUT_MS = 0
 
 _USAGE = _(
     """Usage: imslim [FILES...]
+       imslim --now FILES...
 
 Compress image files and folders. Without any files the main window opens.
 
+  --now          Process the given files without opening the main window.
   -h, --help     Show this help and exit.
   -V, --version  Show the version and exit."""
 )
@@ -341,9 +345,18 @@ class ImSlimApp(QApplication):
         self.win = ImSlimWindow(self, build_app_context())
         self.win.show()
         if paths:
-            self.win.compress_files(paths)
+            self.win.add_paths(paths)
 
         return self.exec()
+
+    def run_now(self, paths: list[str]) -> int:
+        """ImSlimNow: one batch, no main window, no single-instance lock."""
+        self.setApplicationDisplayName("ImSlimNow")
+        configure_logging()
+        _log_startup()
+        context = build_app_context()
+        runner = NowRunner(context.settings, context.flow)
+        return runner.run(paths)
 
     def _on_foreign_paths(self, paths: list[str]) -> None:
         if self.win is None:
@@ -353,7 +366,26 @@ class ImSlimApp(QApplication):
         self.win.raise_()
         self.win.activateWindow()
         if paths:
-            self.win.compress_files(paths)
+            self.win.add_paths(paths)
+
+
+def _has_display() -> bool:
+    """Whether a graphical session exists for ImSlimNow's dialogs."""
+    if sys.platform == "win32":
+        return True
+    return bool(os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY"))
+
+
+def _run_now(argv: list[str]) -> None:
+    paths = _local_paths(argv)
+    if not paths:
+        print(_USAGE, file=sys.stderr)
+        sys.exit(EXIT_USAGE)
+    if not _has_display():
+        print(_("ImSlimNow needs a graphical session."), file=sys.stderr)
+        sys.exit(EXIT_USAGE)
+    app = ImSlimApp(sys.argv)
+    sys.exit(app.run_now(paths))
 
 
 def main() -> None:
@@ -363,6 +395,8 @@ def main() -> None:
         # could open at all (ssh, cron, a missing display).
         print(info)
         sys.exit(0)
+    if "--now" in sys.argv[1:]:
+        _run_now(sys.argv[1:])
     app = ImSlimApp(sys.argv)
     sys.exit(app.run())
 

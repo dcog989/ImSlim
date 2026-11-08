@@ -25,7 +25,11 @@ class OutputWriter:
                 f"Missing compressed output: {result_item.tmp_filename}"
             ) from err
 
-        if result_item.new_size >= result_item.size and not is_converting(options.target_format):
+        if (
+            options.skip_if_larger
+            and result_item.new_size >= result_item.size
+            and not is_converting(options.target_format)
+        ):
             # Output is larger (or equal) than input; keep the original.
             # Conversion always keeps its output, even when it grows.
             result_item.state = ResultState.SKIPPED

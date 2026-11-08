@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ImSlimNow
+GenericName=Image Compressor
+Comment=Compress images immediately, without opening ImSlim
+Exec=imslim --now %F
+Icon=imslim
+Terminal=false
+Categories=Graphics;Utility;
+Keywords=image;compress;optimize;png;jpeg;webp;avif;jxl;svg;
+MimeType=image/png;image/jpeg;image/gif;image/webp;image/avif;image/jxl;image/svg+xml;image/bmp;image/tiff;

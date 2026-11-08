@@ -17,7 +17,7 @@ def test_summary_text_counts_every_outcome() -> None:
 
     assert "3 of 3 images done" in text
     assert "1 compressed" in text
-    assert "2.0 KiB saved" in text
+    assert "2.0 KB saved" in text
     assert "1 skipped" in text
     assert "1 failed" in text
 

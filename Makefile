@@ -36,7 +36,9 @@ install:
 	mkdir -p $(DATA_HOME)/applications $(DATA_HOME)/icons/hicolor/scalable/apps
 	@BIN=$$(command -v imslim 2>/dev/null || echo $(HOME)/.local/bin/imslim); \
 	sed "s|^Exec=.*|Exec=$$BIN %F|" assets/imslim.desktop | \
-		install -Dm644 /dev/stdin $(DATA_HOME)/applications/imslim.desktop
+		install -Dm644 /dev/stdin $(DATA_HOME)/applications/imslim.desktop; \
+	sed "s|^Exec=.*|Exec=$$BIN --now %F|" assets/imslim-now.desktop | \
+		install -Dm644 /dev/stdin $(DATA_HOME)/applications/imslim-now.desktop
 	install -Dm644 src/imslim/assets/imslim.svg $(DATA_HOME)/icons/hicolor/scalable/apps/imslim.svg
 	@if command -v kbuildsycoca6 >/dev/null 2>&1; then kbuildsycoca6; \
 	elif command -v kbuildsycoca5 >/dev/null 2>&1; then kbuildsycoca5; fi
@@ -46,6 +48,7 @@ install:
 uninstall:
 	uv tool uninstall imslim || true
 	rm -f $(DATA_HOME)/applications/imslim.desktop
+	rm -f $(DATA_HOME)/applications/imslim-now.desktop
 	rm -f $(DATA_HOME)/icons/hicolor/scalable/apps/imslim.svg
 	rm -f $(HOME)/Applications/ImSlim.AppImage
 	@if command -v kbuildsycoca6 >/dev/null 2>&1; then kbuildsycoca6; \
