@@ -27,8 +27,8 @@ from . import __version__
 from ._i18n import _
 from ._logging import LOG_LEVELS, configure_logging
 from .batch_summary import BatchSummary
-from .format import sizeof_fmt
-from .icons import imslim_icon
+from .format import savings_percent, sizeof_fmt
+from .icons import imslim_icon, shield_alert_icon
 from .result_item import ResultItem, ResultState
 from .settings_manager import SettingsManager, config_file_path, log_file_path
 from .spinner import Spinner
@@ -109,9 +109,7 @@ class CompletionDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(_("Finished"))
         self.setMinimumWidth(460)
-        self._rows: list[ResultItem] = [
-            item for item in result_items if item.state in (ResultState.ERROR, ResultState.SKIPPED)
-        ]
+        self._rows: list[ResultItem] = list(result_items)
         self._output_folder: str = output_folder
 
         layout = QVBoxLayout(self)
@@ -169,20 +167,30 @@ class CompletionDialog(QDialog):
 
     def _populate_list(self) -> None:
         for item in self._rows:
-            if item.state is ResultState.ERROR:
-                text = _("Failed: {name}").format(name=os.path.basename(item.filename))
-                if item.error_message:
-                    text += f" — {item.error_message}"
-            else:
-                text = _("Skipped: {name}").format(name=os.path.basename(item.filename))
-            entry = QListWidgetItem(text)
+            entry = QListWidgetItem(self._row_text(item))
             entry.setData(Qt.ItemDataRole.UserRole, item.filename)
             entry.setToolTip(item.error_details_message or item.error_message)
             if item.state is ResultState.ERROR:
                 entry.setForeground(QColor(Qt.GlobalColor.red))
+                entry.setIcon(shield_alert_icon(QColor(Qt.GlobalColor.red), 16))
             self.list.addItem(entry)
         if not self._rows:
             self.list.hide()
+
+    @staticmethod
+    def _row_text(item: ResultItem) -> str:
+        name = os.path.basename(item.filename)
+        match item.state:
+            case ResultState.ERROR:
+                text = _("Failed: {name}").format(name=name)
+                return f"{text} — {item.error_message}" if item.error_message else text
+            case ResultState.SKIPPED:
+                return _("Skipped: {name}").format(name=name)
+            case ResultState.CANCELLED:
+                return _("Cancelled: {name}").format(name=name)
+            case _:
+                percent = savings_percent(item.size, item.new_size)
+                return _("{name} — {percent}%").format(name=name, percent=percent)
 
     def _on_item_double_clicked(self, _item: QListWidgetItem) -> None:
         self._show_selected_in_folder()
