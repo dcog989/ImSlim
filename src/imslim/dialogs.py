@@ -2,7 +2,7 @@
 
 import html
 import os
-from typing import cast, override
+from typing import override
 
 from PySide6.QtCore import Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QPalette, QShowEvent
@@ -127,7 +127,7 @@ class CompletionDialog(QDialog):
         self.setWindowTitle(_("Finished"))
         self.setMinimumWidth(460)
         self._rows: list[ResultItem] = list(result_items)
-        self._output_folder: str = output_folder
+        self._output_folder: str = output_folder or self._result_folder()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -157,17 +157,13 @@ class CompletionDialog(QDialog):
         self.list.setMinimumHeight(120)
         self._populate_list()
         layout.addWidget(self.list, 1)
-        _res = self.list.itemDoubleClicked.connect(self._on_item_double_clicked)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.button(QDialogButtonBox.StandardButton.Close).setText(_("Close"))
-        if output_folder:
+        if self._output_folder:
             open_folder = QPushButton(_("Open Output Folder"))
             _res = open_folder.clicked.connect(self._open_output_folder)
             buttons.addButton(open_folder, QDialogButtonBox.ButtonRole.ActionRole)
-        show_in_folder = QPushButton(_("Show in Folder"))
-        _res = show_in_folder.clicked.connect(self._show_selected_in_folder)
-        buttons.addButton(show_in_folder, QDialogButtonBox.ButtonRole.ActionRole)
         _res = buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
 
@@ -184,7 +180,6 @@ class CompletionDialog(QDialog):
     def _populate_list(self) -> None:
         for item in self._rows:
             entry = QListWidgetItem(self._row_text(item))
-            entry.setData(Qt.ItemDataRole.UserRole, item.filename)
             entry.setToolTip(item.error_details_message or item.error_message)
             if item.state is ResultState.ERROR:
                 entry.setForeground(QColor(Qt.GlobalColor.red))
@@ -208,27 +203,13 @@ class CompletionDialog(QDialog):
                 percent = savings_percent(item.size, item.new_size)
                 return _("{name} — {percent}%").format(name=name, percent=percent)
 
-    def _on_item_double_clicked(self, _item: QListWidgetItem) -> None:
-        self._show_selected_in_folder()
-
-    def _selected_item(self) -> ResultItem | None:
-        entry: QListWidgetItem | None = cast(QListWidgetItem | None, self.list.currentItem())
-        if entry is None:
-            return None
-        filename = cast(str, entry.data(Qt.ItemDataRole.UserRole))
+    def _result_folder(self) -> str:
+        """The folder the batch wrote to, when it did not go to one output folder."""
         for item in self._rows:
-            if item.filename == filename:
-                return item
-        return None
-
-    def _show_selected_in_folder(self) -> None:
-        item = self._selected_item()
-        if item is None:
-            return
-        path = item.new_filename if os.path.exists(item.new_filename) else item.filename
-        folder = os.path.dirname(path)
-        if folder:
-            _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+            folder = os.path.dirname(item.new_filename)
+            if folder and os.path.isdir(folder):
+                return folder
+        return ""
 
     def _open_output_folder(self) -> None:
         if os.path.isdir(self._output_folder):

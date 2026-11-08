@@ -9,7 +9,7 @@ from ._i18n import _
 from .batch_flow import BatchFlow
 from .dialogs import CompletionDialog, ProgressDialog
 from .result_item import ResultItem
-from .settings_manager import SettingsManager
+from .settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -80,7 +80,9 @@ class NowRunner(QObject):
             self._flow.summary,
             self._batch_items,
             time.monotonic() - self._batch_started,
-            self._settings.output_folder,
+            self._settings.output_folder
+            if self._settings.save_method == SAVE_OUTPUT_FOLDER
+            else "",
         )
         _res = dialog.exec()
         self._quit()

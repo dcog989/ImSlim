@@ -249,16 +249,21 @@ class ImSlimWindow(QWidget):
             self.compare.clear()
 
     def _refresh_compare(self, result_item: ResultItem) -> None:
-        # Both panes always hold an image: the real output when it exists, the
-        # source otherwise (the comparison preview replaces it when ready).
+        # Show the real output when it exists. For a queued file, leave the pane
+        # empty until the preview lands: flashing the source there first is the
+        # visible flicker the user sees on every selection.
         has_result = (
             result_item.state is ResultState.DONE
             and bool(result_item.new_filename)
             and os.path.exists(result_item.new_filename)
         )
-        self.compare.show_processed(
-            result_item.new_filename if has_result else result_item.filename
-        )
+        if has_result:
+            self.compare.show_processed(result_item.new_filename)
+        elif self.flow.active:
+            # No preview runs mid-batch, so the source is the only reference.
+            self.compare.show_processed(result_item.filename)
+        else:
+            self.compare.clear_processed(_("Generating preview…"))
 
     # --------------------------------------------------------------- previews
     def _on_options_changed(self) -> None:

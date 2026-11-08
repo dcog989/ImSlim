@@ -4,7 +4,7 @@ import math
 import time
 from typing import override
 
-from PySide6.QtCore import QPointF, QRectF, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import (
     QImage,
     QMouseEvent,
@@ -55,6 +55,8 @@ class ImagePane(QWidget):
     """One image fitted to the pane, with ctrl+wheel zoom and drag panning."""
 
     zoom_requested: Signal = Signal(float)
+    zoom_changed: Signal = Signal(float)
+    pan_changed: Signal = Signal(QPointF)
 
     def __init__(self, placeholder: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -68,12 +70,16 @@ class ImagePane(QWidget):
         self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 
     def set_image(self, image: QImage | None, placeholder: str | None = None) -> None:
+        previous = self._zoom
         self._image = image
         if placeholder is not None:
             self._placeholder = placeholder
         self._zoom = _MIN_ZOOM
         self._pan = QPointF()
         self.update()
+        if previous != self._zoom:
+            self.zoom_changed.emit(self._zoom)
+        self.pan_changed.emit(self._pan)
 
     def set_placeholder(self, text: str) -> None:
         self.set_image(None, text)
@@ -82,26 +88,14 @@ class ImagePane(QWidget):
         return self._image is not None
 
     # ------------------------------------------------------------------ zoom
-    def zoom_in(self) -> None:
-        self._apply_zoom(self._zoom * _ZOOM_STEP)
+    @property
+    def zoom(self) -> float:
+        return self._zoom
 
-    def zoom_out(self) -> None:
-        self._apply_zoom(self._zoom / _ZOOM_STEP)
+    def set_zoom(self, zoom: float) -> None:
+        self._apply_zoom(zoom)
 
-    def scale_zoom(self, factor: float) -> None:
-        self._apply_zoom(self._zoom * factor)
-
-    def fit(self) -> None:
-        self._apply_zoom(_MIN_ZOOM)
-
-    def _apply_zoom(self, zoom: float) -> None:
-        if self._image is None:
-            return
-        self._zoom = max(_MIN_ZOOM, min(self._max_zoom(), zoom))
-        self._clamp_pan()
-        self.update()
-
-    def _max_zoom(self) -> float:
+    def max_zoom(self) -> float:
         image = self._image
         if image is None:
             return _MAX_ZOOM
@@ -112,6 +106,16 @@ class ImagePane(QWidget):
             return _MAX_ZOOM
         cap = math.sqrt(_VIEWPORT_AREA_BUDGET * viewport / fitted_area)
         return max(_MIN_ZOOM, min(_MAX_ZOOM, cap))
+
+    def _apply_zoom(self, zoom: float) -> None:
+        if self._image is None:
+            return
+        previous = self._zoom
+        self._zoom = max(_MIN_ZOOM, min(self.max_zoom(), zoom))
+        self._clamp_pan()
+        self.update()
+        if self._zoom != previous:
+            self.zoom_changed.emit(self._zoom)
 
     def _fit_scale(self) -> float:
         image = self._image
@@ -181,6 +185,11 @@ class ImagePane(QWidget):
             max(-overflow_y, min(overflow_y, self._pan.y())),
         )
 
+    def set_pan(self, pan: QPointF) -> None:
+        self._pan = QPointF(pan)
+        self._clamp_pan()
+        self.update()
+
     def _dragging(self) -> bool:
         return self._zoom > _MIN_ZOOM
 
@@ -201,6 +210,7 @@ class ImagePane(QWidget):
             self._pan += delta
             self._clamp_pan()
             self.update()
+            self.pan_changed.emit(self._pan)
             event.accept()
             return
         super().mouseMoveEvent(event)
@@ -213,6 +223,7 @@ class ImagePane(QWidget):
     @override
     def resizeEvent(self, event: QResizeEvent) -> None:
         self._clamp_pan()
+        self.pan_changed.emit(self._pan)
         super().resizeEvent(event)
 
 
@@ -228,15 +239,17 @@ class CompareView(QWidget):
         self._processed: ImagePane = ImagePane(_("The processed image appears here."))
 
         self.path_label: ElidedLabel = ElidedLabel()
+        self.zoom_label: QLabel = QLabel()
         self.size_label: QLabel = QLabel()
         self.time_label: QLabel = QLabel()
-        for label in (self.size_label, self.time_label):
+        for label in (self.zoom_label, self.size_label, self.time_label):
             apply_muted_palette(label)
         header = QWidget()
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(12, 6, 12, 6)
         header_layout.setSpacing(12)
         header_layout.addWidget(self.path_label, 1)
+        header_layout.addWidget(self.zoom_label)
         header_layout.addWidget(self.size_label)
         header_layout.addWidget(self.time_label)
 
@@ -246,6 +259,8 @@ class CompareView(QWidget):
         _res = splitter.addWidget(self._original)
         _res = splitter.addWidget(self._processed)
         splitter.setChildrenCollapsible(False)
+        self._splitter: QSplitter = splitter
+        _res = splitter.handle(1).installEventFilter(self)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -256,8 +271,24 @@ class CompareView(QWidget):
 
         _res = self._original.zoom_requested.connect(self._on_zoom_requested)
         _res = self._processed.zoom_requested.connect(self._on_zoom_requested)
+        # Both panes show the same picture region: zoom and pan stay locked.
+        for pane, other in (
+            (self._original, self._processed),
+            (self._processed, self._original),
+        ):
+            _res = pane.zoom_changed.connect(other.set_zoom)
+            _res = pane.zoom_changed.connect(self._on_zoom_changed)
+            _res = pane.pan_changed.connect(other.set_pan)
+        self._on_zoom_changed(self._original.zoom)
 
     # ------------------------------------------------------------------ images
+    @override
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if event.type() == QEvent.Type.MouseButtonDblClick:
+            self._splitter.setSizes([1, 1])
+            return True
+        return super().eventFilter(watched, event)
+
     def show_original(self, path: str, size: int = 0, mtime: float = 0.0) -> None:
         """Show `path` on top and its name, size and timestamp in the header."""
         self.path_label.setText(path)
@@ -291,7 +322,10 @@ class CompareView(QWidget):
         token = self._request
         self._tokens[pane] = token
         self._pending[token] = pane
-        pane.set_placeholder(placeholder)
+        # Keep the pane's current placeholder when it is already empty; swapping
+        # text in before the image lands is a second flash.
+        if pane.has_image():
+            pane.set_placeholder(placeholder)
         task = _PreviewTask(token, path)
         _res = task.loaded.connect(self._on_loaded)
         start_task(task)
@@ -306,19 +340,24 @@ class CompareView(QWidget):
         else:
             pane.set_placeholder(_("Preview unavailable."))
 
+    def _on_zoom_changed(self, zoom: float) -> None:
+        self.zoom_label.setText(f"{round(zoom * 100)}%")
+
+    def _set_zoom(self, zoom: float) -> None:
+        """Apply one zoom to both panes so they never drift apart."""
+        cap = min(self._original.max_zoom(), self._processed.max_zoom())
+        target = max(_MIN_ZOOM, min(cap, zoom))
+        self._original.set_zoom(target)
+        self._processed.set_zoom(target)
+
     def _on_zoom_requested(self, steps: float) -> None:
-        factor: float = math.pow(_ZOOM_STEP, float(steps))
-        for pane in (self._original, self._processed):
-            pane.scale_zoom(factor)
+        self._set_zoom(self._original.zoom * math.pow(_ZOOM_STEP, float(steps)))
 
     def zoom_in(self) -> None:
-        for pane in (self._original, self._processed):
-            pane.zoom_in()
+        self._set_zoom(self._original.zoom * _ZOOM_STEP)
 
     def zoom_out(self) -> None:
-        for pane in (self._original, self._processed):
-            pane.zoom_out()
+        self._set_zoom(self._original.zoom / _ZOOM_STEP)
 
     def fit(self) -> None:
-        for pane in (self._original, self._processed):
-            pane.fit()
+        self._set_zoom(_MIN_ZOOM)

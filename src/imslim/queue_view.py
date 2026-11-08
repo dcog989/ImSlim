@@ -50,7 +50,7 @@ from .item_menu import build_item_menu
 from .result_item import ResultItem, ResultState
 from .result_item_row import ResultItemRow
 from .settings_manager import SettingsManager
-from .theme import accent_color, apply_muted_palette, muted_color, style_menu
+from .theme import accent_color, accent_colors, apply_muted_palette, muted_color, style_menu
 from .workers import Task, start_task
 
 # Rows are built in small timer-driven chunks so adding a huge folder does not
@@ -135,16 +135,17 @@ class QueueView(QWidget):
         layout.setSpacing(0)
 
         icon_color = self.palette().color(self.palette().ColorRole.WindowText)
+        accent_icon_color = self.palette().color(self.palette().ColorRole.HighlightedText)
         header = QWidget()
         header_layout = QHBoxLayout(header)
         header_layout.setContentsMargins(10, 8, 10, 6)
         header_layout.setSpacing(6)
 
         self.add_files_button: QToolButton = self._make_add_button(
-            image_icon(icon_color, 22), _("Add files"), self.add_files_requested.emit
+            image_icon(accent_icon_color, 22), _("Add files"), self.add_files_requested.emit
         )
         self.add_directory_button: QToolButton = self._make_add_button(
-            folder_tree_icon(icon_color, 22),
+            folder_tree_icon(accent_icon_color, 22),
             _("Add a directory"),
             self.add_directory_requested.emit,
         )
@@ -275,9 +276,19 @@ class QueueView(QWidget):
         button.setToolTip(tooltip)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        button.setStyleSheet("QToolButton { padding: 0; }")
         # QToolButton sizes itself from its text/icon, not from a child layout.
         button.setFixedSize(layout.sizeHint())
+        accent, accent_hover, accent_pressed = accent_colors()
+        button.setStyleSheet(
+            "QToolButton {"
+            + f" background-color: {accent.name()};"
+            + " border: none;"
+            + f" border-radius: {button.height() // 2}px;"
+            + "}"
+            + f"QToolButton:hover {{ background-color: {accent_hover.name()}; }}"
+            + f"QToolButton:pressed {{ background-color: {accent_pressed.name()}; }}"
+            + "QLabel { color: palette(highlighted-text); background: transparent; }"
+        )
         _res = button.clicked.connect(handler)
         return button
 

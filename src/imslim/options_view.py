@@ -144,9 +144,12 @@ class OptionsView(QWidget):
         form.addLayout(fields)
         self._output_fields: QFormLayout = fields
 
-        timestamp_fields = self._form_layout()
-        timestamp_fields.addRow(_("New timestamped directory"), self.check_timestamp_dir)
-        form.addLayout(timestamp_fields)
+        self._timestamp_fields: QFormLayout = self._form_layout()
+        self._timestamp_row: QWidget = self._check_row(
+            _("New timestamped directory"), self.check_timestamp_dir
+        )
+        self._timestamp_fields.addRow(self._timestamp_row)
+        form.addLayout(self._timestamp_fields)
         form.addWidget(self._divider())
 
         self.check_recursive: QCheckBox = self._check(_("Include sub-directories"))
@@ -169,10 +172,10 @@ class OptionsView(QWidget):
         _res = self.check_skip_if_larger.toggled.connect(self._on_skip_if_larger)
 
         files = self._form_layout()
-        files.addRow(_("Include sub-directories"), self.check_recursive)
-        files.addRow(_("Keep EXIF and metadata"), self.check_metadata)
-        files.addRow(_("Keep file attributes"), self.check_attributes)
-        files.addRow(_("Skip if result is larger"), self.check_skip_if_larger)
+        files.addRow(self._check_row(_("Include sub-directories"), self.check_recursive))
+        files.addRow(self._check_row(_("Keep EXIF and metadata"), self.check_metadata))
+        files.addRow(self._check_row(_("Keep file attributes"), self.check_attributes))
+        files.addRow(self._check_row(_("Skip if result is larger"), self.check_skip_if_larger))
         form.addLayout(files)
         form.addWidget(self._divider())
 
@@ -291,10 +294,30 @@ class OptionsView(QWidget):
 
     @staticmethod
     def _check(label: str) -> QCheckBox:
-        """A checkbox whose text lives in the label column like every option."""
+        """A checkbox whose label sits beside it like every other checkbox."""
         check = QCheckBox()
         check.setAccessibleName(label)
         return check
+
+    def _check_row(self, label: str, check: QCheckBox) -> QWidget:
+        """A label, its checkbox and the hint button, with one shared gap."""
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        text = QLabel(label)
+        text.setBuddy(check)
+        hint = check.toolTip()
+        if hint:
+            text.setToolTip(hint)
+        layout.addWidget(text)
+        layout.addWidget(check)
+        if hint:
+            info = self._info_button(label, partial(self._show_note_dialog, label, hint))
+            info.setFixedSize(18, 18)
+            layout.addWidget(info)
+        layout.addStretch(1)
+        return row
 
     @staticmethod
     def _divider() -> QWidget:
@@ -403,9 +426,6 @@ class OptionsView(QWidget):
         layout = QHBoxLayout(row)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
-        label = QLabel(knob.label)
-        label.setToolTip(knob.hint)
-        layout.addWidget(label)
         if knob.kind == "flag":
             check = QCheckBox()
             check.setAccessibleName(knob.label)
@@ -413,16 +433,11 @@ class OptionsView(QWidget):
             check.setChecked(bool(self.settings.knob(knob.key)))
             _res = check.toggled.connect(partial(self._on_knob_flag, knob.key))
             self._knob_widgets.append((check, knob))
-            label.setBuddy(check)
-            layout.addWidget(check)
-            if knob.hint:
-                layout.addWidget(
-                    self._info_button(
-                        knob.label,
-                        partial(self._show_note_dialog, knob.label, knob.hint),
-                    )
-                )
+            layout.addWidget(self._check_row(knob.label, check))
             return row
+        label = QLabel(knob.label)
+        label.setToolTip(knob.hint)
+        layout.addWidget(label)
         spin = spinbox()
         spin.setRange(knob.lower, knob.upper)
         spin.setValue(int(self.settings.knob(knob.key)))
@@ -500,7 +515,9 @@ class OptionsView(QWidget):
         self._output_fields.setRowVisible(self.output_folder_row, custom)
         # A backup is written beside the original, so there is no destination
         # directory for a timestamped one.
-        self.check_timestamp_dir.setEnabled(self.settings.save_method != SAVE_BACKUP_OVERWRITE)
+        self._timestamp_fields.setRowVisible(
+            self._timestamp_row, self.settings.save_method != SAVE_BACKUP_OVERWRITE
+        )
 
     def _commit_output_folder(self) -> None:
         text = self.entry_output_folder.text().strip()
