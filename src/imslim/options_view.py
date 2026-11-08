@@ -1,10 +1,9 @@
 """Column 2: output options and the Process button."""
 
 import html
-from collections.abc import Callable
 from functools import partial
 
-from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtCore import QSize, Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -19,7 +18,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSpinBox,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -34,6 +32,7 @@ from .formats import (
     Knob,
     is_converting,
 )
+from .icons import imslim_icon
 from .settings_manager import (
     SAVE_BACKUP_OVERWRITE,
     SAVE_NEXT_TO_ORIGINAL,
@@ -72,6 +71,7 @@ class OptionsView(QWidget):
 
     process_requested: Signal = Signal()
     about_requested: Signal = Signal()
+    options_changed: Signal = Signal()
 
     def __init__(self, settings: SettingsManager, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -214,14 +214,24 @@ class OptionsView(QWidget):
         scroll.setWidget(content)
         root.addWidget(scroll, 1)
 
-        footer = QWidget()
-        footer_layout = QHBoxLayout(footer)
-        footer_layout.setContentsMargins(12, 8, 12, 12)
-        footer_layout.setSpacing(8)
-        self.about_button: QToolButton = self._text_button(_("About"), self.about_requested.emit)
-        footer_layout.addWidget(self.about_button)
-        footer_layout.addStretch(1)
-        root.addWidget(footer)
+        self.about_button: QPushButton = QPushButton()
+        self.about_button.setIcon(imslim_icon())
+        self.about_button.setIconSize(QSize(28, 28))
+        self.about_button.setFixedSize(48, 48)
+        self.about_button.setToolTip(_("About ImSlim"))
+        self.about_button.setAccessibleName(_("About ImSlim"))
+        self.about_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.about_button.setStyleSheet(
+            "QPushButton {"
+            + " padding: 0;"
+            + " border-radius: 24px;"
+            + " border: 1px solid palette(mid);"
+            + " background-color: palette(button);"
+            + "}"
+            + "QPushButton:hover { background-color: palette(midlight); }"
+            + "QPushButton:pressed { background-color: palette(mid); }"
+        )
+        _res = self.about_button.clicked.connect(self.about_requested.emit)
 
         self.process_button: QPushButton = QPushButton(_("Process"))
         self.process_button.setMinimumHeight(48)
@@ -248,10 +258,12 @@ class OptionsView(QWidget):
             + "}"
         )
         _res = self.process_button.clicked.connect(self.process_requested.emit)
-        process_margin = QVBoxLayout()
-        process_margin.setContentsMargins(12, 0, 12, 12)
-        process_margin.addWidget(self.process_button)
-        root.addLayout(process_margin)
+        bottom = QHBoxLayout()
+        bottom.setContentsMargins(12, 8, 12, 12)
+        bottom.setSpacing(8)
+        bottom.addWidget(self.process_button, 1)
+        bottom.addWidget(self.about_button)
+        root.addLayout(bottom)
         self.set_process_enabled(False)
 
     # ----------------------------------------------------------------- widgets
@@ -284,29 +296,23 @@ class OptionsView(QWidget):
         return check
 
     @staticmethod
-    def _divider() -> QFrame:
-        divider = QFrame()
-        divider.setFixedHeight(1)
-        divider.setStyleSheet("background-color: palette(mid); border: none;")
+    def _divider() -> QWidget:
+        """A 1 px rule with breathing room above and below."""
+        divider = QWidget()
+        layout = QVBoxLayout(divider)
+        layout.setContentsMargins(0, 6, 0, 6)
+        line = QFrame()
+        line.setFixedHeight(1)
+        line.setStyleSheet("background-color: palette(mid); border: none;")
+        layout.addWidget(line)
         return divider
 
-    @staticmethod
-    def _text_button(text: str, handler: Callable[[], None]) -> QToolButton:
-        button = QToolButton()
-        button.setText(text)
-        button.setToolTip(text)
-        button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.setStyleSheet("QToolButton { padding: 0 8px; }")
-        _res = button.clicked.connect(handler)
-        return button
-
-    def _info_button(self) -> QToolButton:
-        button = QToolButton()
-        button.setText("i")
-        button.setFixedSize(20, 20)
+    def _info_button(self) -> QPushButton:
+        button = QPushButton("i")
+        button.setFixedSize(28, 28)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setToolTip(_("Format notes"))
-        button.setStyleSheet("QToolButton { border-radius: 10px; padding: 0; }")
+        button.setStyleSheet("QPushButton { padding: 0; }")
         _res = button.clicked.connect(self._show_format_notes)
         return button
 
@@ -412,9 +418,11 @@ class OptionsView(QWidget):
 
     def _on_knob_flag(self, key: str, checked: bool) -> None:
         self.settings.set_boolean(key, checked)
+        self.options_changed.emit()
 
     def _on_knob_level(self, key: str, value: int) -> None:
         self.settings.set_int(key, value)
+        self.options_changed.emit()
 
     def _update_knob_state(self) -> None:
         # Lossless skips the quantizer, so its quality knob has no effect. The
@@ -440,10 +448,12 @@ class OptionsView(QWidget):
     def _on_format_changed(self, index: int) -> None:
         self.settings.target_format = Format.KEEP if index <= 0 else TARGET_SPECS[index - 1].key
         self._rebuild_knobs()
+        self.options_changed.emit()
 
     def _on_compression_changed(self, index: int) -> None:
         self.settings.lossy = index == 0
         self._update_knob_state()
+        self.options_changed.emit()
 
     def _on_timestamp_dir(self, checked: bool) -> None:
         self.settings.timestamp_dir = checked
@@ -453,6 +463,7 @@ class OptionsView(QWidget):
 
     def _on_metadata(self, checked: bool) -> None:
         self.settings.metadata = checked
+        self.options_changed.emit()
 
     def _on_attributes(self, checked: bool) -> None:
         self.settings.file_attributes = checked

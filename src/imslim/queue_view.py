@@ -246,7 +246,7 @@ class QueueView(QWidget):
         icon = QLabel()
         bg = self.palette().color(self.palette().ColorRole.Window)
         icon_color = muted_color(accent_color(), bg, factor=0.8)
-        icon.setPixmap(download_icon(icon_color, 160).pixmap(160))
+        icon.setPixmap(download_icon(icon_color, 220).pixmap(220))
         icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon)
 

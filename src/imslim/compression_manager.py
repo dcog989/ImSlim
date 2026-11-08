@@ -3,6 +3,7 @@ import threading
 from collections import deque
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import replace
 
 from ._i18n import _
 from .batch_options import BatchOptions
@@ -89,6 +90,44 @@ class CompressionManager:
     def cancel(self) -> None:
         if self._context is not None:
             self._context.cancel()
+
+    def preview(
+        self,
+        result_item: ResultItem,
+        options: BatchOptions,
+        output_path: str,
+        context: CompressionContext,
+    ) -> ResultItem:
+        """Compress one item into `output_path` without touching its real output.
+
+        Runs the same compressor and options a batch would, so the comparison
+        pane shows exactly what Process would write. `skip_if_larger` is
+        overridden: the preview must exist even when the real run would keep
+        the original. Returns a copy; `result_item` itself is never modified.
+        """
+        preview = replace(
+            result_item,
+            new_filename=output_path,
+            tmp_filename=output_path + ".tmp",
+            backup_filename="",
+            state=ResultState.IDLE,
+            new_size=0,
+            error_message="",
+            error_details_message="",
+        )
+        compressor = self._compressor_for(preview, options)
+        if compressor is None:
+            preview.set_error(_("Format of this file is not supported."))
+            return preview
+        self._pipeline.run(
+            compressor,
+            preview,
+            lambda _item: None,
+            context,
+            replace(options, skip_if_larger=False),
+            report=False,
+        )
+        return preview
 
     def shutdown(self) -> None:
         """Cancel any running batch and wait for its worker to finish cleanup."""

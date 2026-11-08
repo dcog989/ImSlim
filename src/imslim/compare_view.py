@@ -10,6 +10,7 @@ from PySide6.QtGui import (
     QMouseEvent,
     QPainter,
     QPaintEvent,
+    QPalette,
     QResizeEvent,
     QWheelEvent,
 )
@@ -18,7 +19,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSplitter, QVBoxLayout, QWidg
 from ._i18n import _
 from .format import sizeof_fmt
 from .preview import load_preview
-from .theme import apply_muted_palette, splitter_stylesheet
+from .theme import apply_muted_palette, muted_color, splitter_stylesheet
 from .widgets import ElidedLabel
 from .workers import Task, start_task
 
@@ -127,8 +128,15 @@ class ImagePane(QWidget):
         painter.fillRect(self.rect(), self.palette().color(self.palette().ColorRole.Base))
         image = self._image
         if image is None:
-            apply_muted_palette(self)
-            painter.setPen(self.palette().color(self.palette().ColorRole.WindowText))
+            palette = self.palette()
+            # Derived per paint, not stored on the widget: mutating the palette
+            # here compounds on every repaint until the text fades into the
+            # background.
+            muted = muted_color(
+                palette.color(QPalette.ColorRole.Text),
+                palette.color(QPalette.ColorRole.Base),
+            )
+            painter.setPen(muted)
             _res = painter.drawText(
                 self.rect().adjusted(_PANE_MARGIN, _PANE_MARGIN, -_PANE_MARGIN, -_PANE_MARGIN),
                 int(Qt.AlignmentFlag.AlignCenter) | int(Qt.TextFlag.TextWordWrap),

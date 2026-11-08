@@ -90,6 +90,8 @@ class CompressionPipeline:
         c_update_result_item: Callable[[ResultItem], None],
         context: CompressionContext,
         options: BatchOptions,
+        *,
+        report: bool = True,
     ) -> None:
         commands: list[Command] = []
         try:
@@ -122,7 +124,7 @@ class CompressionPipeline:
 
                 if result_item.state is ResultState.RUNNING:
                     result_item.state = ResultState.DONE
-                if not result_item.error_message:
+                if report and not result_item.error_message:
                     log_outcome(result_item)
         finally:
             cleanup_temp_files(commands)

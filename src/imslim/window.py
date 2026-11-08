@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 import time
 from typing import override
 
@@ -28,17 +30,23 @@ from .clipboard_intake import ClipboardIntake, urls_to_paths
 from .compare_view import CompareView
 from .composition import AppContext
 from .dialogs import AboutDialog, CompletionDialog, ProgressDialog
-from .formats import image_filter
+from .formats import MIME_TO_FORMAT, TARGET_EXTENSIONS, image_filter, is_converting
 from .icons import imslim_icon
 from .options_view import OptionsView
+from .pipeline import remove_quietly
+from .preview_task import CompressPreviewTask
 from .queue_view import QueueView
 from .result_item import ResultItem, ResultState
 from .settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager
 from .theme import accent_color, splitter_stylesheet
+from .workers import start_task
 
 # A batch that finishes sooner than this never shows a progress dialog: it would
 # just flash on screen and steal focus.
 _PROGRESS_DELAY_MS = 1000
+# A slider drag or a held spinner emits changes continuously; one preview per
+# settle keeps the compare pane current without re-encoding on every step.
+_PREVIEW_DELAY_MS = 300
 
 
 class ImSlimWindow(QWidget):
@@ -53,6 +61,10 @@ class ImSlimWindow(QWidget):
         self._batch_output_folder: str = ""
         self._progress: ProgressDialog | None = None
         self.about_dialog: AboutDialog | None = None
+        self._preview_token: int = 0
+        self._preview_task: CompressPreviewTask | None = None
+        self._preview_item: ResultItem | None = None
+        self._preview_dir: str = ""
         self.clipboard: ClipboardIntake = ClipboardIntake(self.app.clipboard(), self)
         self.setWindowTitle("ImSlim")
         self.setWindowIcon(imslim_icon())
@@ -69,6 +81,11 @@ class ImSlimWindow(QWidget):
         self._progress_timer.setSingleShot(True)
         self._progress_timer.setInterval(_PROGRESS_DELAY_MS)
         _res = self._progress_timer.timeout.connect(self._show_progress)
+
+        self._preview_timer: QTimer = QTimer(self)
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.setInterval(_PREVIEW_DELAY_MS)
+        _res = self._preview_timer.timeout.connect(self._start_preview)
 
         _res = self.app.aboutToQuit.connect(self.flow.shutdown)
 
@@ -112,6 +129,7 @@ class ImSlimWindow(QWidget):
         _res = self.queue.selection_changed.connect(self._on_selection_changed)
         _res = self.options.process_requested.connect(self.start_batch)
         _res = self.options.about_requested.connect(self.on_about)
+        _res = self.options.options_changed.connect(self._on_options_changed)
         _res = self.clipboard.paths_ready.connect(self.add_paths)
 
     def create_actions(self) -> None:
@@ -187,7 +205,10 @@ class ImSlimWindow(QWidget):
         self._batch_output_folder = (
             self.settings.output_folder if self.settings.save_method == SAVE_OUTPUT_FOLDER else ""
         )
-        self.compare.clear_processed()
+        self._cancel_preview()
+        selected = self.queue.selected_item()
+        if selected is not None:
+            self._refresh_compare(selected)
         self._progress_timer.start()
 
     def _on_busy(self, enabled: bool) -> None:
@@ -210,30 +231,96 @@ class ImSlimWindow(QWidget):
 
     def _on_result_updated(self, result_item: ResultItem) -> None:
         self.queue.update_item(result_item)
-        if result_item is self.queue.selected_item():
-            self._refresh_compare(result_item)
+        if result_item is not self.queue.selected_item():
+            return
+        if result_item.state is ResultState.DONE:
+            # The real output supersedes any preview still being encoded.
+            self._cancel_preview()
+        self._refresh_compare(result_item)
 
     def _on_selection_changed(self, result_item: object) -> None:
+        self._cancel_preview()
         if isinstance(result_item, ResultItem):
             self.compare.show_original(result_item.filename, result_item.size, result_item.mtime)
             self._refresh_compare(result_item)
+            self._schedule_preview(result_item)
         else:
+            self._preview_item = None
             self.compare.clear()
 
     def _refresh_compare(self, result_item: ResultItem) -> None:
-        match result_item.state:
-            case ResultState.DONE if result_item.new_filename and os.path.exists(
-                result_item.new_filename
-            ):
-                self.compare.show_processed(result_item.new_filename)
-            case ResultState.SKIPPED:
-                self.compare.clear_processed(_("Skipped: the result would not be smaller."))
-            case ResultState.ERROR:
-                self.compare.clear_processed(_("Compression failed."))
-            case ResultState.CANCELLED:
-                self.compare.clear_processed(_("Cancelled."))
-            case _:
-                self.compare.clear_processed()
+        # Both panes always hold an image: the real output when it exists, the
+        # source otherwise (the comparison preview replaces it when ready).
+        has_result = (
+            result_item.state is ResultState.DONE
+            and bool(result_item.new_filename)
+            and os.path.exists(result_item.new_filename)
+        )
+        self.compare.show_processed(
+            result_item.new_filename if has_result else result_item.filename
+        )
+
+    # --------------------------------------------------------------- previews
+    def _on_options_changed(self) -> None:
+        item = self.queue.selected_item()
+        if item is not None:
+            self._schedule_preview(item)
+
+    def _schedule_preview(self, result_item: ResultItem) -> None:
+        """Queue a preview of the selected file once option changes settle."""
+        if self.flow.active or result_item.state is ResultState.DONE:
+            return
+        self._preview_item = result_item
+        self._preview_timer.start()
+
+    def _cancel_preview(self) -> None:
+        self._preview_token += 1
+        self._preview_timer.stop()
+        if self._preview_task is not None:
+            self._preview_task.cancel()
+            self._preview_task = None
+
+    def _start_preview(self) -> None:
+        result_item = self._preview_item
+        if result_item is None or self.flow.active or result_item.state is ResultState.DONE:
+            return
+        if self._preview_task is not None:
+            self._preview_task.cancel()
+        self._preview_token += 1
+        token = self._preview_token
+        if not self._preview_dir:
+            self._preview_dir = tempfile.mkdtemp(prefix="imslim-preview-")
+        extension = self._preview_extension(result_item)
+        path = os.path.join(self._preview_dir, f"preview-{token}{extension}")
+        task = CompressPreviewTask(token, self.flow, result_item, path)
+        _res = task.ready.connect(self._on_preview_ready)
+        self._preview_task = task
+        start_task(task)
+
+    def _preview_extension(self, result_item: ResultItem) -> str:
+        target = self.settings.target_format
+        if is_converting(target):
+            return TARGET_EXTENSIONS[target]
+        spec = MIME_TO_FORMAT.get(result_item.mime_type)
+        return spec.output_extension if spec is not None else ""
+
+    def _on_preview_ready(self, token: int, result: object) -> None:
+        if token != self._preview_token:
+            return
+        self._preview_task = None
+        item = self._preview_item
+        if (
+            item is None
+            or item.state is ResultState.DONE
+            or not isinstance(result, ResultItem)
+            or result.state is not ResultState.DONE
+        ):
+            return
+        self.compare.show_processed(result.new_filename)
+        # Drop the previous preview file: the pane already holds its pixels.
+        for name in os.listdir(self._preview_dir):
+            if name != os.path.basename(result.new_filename):
+                remove_quietly(os.path.join(self._preview_dir, name))
 
     def _show_progress(self) -> None:
         if not self.flow.active:
@@ -374,6 +461,9 @@ class ImSlimWindow(QWidget):
     # --------------------------------------------------------------- lifecycle
     @override
     def closeEvent(self, event: QCloseEvent) -> None:
+        self._cancel_preview()
+        if self._preview_dir:
+            shutil.rmtree(self._preview_dir, ignore_errors=True)
         self.flow.shutdown()
         self.clipboard.cleanup()
         self.settings.window_geometry = bytes(self.saveGeometry().data())

@@ -21,6 +21,7 @@
 - `src/imslim/composition.py` — `AppContext` / `build_app_context()`: assembles settings, compression manager and batch flow
 - `src/imslim/batch_flow.py` / `batch_options.py` / `batch_summary.py` — analysis and the analyze→compress→summary batch, its immutable options snapshot and its counters
 - `src/imslim/workers.py` — pooled background tasks (analyze, version probe)
+- `src/imslim/preview_task.py` — `CompressPreviewTask`: compresses the selected file into a temp preview for the comparison pane
 - `src/imslim/settings_manager.py` — persistent settings/state store (`log_file_path()` included)
 - `src/imslim/commands.py` — `Command` (`argv` or in-process `action`, plus `temp_files`) and `tokens`
 - `src/imslim/compressor.py` — `Compressor` ABC: subclasses produce pure command lists in `build_command()`

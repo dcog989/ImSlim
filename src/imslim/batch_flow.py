@@ -4,6 +4,7 @@ from PySide6.QtCore import QObject, QThreadPool, QTimer, Signal
 
 from .batch_options import BatchOptions
 from .batch_summary import BatchSummary
+from .command_runner import CompressionContext
 from .compression_manager import CompressionManager
 from .formats import is_converting
 from .result_item import ResultItem, ResultState
@@ -132,6 +133,16 @@ class BatchFlow(QObject):
             self.result_updated.emit,
             self.compression_enabled.emit,
         )
+
+    def preview(
+        self,
+        result_item: ResultItem,
+        output_path: str,
+        context: CompressionContext,
+    ) -> ResultItem:
+        """Compress `result_item` into `output_path` with the current settings."""
+        options = BatchOptions.from_settings(self._settings)
+        return self._manager.preview(result_item, options, output_path, context)
 
     def cancel(self) -> None:
         worker = self._analyze_worker
