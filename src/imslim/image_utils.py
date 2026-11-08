@@ -70,7 +70,10 @@ def get_image_paths_from_folder(
 
 
 def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> QImage | None:
-    """Decode and scale an image for use as a thumbnail, returning a value QImage.
+    """Decode a square, cover-cropped thumbnail, returning a value QImage.
+
+    The shortest side fills the box and the longer side is centre-cropped, so
+    every thumbnail fills its cell without letterboxing.
 
     Safe to call from a non-GUI thread; the caller converts the result to a
     QPixmap on the main thread.
@@ -84,9 +87,14 @@ def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> Q
     height = size.height()
     if width <= 0 or height <= 0:
         return None
-    ratio = min(max_width / width, max_height / height, 1.0)
-    reader.setScaledSize(QSize(max(1, int(width * ratio)), max(1, int(height * ratio))))
+    # Scale the shortest side to the box, then crop the square afterwards so
+    # rounding and EXIF rotation cannot leave a non-square result.
+    ratio = max(max_width, max_height) / min(width, height)
+    reader.setScaledSize(QSize(max(1, round(width * ratio)), max(1, round(height * ratio))))
     image = reader.read()
     if image.isNull():
         return None
-    return image
+    side = min(image.width(), image.height())
+    left = (image.width() - side) // 2
+    top = (image.height() - side) // 2
+    return image.copy(left, top, side, side)

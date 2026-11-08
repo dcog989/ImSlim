@@ -116,10 +116,6 @@ class QueueView(QWidget):
         self._row_timer.setInterval(0)
         _res = self._row_timer.timeout.connect(self._flush_rows)
 
-        zoom_out = QShortcut(QKeySequence.StandardKey.ZoomOut, self)
-        _res = zoom_out.activated.connect(lambda: self._zoom(-_THUMBNAIL_STEP))
-        zoom_in = QShortcut(QKeySequence.StandardKey.ZoomIn, self)
-        _res = zoom_in.activated.connect(lambda: self._zoom(_THUMBNAIL_STEP))
         delete = QShortcut(QKeySequence.StandardKey.Delete, self)
         _res = delete.activated.connect(self.remove_selected)
 
@@ -191,7 +187,6 @@ class QueueView(QWidget):
         self.scroll_area.setWidget(self.rows_container)
         self.scroll_area.viewport().setAutoFillBackground(True)
         self.scroll_area.viewport().setBackgroundRole(QPalette.ColorRole.Window)
-        self.scroll_area.viewport().installEventFilter(self)
         self.scroll_area.viewport().setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         _res = self.scroll_area.viewport().customContextMenuRequested.connect(
             self._on_viewport_context_menu
@@ -217,6 +212,7 @@ class QueueView(QWidget):
         self.grid.setStyleSheet("QListWidget { background-color: transparent; }")
         self.grid.viewport().setAutoFillBackground(False)
         self.grid.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.grid.viewport().installEventFilter(self)
         _res = self.grid.customContextMenuRequested.connect(self._on_grid_menu)
         _res = self.grid.itemSelectionChanged.connect(self._on_grid_selection)
 
@@ -338,6 +334,16 @@ class QueueView(QWidget):
         self._refresh_view_button()
         self._rebuild_view()
         self._update_chrome()
+
+    @property
+    def thumbnails_visible(self) -> bool:
+        return self._view_mode() == _VIEW_THUMBNAILS
+
+    def zoom_in(self) -> None:
+        self._zoom(_THUMBNAIL_STEP)
+
+    def zoom_out(self) -> None:
+        self._zoom(-_THUMBNAIL_STEP)
 
     def _zoom(self, delta: int) -> None:
         if self._view_mode() != _VIEW_THUMBNAILS:

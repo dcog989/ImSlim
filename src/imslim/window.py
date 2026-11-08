@@ -140,11 +140,29 @@ class ImSlimWindow(QWidget):
 
         for sequence in ("Ctrl++", "Ctrl+="):
             zoom_in = QShortcut(QKeySequence(sequence), self)
-            _res = zoom_in.activated.connect(self.compare.zoom_in)
+            _res = zoom_in.activated.connect(self._zoom_in)
         zoom_out = QShortcut(QKeySequence("Ctrl+-"), self)
-        _res = zoom_out.activated.connect(self.compare.zoom_out)
+        _res = zoom_out.activated.connect(self._zoom_out)
         zoom_fit = QShortcut(QKeySequence("Ctrl+0"), self)
         _res = zoom_fit.activated.connect(self.compare.fit)
+
+    # One shortcut per key: two widgets owning Ctrl++ makes Qt treat it as
+    # ambiguous and neither fires. Route to the focused pane instead.
+    def _zoom_in(self) -> None:
+        if self.queue.thumbnails_visible and self._queue_has_focus():
+            self.queue.zoom_in()
+        else:
+            self.compare.zoom_in()
+
+    def _zoom_out(self) -> None:
+        if self.queue.thumbnails_visible and self._queue_has_focus():
+            self.queue.zoom_out()
+        else:
+            self.compare.zoom_out()
+
+    def _queue_has_focus(self) -> bool:
+        focus = QApplication.focusWidget()
+        return focus is not None and (focus is self.queue or self.queue.isAncestorOf(focus))
 
     def _connect_flow(self) -> None:
         _res = self.flow.item_added.connect(self._on_item_added)
