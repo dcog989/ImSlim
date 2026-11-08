@@ -21,7 +21,7 @@ def input_background_color() -> str:
     base = palette.color(QPalette.ColorRole.Base)
     window = palette.color(QPalette.ColorRole.Window)
     if base.lightness() < window.lightness():
-        return window.lighter(115).name()
+        return window.lighter(195).name()
     return base.name()
 
 
