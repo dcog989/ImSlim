@@ -335,16 +335,6 @@ class QueueView(QWidget):
         self._rebuild_view()
         self._update_chrome()
 
-    @property
-    def thumbnails_visible(self) -> bool:
-        return self._view_mode() == _VIEW_THUMBNAILS
-
-    def zoom_in(self) -> None:
-        self._zoom(_THUMBNAIL_STEP)
-
-    def zoom_out(self) -> None:
-        self._zoom(-_THUMBNAIL_STEP)
-
     def _zoom(self, delta: int) -> None:
         if self._view_mode() != _VIEW_THUMBNAILS:
             return

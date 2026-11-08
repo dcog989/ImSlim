@@ -147,22 +147,19 @@ class ImSlimWindow(QWidget):
         _res = zoom_fit.activated.connect(self.compare.fit)
 
     # One shortcut per key: two widgets owning Ctrl++ makes Qt treat it as
-    # ambiguous and neither fires. Route to the focused pane instead.
+    # ambiguous and neither fires. Keyboard zoom is for the comparison pane,
+    # and only while it has focus.
     def _zoom_in(self) -> None:
-        if self.queue.thumbnails_visible and self._queue_has_focus():
-            self.queue.zoom_in()
-        else:
+        if self._compare_has_focus():
             self.compare.zoom_in()
 
     def _zoom_out(self) -> None:
-        if self.queue.thumbnails_visible and self._queue_has_focus():
-            self.queue.zoom_out()
-        else:
+        if self._compare_has_focus():
             self.compare.zoom_out()
 
-    def _queue_has_focus(self) -> bool:
+    def _compare_has_focus(self) -> bool:
         focus = QApplication.focusWidget()
-        return focus is not None and (focus is self.queue or self.queue.isAncestorOf(focus))
+        return focus is not None and (focus is self.compare or self.compare.isAncestorOf(focus))
 
     def _connect_flow(self) -> None:
         _res = self.flow.item_added.connect(self._on_item_added)

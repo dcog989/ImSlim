@@ -64,6 +64,7 @@ class ImagePane(QWidget):
         self._last_pos: QPointF = QPointF()
         self.setMinimumHeight(120)
         self.setCursor(Qt.CursorShape.OpenHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
 
     def set_image(self, image: QImage | None, placeholder: str | None = None) -> None:
         self._image = image
