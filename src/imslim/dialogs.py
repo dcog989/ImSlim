@@ -95,6 +95,23 @@ class ProgressDialog(QDialog):
         self.label.setText(_("{done} of {total} images").format(done=done, total=total))
 
 
+def batch_size_totals(result_items: list[ResultItem]) -> tuple[int, int]:
+    """Total bytes before and after for the non-failed items.
+
+    Skipped, cancelled and not-yet-processed items keep their source file, so
+    their after-size is the original. A finished item reports its real output,
+    which may be larger than the source.
+    """
+    original = 0
+    after = 0
+    for item in result_items:
+        if item.state is ResultState.ERROR:
+            continue
+        original += item.size
+        after += item.new_size if item.state is ResultState.DONE else item.size
+    return original, after
+
+
 class CompletionDialog(QDialog):
     """Batch summary: counts, elapsed time, savings and the files that need attention."""
 
@@ -123,8 +140,7 @@ class CompletionDialog(QDialog):
         headline.setFont(headline_font)
         layout.addWidget(headline)
 
-        original = sum(item.size for item in result_items if item.state is not ResultState.ERROR)
-        after = max(0, original - summary.saved_bytes)
+        original, after = batch_size_totals(result_items)
         grid = QGridLayout()
         grid.setHorizontalSpacing(24)
         grid.setVerticalSpacing(4)
