@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSpinBox,
@@ -49,9 +50,20 @@ _DESTINATIONS: tuple[tuple[str, int], ...] = (
 
 _BMP_TIFF_NOTE = _(
     "BMP and TIFF images are always decoded and re-encoded to WebP; their "
-    + "original format cannot be kept. Converting an animated image keeps only "
-    + "its first frame."
+    + "original format cannot be kept."
 )
+_SVG_NOTE = _("SVG images are always compressed losslessly.")
+_ANIMATION_NOTE = _("Converting an animated image keeps only its first frame.")
+_JPEG_NOTE = _("JPEG cannot encode losslessly; Lossless encodes at the highest quality instead.")
+
+
+def _format_notes(target: Format) -> list[str]:
+    """Caveats that apply to the currently selected output format."""
+    if target is Format.KEEP:
+        return [_BMP_TIFF_NOTE, _SVG_NOTE]
+    if target is Format.JPEG:
+        return [_JPEG_NOTE, _ANIMATION_NOTE]
+    return [_ANIMATION_NOTE]
 
 
 class OptionsView(QWidget):
@@ -89,7 +101,7 @@ class OptionsView(QWidget):
 
         format_row = QHBoxLayout()
         format_row.addWidget(self.combo_format, 1)
-        format_row.addWidget(self._info_button(_BMP_TIFF_NOTE))
+        format_row.addWidget(self._info_button())
         form.addLayout(self._labelled(_("Output format"), format_row))
 
         self.combo_destination: QComboBox = self._combo(
@@ -253,15 +265,19 @@ class OptionsView(QWidget):
         _res = button.clicked.connect(handler)
         return button
 
-    @staticmethod
-    def _info_button(text: str) -> QToolButton:
+    def _info_button(self) -> QToolButton:
         button = QToolButton()
         button.setText("i")
         button.setFixedSize(20, 20)
         button.setCursor(Qt.CursorShape.PointingHandCursor)
-        button.setToolTip(f"<div style='width: 300px'>{html.escape(text)}</div>")
+        button.setToolTip(_("Format notes"))
         button.setStyleSheet("QToolButton { border-radius: 10px; padding: 0; }")
+        _res = button.clicked.connect(self._show_format_notes)
         return button
+
+    def _show_format_notes(self) -> None:
+        notes = _format_notes(self.settings.target_format)
+        _res = QMessageBox.information(self, _("Format notes"), "\n\n".join(notes))
 
     # ------------------------------------------------------------------- knobs
     def _rebuild_knobs(self) -> None:
