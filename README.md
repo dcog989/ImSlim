@@ -14,6 +14,7 @@ A Linux image compressor / converter for all common image formats. Lossless or l
 - optionally strip metadata (EXIF/XMP/JUMBF), reset file attributes.
 - save output next to the original, to a custom folder, or backup->overwrite originals.
 - optionally write the results into an `imslim-<timestamp>-<pid>` directory.
+- overwriting keeps the filename; when the output format changes (or BMP/TIFF are re-encoded to WebP), the result is written beside the original, which is left in place.
 - skip files whose compressed result would be larger.
 - recurse directories for batch compression.
 - three-column window: queue, options, and a live original/processed comparison.

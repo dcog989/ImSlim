@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: imslim 2.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 17:55+0000\n"
+"POT-Creation-Date: 2026-11-09 18:12+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -46,8 +46,8 @@ msgstr ""
 msgid "Preview unavailable."
 msgstr ""
 
-#: src/imslim/compression_manager.py:121 src/imslim/compression_manager.py:183
-#: src/imslim/result_item_manager.py:99
+#: src/imslim/compression_manager.py:121 src/imslim/compression_manager.py:188
+#: src/imslim/result_item_manager.py:102 src/imslim/result_item_manager.py:131
 msgid "Format of this file is not supported."
 msgstr ""
 
@@ -534,12 +534,21 @@ msgstr ""
 msgid "Select Startup Folder"
 msgstr ""
 
-#: src/imslim/output_writer.py:48
+#: src/imslim/output_writer.py:50
 msgid "Can't backup the original file"
 msgstr ""
 
-#: src/imslim/output_writer.py:63
+#: src/imslim/output_writer.py:65
 msgid "Can't write the compressed file"
+msgstr ""
+
+#: src/imslim/output_writer.py:79 src/imslim/result_item_manager.py:91
+#: src/imslim/result_item_manager.py:128
+msgid "This file doesn't exist."
+msgstr ""
+
+#: src/imslim/output_writer.py:83
+msgid "This file changed while it was being processed."
 msgstr ""
 
 #: src/imslim/pipeline.py:39
@@ -676,11 +685,11 @@ msgstr ""
 msgid "{count} files"
 msgstr ""
 
-#: src/imslim/result_item_manager.py:88
-msgid "This file doesn't exist."
+#: src/imslim/result_item_manager.py:166
+msgid "Can't create the output folder."
 msgstr ""
 
-#: src/imslim/result_item_manager.py:176
+#: src/imslim/result_item_manager.py:206
 msgid "Animation will be lost: only the first frame is kept."
 msgstr ""
 
