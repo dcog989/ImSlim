@@ -513,11 +513,11 @@ class OptionsView(QWidget):
         return row
 
     def _on_knob_flag(self, key: str, checked: bool) -> None:
-        self.settings.set_boolean(key, checked)
+        self.settings.set_boolean(key, checked, sync=False)
         self.options_changed.emit()
 
     def _on_knob_level(self, key: str, value: int) -> None:
-        self.settings.set_int(key, value)
+        self.settings.set_int(key, value, sync=False)
         self.options_changed.emit()
 
     def _update_knob_state(self) -> None:
@@ -555,11 +555,21 @@ class OptionsView(QWidget):
 
     def _update_compression_mode(self) -> None:
         """JPEG has no lossless encoder, so Lossless is not offered for it."""
+        target = self.settings.target_format
         model = self.combo_compression.model()
         if isinstance(model, QStandardItemModel):
-            model.item(_LOSSLESS_INDEX).setEnabled(self.settings.target_format is not Format.JPEG)
-        if self.settings.target_format is Format.JPEG:
-            self.combo_compression.setCurrentIndex(_LOSSY_INDEX)
+            model.item(_LOSSLESS_INDEX).setEnabled(target is not Format.JPEG)
+        # Show the mode the encoder will use, but never write it back: the saved
+        # choice belongs to every other format, so forcing the combo would make
+        # a visit to JPEG silently turn later PNG/WebP batches lossy.
+        index = _LOSSY_INDEX if target is Format.JPEG or self.settings.lossy else _LOSSLESS_INDEX
+        if index == self.combo_compression.currentIndex():
+            return
+        _res = self.combo_compression.blockSignals(True)
+        try:
+            self.combo_compression.setCurrentIndex(index)
+        finally:
+            _res = self.combo_compression.blockSignals(False)
 
     def _on_compression_changed(self, index: int) -> None:
         self.settings.lossy = index == 0

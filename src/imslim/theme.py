@@ -163,6 +163,8 @@ def spinbox() -> QSpinBox:
     internal edit field, so setTextMargins is the only reliable way to inset it.
     """
     spin = _PaddedSpinBox()
+    # Commit once when editing finishes instead of writing every keystroke.
+    spin.setKeyboardTracking(False)
     spin.lineEdit().setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
     spin.lineEdit().setTextMargins(0, 0, INPUT_PADDING, 0)
     return spin
