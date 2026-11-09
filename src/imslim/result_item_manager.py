@@ -114,7 +114,7 @@ class ResultItemManager:
         result_item.backup_filename = (
             self.create_backup_filename(result_item.filename, result_item.mime_type)
             if self.options.save_method == SAVE_BACKUP_OVERWRITE
-            and not is_converting(self.options.target_format)
+            and result_item.new_filename == result_item.filename
             else ""
         )
         # Random token: a predictable name in a shared folder could be a
@@ -126,19 +126,24 @@ class ResultItemManager:
 
     def create_new_filename(self, path: str, mime: str, *, create_dir: bool = True) -> str:
         """The output path for `path`; `create_dir` false only predicts it."""
-        if is_converting(self.options.target_format):
-            # Conversion always writes a new file in the target's format; it
-            # must never overwrite a source that may have a different extension.
-            return self._output_path(
-                path,
-                _OUTPUT_MARKER,
-                mime,
-                TARGET_EXTENSIONS[self.options.target_format],
-                create_dir=create_dir,
-            )
-        if self.options.save_method == SAVE_BACKUP_OVERWRITE and mime not in OUTPUT_EXTENSIONS:
-            return path
-        return self._output_path(path, _OUTPUT_MARKER, mime, create_dir=create_dir)
+        # None keeps the source extension; only re-encoded formats swap it.
+        extension = (
+            TARGET_EXTENSIONS[self.options.target_format]
+            if is_converting(self.options.target_format)
+            else OUTPUT_EXTENSIONS.get(mime)
+        )
+        # Overwriting in place keeps the original name (only the extension can
+        # change); every other destination gets the marker so nothing clashes.
+        overwrite = self.options.save_method == SAVE_BACKUP_OVERWRITE
+        return self._output_path(
+            path,
+            _OUTPUT_MARKER,
+            mime,
+            extension,
+            create_dir=create_dir,
+            keep_stem=overwrite,
+            allow_source=overwrite,
+        )
 
     def create_backup_filename(self, path: str, mime: str) -> str:
         return self._output_path(path, _BACKUP_MARKER, mime)
@@ -178,6 +183,8 @@ class ResultItemManager:
         extension_override: str | None = None,
         *,
         create_dir: bool = True,
+        keep_stem: bool = False,
+        allow_source: bool = False,
     ) -> str:
         basename = os.path.basename(path)
         stem, extension = os.path.splitext(basename)
@@ -187,7 +194,7 @@ class ResultItemManager:
             else OUTPUT_EXTENSIONS.get(mime, extension)
         )
         parent = self._output_parent(path, create_dir=create_dir)
-        if self._uses_timestamp_dir():
+        if keep_stem or self._uses_timestamp_dir():
             base = os.path.join(parent, stem)
         else:
             base = os.path.join(parent, f"{stem}.{marker}.{self._batch_timestamp}")
@@ -195,7 +202,11 @@ class ResultItemManager:
         while True:
             suffix = "" if counter == 0 else f"-{counter}"
             candidate = f"{base}{suffix}{extension}"
-            if not os.path.exists(candidate) and candidate not in self._used_names:
+            # Overwriting in place may reuse the source's own path; any other
+            # existing file still wins the name so unrelated files survive.
+            if (allow_source and candidate == path) or (
+                not os.path.exists(candidate) and candidate not in self._used_names
+            ):
                 self._used_names.add(candidate)
                 return candidate
             counter += 1

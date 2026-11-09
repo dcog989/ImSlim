@@ -2,6 +2,7 @@ import pytest
 
 from imslim.batch_options import BatchOptions
 from imslim.formats import Format
+from imslim.result_item import ResultItem
 from imslim.result_item_manager import ResultItemManager, is_generated_output
 from imslim.settings_manager import (
     SAVE_BACKUP_OVERWRITE,
@@ -22,10 +23,11 @@ def _options(
     output_folder: str = "",
     *,
     timestamp_dir: bool = False,
+    target_format: Format = Format.KEEP,
 ) -> BatchOptions:
     return BatchOptions(
         save_method=save_method,
-        target_format=Format.KEEP,
+        target_format=target_format,
         output_folder=output_folder,
         recursive=False,
         lossy=True,
@@ -143,3 +145,45 @@ def test_timestamp_dir_is_ignored_when_overwriting_in_place(tmp_path) -> None:
     manager.prepare(item)
 
     assert item.new_filename == str(source)
+
+
+def test_conversion_overwrite_keeps_the_original_stem(tmp_path) -> None:
+    source = tmp_path / "photo.tiff"
+    manager = ResultItemManager(_options(SAVE_BACKUP_OVERWRITE, target_format=Format.WEBP))
+
+    assert manager.create_new_filename(str(source), "image/tiff") == str(tmp_path / "photo.webp")
+
+
+def test_reencoded_overwrite_keeps_the_original_stem(tmp_path) -> None:
+    source = tmp_path / "photo.tiff"
+    manager = ResultItemManager(_options(SAVE_BACKUP_OVERWRITE))
+
+    assert manager.create_new_filename(str(source), "image/tiff") == str(tmp_path / "photo.webp")
+
+
+def test_conversion_overwrite_reuses_the_source_path(tmp_path) -> None:
+    source = tmp_path / "photo.webp"
+    manager = ResultItemManager(_options(SAVE_BACKUP_OVERWRITE, target_format=Format.WEBP))
+
+    assert manager.create_new_filename(str(source), "image/webp") == str(source)
+
+
+def test_conversion_overwrite_avoids_an_unrelated_file(tmp_path) -> None:
+    source = tmp_path / "photo.tiff"
+    (tmp_path / "photo.webp").write_bytes(b"existing")
+    manager = ResultItemManager(_options(SAVE_BACKUP_OVERWRITE, target_format=Format.WEBP))
+
+    assert manager.create_new_filename(str(source), "image/tiff") == str(tmp_path / "photo-1.webp")
+
+
+def test_backup_is_created_only_when_overwriting_the_source(tmp_path) -> None:
+    options = _options(SAVE_BACKUP_OVERWRITE, target_format=Format.WEBP)
+    same = ResultItem(filename=str(tmp_path / "photo.webp"), mime_type="image/webp")
+    ResultItemManager(options).prepare(same)
+    converted = ResultItem(filename=str(tmp_path / "photo.tiff"), mime_type="image/tiff")
+    ResultItemManager(options).prepare(converted)
+
+    assert same.new_filename == same.filename
+    assert same.backup_filename
+    assert converted.new_filename == str(tmp_path / "photo.webp")
+    assert converted.backup_filename == ""
