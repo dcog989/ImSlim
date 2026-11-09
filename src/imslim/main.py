@@ -337,12 +337,14 @@ class ImSlimApp(QApplication):
         if not single.become_primary(paths):
             return 0
 
+        # Build the settings once, then let logging read the same instance.
         # Only the primary process owns the log file; a forwarded launch must
         # not open (or rotate) the same file out from under it.
-        configure_logging()
+        context = build_app_context()
+        configure_logging(context.settings)
         _log_startup()
 
-        self.win = ImSlimWindow(self, build_app_context())
+        self.win = ImSlimWindow(self, context)
         self.win.show()
         if paths:
             self.win.add_paths(paths)
@@ -352,9 +354,9 @@ class ImSlimApp(QApplication):
     def run_now(self, paths: list[str]) -> int:
         """ImSlimNow: one batch, no main window, no single-instance lock."""
         self.setApplicationDisplayName("ImSlimNow")
-        configure_logging(log_name=NOW_LOG_FILE_NAME)
-        _log_startup()
         context = build_app_context()
+        configure_logging(context.settings, log_name=NOW_LOG_FILE_NAME)
+        _log_startup()
         runner = NowRunner(context.settings, context.flow)
         return runner.run(paths)
 
