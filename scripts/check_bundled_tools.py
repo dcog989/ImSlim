@@ -19,8 +19,9 @@ sys.path.insert(0, str(ROOT / "src"))
 from imslim.binary_resolver import BIN_DIR, KNOWN_TOOLS, _platform_dir
 
 # svgo is a shell wrapper that execs node directly, so node is required at
-# runtime even though resolve_tool() is never asked for it by name.
-EXTRA_TOOLS = ("node",)
+# runtime even though resolve_tool() is never asked for it by name. The wrapper
+# is useless without the npm payload, which is what actually processes the SVG.
+EXTRA_TOOLS = ("node", "svgo-dist/node_modules/svgo/bin/svgo.js")
 
 
 def main() -> int:

@@ -764,16 +764,28 @@ build_svgo() {
             log "svgo: installing svgo $svgo_ver from the committed lock"
             cp "$SVGO_LOCK_DIR/package.json" "$SVGO_LOCK_DIR/package-lock.json" "$OUT/svgo-dist/"
             "$WORK/node/bin/npm" ci --prefix "$OUT/svgo-dist" --no-audit --no-fund
+        elif [[ "$UPDATE_LOCK" -eq 0 && -n "$(svgo_lock_version)" && "$(svgo_lock_version)" != "$svgo_ver" ]]; then
+            # tools.lock moved without the npm lock: refuse to resolve a
+            # floating tree into a release build.
+            log "svgo: tools.lock pins $svgo_ver but svgo/package.json has $(svgo_lock_version)"
+            log "svgo: run ./scripts/build_tools.sh --update svgo and commit svgo/"
+            exit 1
         else
-            # A release the lock does not pin (e.g. right after --update) is
-            # resolved once here and written back, so the next build is exact.
-            log "svgo: svgo $svgo_ver is not in the committed lock; resolving it"
+            # --update (or a missing lock) resolves once and writes both files
+            # back, so the next build installs exactly what this one did.
+            log "svgo: resolving svgo $svgo_ver"
             printf '{\n  "dependencies": {\n    "svgo": "%s"\n  }\n}\n' "$svgo_ver" \
                 > "$OUT/svgo-dist/package.json"
             "$WORK/node/bin/npm" install --prefix "$OUT/svgo-dist" --no-audit --no-fund
             mkdir -p "$SVGO_LOCK_DIR"
-            cp "$OUT/svgo-dist/package.json" "$OUT/svgo-dist/package-lock.json" "$SVGO_LOCK_DIR/"
-            log "svgo: refreshed $SVGO_LOCK_DIR/package-lock.json — commit it to pin this build"
+            cp "$OUT/svgo-dist/package-lock.json" "$SVGO_LOCK_DIR/package-lock.json"
+            if [[ -f "$SVGO_LOCK_DIR/package.json" ]]; then
+                sed -i "s|\"svgo\": \".*\"|\"svgo\": \"$svgo_ver\"|" "$SVGO_LOCK_DIR/package.json"
+            else
+                printf '{\n  "name": "imslim-svgo",\n  "private": true,\n  "dependencies": {\n    "svgo": "%s"\n  }\n}\n' "$svgo_ver" \
+                    > "$SVGO_LOCK_DIR/package.json"
+            fi
+            log "svgo: refreshed $SVGO_LOCK_DIR/ — commit it to pin this build"
         fi
     fi
 
@@ -798,7 +810,15 @@ main() {
             --check|-c) CHECK=1 ;;
             --no-deps|-n) NO_DEPS=1 ;;
             --strip-only|-s) STRIP_ONLY=1 ;;
-            *) groups+=("$arg") ;;
+            *)
+                if [[ " ${BUILD_GROUPS[*]} " == *" $arg "* ]]; then
+                    groups+=("$arg")
+                else
+                    log "unknown tool group: $arg"
+                    log "valid groups: ${BUILD_GROUPS[*]}"
+                    exit 1
+                fi
+                ;;
         esac
     done
 
