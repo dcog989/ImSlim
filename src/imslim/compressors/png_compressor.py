@@ -1,3 +1,4 @@
+from functools import partial
 from typing import override
 
 from ..batch_options import BatchOptions
@@ -5,6 +6,7 @@ from ..binary_resolver import resolve_tool
 from ..commands import Command, tokens
 from ..compressor import Compressor
 from ..formats import CompressorType
+from ..png_metadata import transfer_png_metadata
 from ..result_item import ResultItem
 
 
@@ -42,4 +44,17 @@ class PNGCompressor(Compressor):
             oxipng += [input_path, "--out", result_item.tmp_filename]
 
         commands.append(Command(oxipng, temp_files=(result_item.tmp_filename,)))
+
+        # pngquant drops eXIf/text chunks; put the source's metadata back when
+        # the user asked to keep it. Conversion sources have no PNG metadata.
+        if options.lossy and options.metadata and result_item.mime_type == "image/png":
+            commands.append(
+                Command(
+                    action=partial(
+                        transfer_png_metadata,
+                        result_item.filename,
+                        result_item.tmp_filename,
+                    )
+                )
+            )
         return commands

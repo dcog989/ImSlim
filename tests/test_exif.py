@@ -46,3 +46,15 @@ def test_read_exif_ignores_non_image_data(tmp_path) -> None:
     path.write_bytes(b"not an image")
 
     assert read_exif(str(path)) == []
+
+
+def test_parse_tiff_ignores_a_cyclic_exif_ifd() -> None:
+    block = bytearray(b"II" + (42).to_bytes(2, "little") + (8).to_bytes(4, "little"))
+    block += (1).to_bytes(2, "little")
+    block += (0x8769).to_bytes(2, "little") + (4).to_bytes(2, "little")
+    block += (1).to_bytes(4, "little") + (8).to_bytes(4, "little")
+    block += (0).to_bytes(4, "little")
+
+    values = _parse_tiff(bytes(block))
+
+    assert values[0x8769] == 8

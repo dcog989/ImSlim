@@ -68,6 +68,7 @@ _BMP_TIFF_NOTE = _(
 _SVG_NOTE = _("SVG images are always compressed losslessly.")
 _ANIMATION_NOTE = _("Converting an animated image keeps only its first frame.")
 _JPEG_NOTE = _("JPEG has no lossless encoder, so it is always compressed lossily.")
+_METADATA_NOTE = _("EXIF/XMP metadata is not carried across different formats.")
 # Index of each mode in the compression combo.
 _LOSSY_INDEX = 0
 _LOSSLESS_INDEX = 1
@@ -78,8 +79,8 @@ def _format_notes(target: Format) -> list[str]:
     if target is Format.KEEP:
         return [_BMP_TIFF_NOTE, _SVG_NOTE]
     if target is Format.JPEG:
-        return [_JPEG_NOTE, _ANIMATION_NOTE]
-    return [_ANIMATION_NOTE]
+        return [_JPEG_NOTE, _ANIMATION_NOTE, _METADATA_NOTE]
+    return [_ANIMATION_NOTE, _METADATA_NOTE]
 
 
 class OptionsView(QWidget):

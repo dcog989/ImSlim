@@ -17,15 +17,15 @@ _EXIF_HEADER = b"Exif\x00\x00"
 
 # Tag -> (label, formatter) in display order.
 _TAGS: dict[int, tuple[str, str]] = {
-    0x010F: ("Camera make", "text"),
-    0x0110: ("Camera model", "text"),
-    0x9003: ("Taken", "text"),
-    0x0132: ("Modified", "text"),
-    0x0112: ("Orientation", "orientation"),
-    0x8827: ("ISO", "int"),
-    0x829A: ("Exposure", "exposure"),
-    0x829D: ("Aperture", "aperture"),
-    0x920A: ("Focal length", "focal"),
+    0x010F: (_("Camera make"), "text"),
+    0x0110: (_("Camera model"), "text"),
+    0x9003: (_("Taken"), "text"),
+    0x0132: (_("Modified"), "text"),
+    0x0112: (_("Orientation"), "orientation"),
+    0x8827: (_("ISO"), "int"),
+    0x829A: (_("Exposure"), "exposure"),
+    0x829D: (_("Aperture"), "aperture"),
+    0x920A: (_("Focal length"), "focal"),
 }
 
 _ORIENTATIONS = {
@@ -122,32 +122,36 @@ def _parse_tiff(block: bytes) -> dict[int, object]:
         return {}
     values: dict[int, object] = {}
     first_ifd = int.from_bytes(block[4:8], byteorder)
-    _read_ifd(block, byteorder, first_ifd, values)
+    _read_ifd(block, byteorder, first_ifd, values, set())
     return values
 
 
 def _read_ifd(
-    block: bytes, byteorder: Literal["little", "big"], offset: int, values: dict[int, object]
+    block: bytes,
+    byteorder: Literal["little", "big"],
+    offset: int,
+    values: dict[int, object],
+    seen: set[int],
 ) -> None:
-    if offset <= 0 or offset + 2 > len(block):
-        return
-    count = int.from_bytes(block[offset : offset + 2], byteorder)
-    exif_ifd = 0
-    for index in range(count):
-        entry = offset + 2 + index * 12
-        if entry + 12 > len(block):
-            return
-        tag = int.from_bytes(block[entry : entry + 2], byteorder)
-        value_type = int.from_bytes(block[entry + 2 : entry + 4], byteorder)
-        number = int.from_bytes(block[entry + 4 : entry + 8], byteorder)
-        raw = block[entry + 8 : entry + 12]
-        value = _entry_value(block, byteorder, value_type, number, raw)
-        if value is not None:
-            values[tag] = value
-        if tag == _EXIF_IFD_TAG:
-            exif_ifd = int.from_bytes(raw, byteorder)
-    if exif_ifd:
-        _read_ifd(block, byteorder, exif_ifd, values)
+    # Iterative: a crafted chain of Exif IFD pointers must not recurse.
+    while offset > 0 and offset + 2 <= len(block) and offset not in seen:
+        seen.add(offset)
+        count = int.from_bytes(block[offset : offset + 2], byteorder)
+        exif_ifd = 0
+        for index in range(count):
+            entry = offset + 2 + index * 12
+            if entry + 12 > len(block):
+                return
+            tag = int.from_bytes(block[entry : entry + 2], byteorder)
+            value_type = int.from_bytes(block[entry + 2 : entry + 4], byteorder)
+            number = int.from_bytes(block[entry + 4 : entry + 8], byteorder)
+            raw = block[entry + 8 : entry + 12]
+            value = _entry_value(block, byteorder, value_type, number, raw)
+            if value is not None:
+                values[tag] = value
+            if tag == _EXIF_IFD_TAG:
+                exif_ifd = int.from_bytes(raw, byteorder)
+        offset = exif_ifd
 
 
 def _entry_value(
