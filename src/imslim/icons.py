@@ -1,9 +1,12 @@
 import os
 from collections.abc import Callable
+from functools import cache
+from math import ceil
 
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import (
     QColor,
+    QGuiApplication,
     QIcon,
     QPainter,
     QPainterPath,
@@ -14,6 +17,7 @@ from PySide6.QtGui import (
 IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
 
 
+@cache
 def imslim_icon() -> QIcon:
     """The application icon, loaded from the bundled SVG asset.
 
@@ -42,7 +46,10 @@ def _apply_icon_stroke(painter: QPainter, color: QColor, size: float) -> float:
 
 def _painted_icon(size: int, draw: Callable[[QPainter, float], None]) -> QIcon:
     """Render a monochrome icon with QPainter on a transparent, HiDPI-safe pixmap."""
-    scale = 2.0
+    screen = QGuiApplication.primaryScreen()
+    # One bitmap per icon, so render at the screen scale; 2x remains the floor
+    # so a 1x screen still downscales instead of upscaling.
+    scale = max(2.0, float(ceil(screen.devicePixelRatio()))) if screen else 2.0
     pixmap = QPixmap(int(size * scale), int(size * scale))
     pixmap.setDevicePixelRatio(scale)
     pixmap.fill(Qt.GlobalColor.transparent)
@@ -80,17 +87,24 @@ def download_icon(color: QColor, size: int = 20) -> QIcon:
     return _painted_icon(size, draw)
 
 
-def circle_off_icon(color: QColor, size: int = 20) -> QIcon:
-    """A circle with a diagonal slash, matching the other icons' stroke weight."""
+def _circle_icon(color: QColor, size: int, draw_glyph: Callable[[QPainter, float], None]) -> QIcon:
+    """A stroked circle with `draw_glyph` inside it, shared by the round icons."""
 
     def draw(painter: QPainter, s: float) -> None:
         pen = _apply_icon_stroke(painter, color, s)
-        inset = pen
-        rect = QRectF(inset, inset, s - 2 * inset, s - 2 * inset)
-        painter.drawEllipse(rect)
-        painter.drawLine(QPointF(s * 0.24, s * 0.76), QPointF(s * 0.76, s * 0.24))
+        painter.drawEllipse(QRectF(pen, pen, s - 2 * pen, s - 2 * pen))
+        draw_glyph(painter, s)
 
     return _painted_icon(size, draw)
+
+
+def circle_off_icon(color: QColor, size: int = 20) -> QIcon:
+    """A circle with a diagonal slash, matching the other icons' stroke weight."""
+
+    def draw_glyph(painter: QPainter, s: float) -> None:
+        painter.drawLine(QPointF(s * 0.24, s * 0.76), QPointF(s * 0.76, s * 0.24))
+
+    return _circle_icon(color, size, draw_glyph)
 
 
 def shield_alert_icon(color: QColor, size: int = 20) -> QIcon:
@@ -204,23 +218,17 @@ def layout_grid_icon(color: QColor, size: int = 20) -> QIcon:
 def circle_minus_icon(color: QColor, size: int = 20) -> QIcon:
     """A circle with a minus (Lucide 'circle-minus'), for removing a row."""
 
-    def draw(painter: QPainter, s: float) -> None:
-        pen = _apply_icon_stroke(painter, color, s)
-        rect = QRectF(pen, pen, s - 2 * pen, s - 2 * pen)
-        painter.drawEllipse(rect)
+    def draw_glyph(painter: QPainter, s: float) -> None:
         painter.drawLine(QPointF(s * 0.34, s * 0.5), QPointF(s * 0.66, s * 0.5))
 
-    return _painted_icon(size, draw)
+    return _circle_icon(color, size, draw_glyph)
 
 
 def circle_x_icon(color: QColor, size: int = 20) -> QIcon:
     """A circle with an X (Lucide 'circle-x'), for clearing the queue."""
 
-    def draw(painter: QPainter, s: float) -> None:
-        pen = _apply_icon_stroke(painter, color, s)
-        rect = QRectF(pen, pen, s - 2 * pen, s - 2 * pen)
-        painter.drawEllipse(rect)
+    def draw_glyph(painter: QPainter, s: float) -> None:
         painter.drawLine(QPointF(s * 0.37, s * 0.37), QPointF(s * 0.63, s * 0.63))
         painter.drawLine(QPointF(s * 0.63, s * 0.37), QPointF(s * 0.37, s * 0.63))
 
-    return _painted_icon(size, draw)
+    return _circle_icon(color, size, draw_glyph)
