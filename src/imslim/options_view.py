@@ -517,6 +517,7 @@ class OptionsView(QWidget):
 
     def _on_timestamp_dir(self, checked: bool) -> None:
         self.settings.timestamp_dir = checked
+        self.options_changed.emit()
 
     def _on_recursive(self, checked: bool) -> None:
         self.settings.recursive = checked
@@ -537,6 +538,7 @@ class OptionsView(QWidget):
     def _on_destination_changed(self, index: int) -> None:
         self.settings.save_method = _DESTINATIONS[index][1]
         self._update_destination_state()
+        self.options_changed.emit()
 
     def _update_destination_state(self) -> None:
         custom = self.settings.save_method == SAVE_OUTPUT_FOLDER
@@ -549,6 +551,7 @@ class OptionsView(QWidget):
         text = self.entry_output_folder.text().strip()
         if text != self.settings.output_folder:
             self.settings.output_folder = text
+            self.options_changed.emit()
 
     def _browse_output_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
