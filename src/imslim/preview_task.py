@@ -10,6 +10,7 @@ from typing import override
 from PySide6.QtCore import Signal
 
 from .batch_flow import BatchFlow
+from .batch_options import BatchOptions
 from .command_runner import CompressionContext
 from .result_item import ResultItem
 from .workers import Task
@@ -28,12 +29,14 @@ class CompressPreviewTask(Task):
         flow: BatchFlow,
         result_item: ResultItem,
         output_path: str,
+        options: BatchOptions,
     ) -> None:
         super().__init__()
         self._token: int = token
         self._flow: BatchFlow = flow
         self._result_item: ResultItem = result_item
         self._output_path: str = output_path
+        self._options: BatchOptions = options
         self._context: CompressionContext = CompressionContext()
 
     def cancel(self) -> None:
@@ -43,7 +46,7 @@ class CompressPreviewTask(Task):
     def run(self) -> None:
         try:
             result: ResultItem | None = self._flow.preview(
-                self._result_item, self._output_path, self._context
+                self._result_item, self._output_path, self._context, self._options
             )
         except Exception:
             logger.exception("Preview compression failed unexpectedly")

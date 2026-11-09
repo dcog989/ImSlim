@@ -47,10 +47,10 @@ class ClipboardIntake(QObject):
             shutil.rmtree(directory, ignore_errors=True)
 
     def cleanup_unless_used(self, paths: list[str]) -> None:
-        """Drop the pasted-image temp dir unless the given batch reads from it.
+        """Drop the pasted-image temp dir unless one of `paths` is inside it.
 
-        A new paste saves its source into that dir before reporting it, so
-        removing the dir here would fail the batch that just started.
+        Callers must pass every path still in use (the new batch plus anything
+        already queued): a queued paste or its result lives in this dir.
         """
         directory = self._paste_temp_dir
         if directory is None:
