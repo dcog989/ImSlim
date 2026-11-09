@@ -88,8 +88,8 @@ BASE_DEFAULTS: dict[str, str | int | bool] = {
     "thumbnail-size": 64,
     "compression-timeout": 30,
     "log-level": "INFO",
-    "log-max-size": 2,
-    "log-backups": 3,
+    "log-max-size": 1,
+    "log-backups": 9,
 }
 
 # Per-format knobs are defined by the format table; base settings live here.

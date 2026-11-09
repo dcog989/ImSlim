@@ -2,7 +2,9 @@ import atexit
 import logging
 import logging.handlers
 import queue
+from datetime import date
 from pathlib import Path
+from typing import override
 
 from .settings_manager import SettingsManager, log_file_path
 
@@ -16,6 +18,31 @@ LOG_LEVELS: tuple[str, ...] = ("NONE", *_LOG_LEVEL_VALUES)
 _LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
 
 _listener: logging.handlers.QueueListener | None = None
+
+
+class _DailyRotatingFileHandler(logging.handlers.RotatingFileHandler):
+    """Rotate at the size limit and on the first record of a new day.
+
+    A session that only logs a few lines would otherwise keep one file for
+    weeks; the day check makes the daily file predictable without a restart.
+    """
+
+    def __init__(
+        self, filename: str, *, max_bytes: int, backup_count: int, encoding: str = "utf-8"
+    ) -> None:
+        super().__init__(filename, maxBytes=max_bytes, backupCount=backup_count, encoding=encoding)
+        self._day: date = date.today()
+
+    @override
+    def shouldRollover(self, record: logging.LogRecord) -> bool:
+        if date.today() != self._day:
+            return True
+        return bool(super().shouldRollover(record))
+
+    @override
+    def doRollover(self) -> None:
+        self._day = date.today()
+        super().doRollover()
 
 
 def _stop_listener() -> None:
@@ -61,11 +88,10 @@ def configure_logging(settings: SettingsManager | None = None) -> None:
 
     formatter = logging.Formatter(_LOG_FORMAT)
 
-    file_handler = logging.handlers.RotatingFileHandler(
+    file_handler = _DailyRotatingFileHandler(
         log_path,
-        maxBytes=settings.log_max_size * 1024 * 1024,
-        backupCount=settings.log_backups,
-        encoding="utf-8",
+        max_bytes=settings.log_max_size * 1024 * 1024,
+        backup_count=settings.log_backups,
     )
     file_handler.setLevel(level)
     file_handler.setFormatter(formatter)
