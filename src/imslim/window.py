@@ -32,7 +32,13 @@ from .compare_view import CompareView
 from .composition import AppContext
 from .dialogs import AboutDialog, CompletionDialog, ProgressDialog
 from .format import savings_percent
-from .formats import MIME_TO_FORMAT, TARGET_EXTENSIONS, image_filter, is_converting
+from .formats import (
+    ALLOWED_MIME_TYPES,
+    MIME_TO_FORMAT,
+    TARGET_EXTENSIONS,
+    image_filter,
+    is_converting,
+)
 from .icons import imslim_icon
 from .options_view import OptionsView
 from .pipeline import remove_quietly
@@ -96,6 +102,7 @@ class ImSlimWindow(QWidget):
         _res = self._preview_timer.timeout.connect(self._start_preview)
 
         _res = self.app.aboutToQuit.connect(self.flow.shutdown)
+        _res = self.app.aboutToQuit.connect(self._save_state)
 
     # ------------------------------------------------------------------ UI
     def build_ui(self) -> None:
@@ -155,7 +162,7 @@ class ImSlimWindow(QWidget):
 
         self.act_quit: QAction = QAction(_("Quit"), self)
         self.act_quit.setShortcut(QKeySequence("Ctrl+Q"))
-        _res = self.act_quit.triggered.connect(self.app.quit)
+        _res = self.act_quit.triggered.connect(self.close)
 
         for action in (
             self.act_select,
@@ -275,6 +282,12 @@ class ImSlimWindow(QWidget):
         elif self.flow.active:
             # No preview runs mid-batch, so the source is the only reference.
             self.compare.show_processed(result_item.filename)
+        elif result_item.state is ResultState.ERROR or (
+            result_item.mime_type not in ALLOWED_MIME_TYPES
+        ):
+            # Analysis already failed or the format is unsupported: no preview
+            # will ever arrive, so do not leave the pane on a loading placeholder.
+            self.compare.clear_processed(_("Preview unavailable."))
         else:
             self.compare.clear_processed(_("Generating preview…"))
 
@@ -286,7 +299,11 @@ class ImSlimWindow(QWidget):
 
     def _schedule_preview(self, result_item: ResultItem) -> None:
         """Queue a preview of the selected file once option changes settle."""
-        if self.flow.active or result_item.state is ResultState.DONE:
+        if (
+            self.flow.active
+            or result_item.state in (ResultState.DONE, ResultState.ERROR)
+            or result_item.mime_type not in ALLOWED_MIME_TYPES
+        ):
             return
         self._preview_item = result_item
         self._preview_timer.start()
@@ -384,6 +401,10 @@ class ImSlimWindow(QWidget):
             self._pending_paths.extend(paths)
             return
         self.flow.analyze(paths)
+        if self.flow.active:
+            # A folder walk can take a while; the same dialog covers it and its
+            # Cancel already reaches the analyze worker.
+            self._progress_timer.start()
 
     def _drain_pending(self) -> None:
         if self.flow.active or not self._pending_paths:
@@ -505,14 +526,24 @@ class ImSlimWindow(QWidget):
         )
 
     # --------------------------------------------------------------- lifecycle
-    @override
-    def closeEvent(self, event: QCloseEvent) -> None:
+    def _save_state(self) -> None:
+        """Persist the window state and drop the preview temp directory.
+
+        Runs on close and on aboutToQuit: Ctrl+Q leaves the event loop without a
+        closeEvent, so cleanup cannot live in closeEvent alone.
+        """
         self._cancel_preview()
         if self._preview_dir:
             shutil.rmtree(self._preview_dir, ignore_errors=True)
-        self.flow.shutdown()
+            self._preview_dir = ""
         self.settings.window_geometry = bytes(self.saveGeometry().data())
         self.settings.layout_state = bytes(self.splitter.saveState().data())
         # Geometry and the view settings skip the per-change flush; write them now.
         self.settings.sync()
+
+    @override
+    def closeEvent(self, event: QCloseEvent) -> None:
+        self._cancel_preview()
+        self.flow.shutdown()
+        self._save_state()
         super().closeEvent(event)
