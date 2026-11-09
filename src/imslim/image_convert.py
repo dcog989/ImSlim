@@ -11,11 +11,16 @@ def to_png(filename: str, output: str) -> None:
     """
     # Imported lazily: QtGui needs system GL libraries that a headless test or
     # lint environment may lack, and importing this module must not require them.
-    from PySide6.QtGui import QImage
+    from PySide6.QtGui import QImageReader
 
-    image = QImage(filename)
+    # The default 256 MB limit rejects large scans; the caller's decode slots
+    # bound how many full-size images may be in memory at once.
+    QImageReader.setAllocationLimit(0)
+    reader = QImageReader(filename)
+    reader.setAutoTransform(True)  # apply EXIF orientation, unlike QImage(path)
+    image = reader.read()
     if image.isNull():
-        raise RuntimeError(f"Failed to load image: {filename}")
+        raise RuntimeError(f"Failed to load image: {filename}: {reader.errorString()}")
     # PySide6's stub types `format` as bytes, but the runtime requires str.
     if not image.save(output, "PNG"):  # pyright: ignore[reportCallIssue, reportArgumentType]
         raise RuntimeError(f"Failed to write PNG: {output}")

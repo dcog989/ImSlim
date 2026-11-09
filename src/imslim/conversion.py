@@ -22,6 +22,7 @@ def decode_commands(source_mime: str, source: str, destination: str) -> list[Com
             Command(
                 argv=[resolve_tool(tool), source, destination],
                 temp_files=(destination,),
+                limit=_DECODE_SLOTS,
             )
         ]
     return [_qt_decode_command(source, destination)]
