@@ -38,6 +38,10 @@ from .settings_manager import (
     SAVE_BACKUP_OVERWRITE,
     SAVE_NEXT_TO_ORIGINAL,
     SAVE_OUTPUT_FOLDER,
+    START_CUSTOM,
+    START_HOME,
+    START_LAST,
+    START_PICTURES,
     SettingsManager,
 )
 from .theme import accent_colors, combo_stylesheet, form_stylesheet, spinbox
@@ -47,6 +51,14 @@ _DESTINATIONS: tuple[tuple[str, int], ...] = (
     (_("Overwrite original"), SAVE_BACKUP_OVERWRITE),
     (_("Next to original"), SAVE_NEXT_TO_ORIGINAL),
     (_("Specified directory"), SAVE_OUTPUT_FOLDER),
+)
+
+# (label, start location) in the order shown in the dialog-start combo.
+_START_LOCATIONS: tuple[tuple[str, int], ...] = (
+    (_("Home"), START_HOME),
+    (_("Pictures"), START_PICTURES),
+    (_("Last Location"), START_LAST),
+    (_("Custom directory"), START_CUSTOM),
 )
 
 _BMP_TIFF_NOTE = _(
@@ -120,6 +132,25 @@ class OptionsView(QWidget):
         )
         self.combo_destination.setCurrentIndex(self._destination_index())
         _res = self.combo_destination.currentIndexChanged.connect(self._on_destination_changed)
+
+        self.combo_start: QComboBox = self._combo(
+            tuple(label for label, _value in _START_LOCATIONS),
+            _("Where the Add Files and Add Folder dialogs start."),
+        )
+        self.combo_start.setCurrentIndex(self._start_index())
+        _res = self.combo_start.currentIndexChanged.connect(self._on_start_location_changed)
+
+        self.entry_start_folder: QLineEdit = QLineEdit()
+        self.entry_start_folder.setPlaceholderText(_("Choose a folder"))
+        self.entry_start_folder.setText(self.settings.default_open_dialog_directory)
+        _res = self.entry_start_folder.editingFinished.connect(self._commit_start_folder)
+        browse_start = QPushButton(_("Browse…"))
+        _res = browse_start.clicked.connect(self._browse_start_folder)
+        self.start_folder_row: QWidget = QWidget()
+        start_layout = QHBoxLayout(self.start_folder_row)
+        start_layout.setContentsMargins(0, 0, 0, 0)
+        start_layout.addWidget(self.entry_start_folder, 1)
+        start_layout.addWidget(browse_start)
 
         self.entry_output_folder: QLineEdit = QLineEdit()
         self.entry_output_folder.setPlaceholderText(_("Choose a folder"))
@@ -210,6 +241,9 @@ class OptionsView(QWidget):
             )
         )
         self._add_wide(self._divider())
+        self._add_field(_("Open on startup"), self.combo_start)
+        self._add_field("", self.start_folder_row, fill=True)
+        self._add_wide(self._divider())
         self._add_field(_("Tool timeout"), self.spin_timeout)
         self._add_wide(self._divider())
         self._add_field(_("Compression mode"), self.combo_compression)
@@ -218,6 +252,7 @@ class OptionsView(QWidget):
 
         form.addStretch(1)
         self._update_destination_state()
+        self._update_start_state()
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -405,7 +440,9 @@ class OptionsView(QWidget):
         else:
             # Keeping the source format means any of them can be the output;
             # show every format's knobs, not only the conversion targets.
-            specs = tuple(spec for spec in FORMAT_SPECS if spec.knobs)
+            specs = tuple(
+                sorted((spec for spec in FORMAT_SPECS if spec.knobs), key=lambda spec: spec.display)
+            )
 
         if any(spec.knobs for spec in specs):
             self.knobs_layout.addWidget(self._divider())
@@ -501,6 +538,12 @@ class OptionsView(QWidget):
                 return index
         return 1
 
+    def _start_index(self) -> int:
+        for index, (_label, value) in enumerate(_START_LOCATIONS):
+            if value == self.settings.start_location:
+                return index
+        return 0
+
     def _on_format_changed(self, index: int) -> None:
         self.settings.target_format = Format.KEEP if index <= 0 else TARGET_SPECS[index - 1].key
         self._update_compression_mode()
@@ -565,6 +608,24 @@ class OptionsView(QWidget):
         if folder:
             self.entry_output_folder.setText(folder)
             self._commit_output_folder()
+
+    def _on_start_location_changed(self, index: int) -> None:
+        self.settings.start_location = _START_LOCATIONS[index][1]
+        self._update_start_state()
+
+    def _update_start_state(self) -> None:
+        self.start_folder_row.setVisible(self.settings.start_location == START_CUSTOM)
+
+    def _commit_start_folder(self) -> None:
+        self.settings.default_open_dialog_directory = self.entry_start_folder.text().strip()
+
+    def _browse_start_folder(self) -> None:
+        folder = QFileDialog.getExistingDirectory(
+            self, _("Select Startup Folder"), self.entry_start_folder.text() or ""
+        )
+        if folder:
+            self.entry_start_folder.setText(folder)
+            self._commit_start_folder()
 
     def set_process_enabled(self, enabled: bool) -> None:
         self.process_button.setEnabled(enabled)

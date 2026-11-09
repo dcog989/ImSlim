@@ -4,7 +4,7 @@ import tempfile
 import time
 from typing import override
 
-from PySide6.QtCore import QDir, Qt, QTimer
+from PySide6.QtCore import QDir, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
@@ -38,7 +38,13 @@ from .pipeline import remove_quietly
 from .preview_task import CompressPreviewTask
 from .queue_view import QueueView
 from .result_item import ResultItem, ResultState
-from .settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager
+from .settings_manager import (
+    SAVE_OUTPUT_FOLDER,
+    START_CUSTOM,
+    START_LAST,
+    START_PICTURES,
+    SettingsManager,
+)
 from .theme import accent_color, splitter_stylesheet
 from .workers import start_task
 
@@ -404,6 +410,7 @@ class ImSlimWindow(QWidget):
             self, _("Select Images"), self._dialog_start_dir(), image_filter()
         )
         if files:
+            self.settings.last_open_dialog_directory = os.path.dirname(files[0])
             self.add_paths(files)
 
     def on_select_folder(self) -> None:
@@ -411,13 +418,26 @@ class ImSlimWindow(QWidget):
             self, _("Select Folder"), self._dialog_start_dir()
         )
         if folder:
+            self.settings.last_open_dialog_directory = folder
             self.add_paths([folder])
 
     def _dialog_start_dir(self) -> str:
-        start = self.settings.default_open_dialog_directory
-        if start and os.path.isdir(start):
-            return start
-        return QDir.homePath()
+        home = QDir.homePath()
+        location = self.settings.start_location
+        if location == START_PICTURES:
+            pictures = QStandardPaths.writableLocation(
+                QStandardPaths.StandardLocation.PicturesLocation
+            )
+            return pictures or home
+        if location == START_LAST:
+            return self._existing_dir(self.settings.last_open_dialog_directory) or home
+        if location == START_CUSTOM:
+            return self._existing_dir(self.settings.default_open_dialog_directory) or home
+        return home
+
+    @staticmethod
+    def _existing_dir(path: str) -> str:
+        return path if path and os.path.isdir(path) else ""
 
     # ------------------------------------------------------------------ DnD
     @override

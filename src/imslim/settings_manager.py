@@ -73,11 +73,19 @@ SAVE_NEXT_TO_ORIGINAL = 0
 SAVE_BACKUP_OVERWRITE = 1
 SAVE_OUTPUT_FOLDER = 2
 
+# Where the Add Files/Directory dialogs start.
+START_HOME = 0
+START_PICTURES = 1
+START_LAST = 2
+START_CUSTOM = 3
+
 BASE_DEFAULTS: dict[str, str | int | bool] = {
     "save-method": SAVE_NEXT_TO_ORIGINAL,
     "target-format": Format.KEEP,
     "output-folder": "",
+    "start-location": START_HOME,
     "default-open-dialog-directory": "",
+    "last-open-dialog-directory": "",
     "recursive": True,
     "metadata": True,
     "file-attributes": True,
@@ -187,7 +195,9 @@ class SettingsManager:
 
     save_method = _setting("save-method", int)
     output_folder = _setting("output-folder", str)
+    start_location = _setting("start-location", int)
     default_open_dialog_directory = _setting("default-open-dialog-directory", str)
+    last_open_dialog_directory = _setting("last-open-dialog-directory", str)
     lossy = _setting("lossy", bool)
     recursive = _setting("recursive", bool)
     metadata = _setting("metadata", bool)

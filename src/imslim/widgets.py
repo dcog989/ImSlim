@@ -2,7 +2,7 @@
 
 from typing import override
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QLabel, QWidget
 
@@ -22,6 +22,15 @@ class ElidedLabel(QLabel):
     def setText(self, text: str) -> None:
         self._full_text = text
         self._apply_elide()
+
+    @override
+    def sizeHint(self) -> QSize:
+        # The displayed text is the elided copy, so its own hint keeps the label
+        # at the old, shorter width when the real text grows. Prefer the full
+        # text here; the label still shrinks below it when space runs out.
+        hint = super().sizeHint()
+        width = self.fontMetrics().horizontalAdvance(self._full_text)
+        return QSize(max(hint.width(), width), hint.height())
 
     def _apply_elide(self) -> None:
         width = self.width()

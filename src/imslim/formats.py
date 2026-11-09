@@ -304,6 +304,6 @@ def image_filter() -> str:
     all_extensions = " ".join(f"*{ext}" for ext in IMAGE_EXTENSIONS)
     per_format = ";;".join(
         f"{spec.display} ({' '.join(f'*{ext}' for ext in spec.source_extensions)})"
-        for spec in FORMAT_SPECS
+        for spec in sorted(FORMAT_SPECS, key=lambda spec: spec.display)
     )
     return f"{_('Images')} ({all_extensions});;{per_format};;{_('All files')} (*)"
