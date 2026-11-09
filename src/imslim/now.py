@@ -37,7 +37,7 @@ class NowRunner(QObject):
         self._timer.setSingleShot(True)
         self._timer.setInterval(_PROGRESS_DELAY_MS)
         _res = self._timer.timeout.connect(self._show_progress)
-        _res = self._flow.item_added.connect(self._on_item_added)
+        _res = self._flow.items_added.connect(self._on_items_added)
         _res = self._flow.items_ready.connect(self._on_items_ready)
         _res = self._flow.batch_started.connect(self._on_batch_started)
         _res = self._flow.compression_enabled.connect(self._on_busy)
@@ -54,8 +54,8 @@ class NowRunner(QObject):
         return self._code
 
     # ---------------------------------------------------------------- signals
-    def _on_item_added(self, result_item: ResultItem) -> None:
-        self._items.append(result_item)
+    def _on_items_added(self, result_items: list[ResultItem]) -> None:
+        self._items.extend(result_items)
 
     def _on_items_ready(self) -> None:
         if self._finished:

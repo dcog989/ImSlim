@@ -30,7 +30,7 @@ class BatchFlow(QObject):
     the UI thread; worker results arrive via queued signal connections.
     """
 
-    item_added: Signal = Signal(ResultItem)
+    items_added: Signal = Signal(list)
     items_ready: Signal = Signal()
     batch_started: Signal = Signal()
     compression_enabled: Signal = Signal(bool)
@@ -184,8 +184,9 @@ class BatchFlow(QObject):
         # A compression batch may still be running in the stale-worker window.
         self._active = self._compressing
         self._batch_pending = False
-        for result_item in result_items:
-            self.item_added.emit(result_item)
+        # One signal for the batch: per-item intake re-ran a realpath and a
+        # label update for every file in a single event-loop turn.
+        self.items_added.emit(result_items)
         self.items_ready.emit()
         # A listener may have started a batch synchronously from items_ready;
         # only re-enable the UI when the queue is left waiting for Process.

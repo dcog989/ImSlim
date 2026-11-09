@@ -196,7 +196,7 @@ class ImSlimWindow(QWidget):
         return focus is not None and (focus is self.compare or self.compare.isAncestorOf(focus))
 
     def _connect_flow(self) -> None:
-        _res = self.flow.item_added.connect(self._on_item_added)
+        _res = self.flow.items_added.connect(self._on_items_added)
         _res = self.flow.items_ready.connect(self._on_items_ready)
         _res = self.flow.batch_started.connect(self._on_batch_started)
         _res = self.flow.compression_enabled.connect(self._on_busy)
@@ -207,8 +207,8 @@ class ImSlimWindow(QWidget):
         _res = self.flow.analyze_failed.connect(self._on_analyze_failed)
 
     # ------------------------------------------------------------- signals
-    def _on_item_added(self, result_item: ResultItem) -> None:
-        self.queue.add_items([result_item])
+    def _on_items_added(self, result_items: list[ResultItem]) -> None:
+        self.queue.add_items(result_items)
 
     def _on_items_ready(self) -> None:
         if self.queue.selected_item() is None and self.queue.items:
