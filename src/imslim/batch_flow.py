@@ -6,7 +6,6 @@ from .batch_options import BatchOptions
 from .batch_summary import BatchSummary
 from .command_runner import CompressionContext
 from .compression_manager import CompressionManager
-from .formats import is_converting
 from .result_item import ResultItem, ResultState
 from .result_item_manager import ResultItemManager
 from .settings_manager import SettingsManager
@@ -73,15 +72,6 @@ class BatchFlow(QObject):
     def active(self) -> bool:
         return self._active
 
-    @property
-    def converting(self) -> bool:
-        """Whether this batch converts every input to the target format.
-
-        Read from the batch's settings snapshot rather than live settings, so a
-        settings edit mid-batch cannot change what the results page describes.
-        """
-        return self._options is not None and is_converting(self._options.target_format)
-
     def analyze(self, paths: list[str]) -> None:
         """Collect and inspect `paths`; the caller decides when to process them."""
         if self._shutting_down or self._active:
@@ -100,7 +90,7 @@ class BatchFlow(QObject):
 
     def start_batch(self, result_items: list[ResultItem]) -> None:
         """Prepare `result_items` with a fresh options snapshot and compress them."""
-        if self._shutting_down or self._active or not result_items:
+        if self._shutting_down or self._active or self._compressing or not result_items:
             return
         self._batch_pending = True
         options = BatchOptions.from_settings(self._settings)
@@ -113,7 +103,6 @@ class BatchFlow(QObject):
         self.summary.reset()
         to_process: list[ResultItem] = []
         for result_item in result_items:
-            manager.prepare(result_item)
             self.summary.record_added()
             if result_item.state is ResultState.ERROR:
                 # Failed analysis (missing or unsupported): already final.
@@ -127,6 +116,8 @@ class BatchFlow(QObject):
         if not to_process:
             self._finish_batch()
             return
+        # Output names are assigned in the compression worker: doing it here
+        # blocks the UI on filesystem checks for every file in the queue.
         self._manager.compress(
             to_process,
             options,
@@ -147,9 +138,9 @@ class BatchFlow(QObject):
         result_item: ResultItem,
         output_path: str,
         context: CompressionContext,
+        options: BatchOptions,
     ) -> ResultItem:
-        """Compress `result_item` into `output_path` with the current settings."""
-        options = BatchOptions.from_settings(self._settings)
+        """Compress `result_item` into `output_path` with the given snapshot."""
         return self._manager.preview(result_item, options, output_path, context)
 
     def cancel(self) -> None:
@@ -188,7 +179,8 @@ class BatchFlow(QObject):
     def _on_items_ready(self, result_items: list[ResultItem]) -> None:
         if self._shutting_down:
             return
-        self._active = False
+        # A compression batch may still be running in the stale-worker window.
+        self._active = self._compressing
         self._batch_pending = False
         for result_item in result_items:
             self.item_added.emit(result_item)
@@ -219,12 +211,7 @@ class BatchFlow(QObject):
             case ResultState.CANCELLED:
                 pass
             case _:
-                saved_bytes = (
-                    result_item.size - result_item.new_size
-                    if result_item.size > result_item.new_size
-                    else 0
-                )
-                self.summary.record_compressed(saved_bytes)
+                self.summary.record_compressed()
         self.summary.record_done()
         if not self._summary_timer.isActive():
             self._summary_timer.start()
@@ -245,6 +232,10 @@ class BatchFlow(QObject):
         self.compression_enabled.emit(True)
 
     def _on_analyze_finished(self) -> None:
+        # A finished signal can arrive after a new analysis started (the old
+        # worker's event is queued behind _on_items_ready); ignore that stale one.
+        if self.sender() is not self._analyze_worker:
+            return
         # Task deletes itself once finished; just drop our reference.
         self._analyze_worker = None
         # Cancelled analysis emits nothing else, so it is the only path that

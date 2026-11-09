@@ -19,6 +19,7 @@ from .formats import (
 )
 from .pipeline import CompressionPipeline
 from .result_item import ResultItem, ResultState
+from .result_item_manager import ResultItemManager
 from .system_info import worker_count
 
 logger = logging.getLogger(__name__)
@@ -149,10 +150,26 @@ class CompressionManager:
         c_enable_compression: Callable[[bool], None],
         context: CompressionContext,
     ) -> None:
-        # Avoid oversubscribing: encode tools (e.g. cwebp -mt) already thread internally.
-        max_workers = worker_count()
-        max_pending = max_workers * _MAX_PENDING_PER_WORKER
         try:
+            # Naming the outputs stats the filesystem for every item; keep that
+            # off the UI thread. The output folder was created at batch start.
+            manager = ResultItemManager(options)
+            prepared_count = 0
+            for prepared_count, result_item in enumerate(result_items):
+                if context.cancelled:
+                    break
+                manager.prepare(result_item)
+            else:
+                prepared_count = len(result_items)
+            if context.cancelled:
+                for result_item in result_items[prepared_count:]:
+                    result_item.state = ResultState.CANCELLED
+                    c_update_result_item(result_item)
+                result_items = result_items[:prepared_count]
+
+            # Avoid oversubscribing: encode tools (e.g. cwebp -mt) already thread internally.
+            max_workers = worker_count()
+            max_pending = max_workers * _MAX_PENDING_PER_WORKER
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 pending: deque[Future[None]] = deque()
                 break_index = len(result_items)
