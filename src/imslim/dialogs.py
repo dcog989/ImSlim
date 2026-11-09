@@ -5,7 +5,7 @@ import os
 from typing import override
 
 from PySide6.QtCore import QEvent, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QColor, QDesktopServices, QKeyEvent, QPalette
+from PySide6.QtGui import QCloseEvent, QColor, QDesktopServices, QKeyEvent, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -40,6 +40,7 @@ _GITHUB_URL = "https://github.com/dcog989/ImSlim"
 # The completion list is for failures and a sample; a huge batch must not
 # build one widget per file on the UI thread.
 _MAX_LISTED = 200
+_COPY_RESET_MS = 2000
 
 # Log level labels match the values in _logging.LOG_LEVELS, in that order.
 _LOG_LEVEL_LABELS: dict[str, str] = {
@@ -62,6 +63,7 @@ class ProgressDialog(QDialog):
         self.setModal(True)
         self.setWindowFlag(Qt.WindowType.WindowCloseButtonHint, False)
         self.setMinimumWidth(320)
+        self._closable: bool = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -87,6 +89,19 @@ class ProgressDialog(QDialog):
         # when the done count gains a digit.
         done_text = str(done).rjust(len(str(total)), "\u2007")
         self.label.setText(_("{done} of {total} images").format(done=done_text, total=total))
+
+    def finish(self) -> None:
+        """Close from code; a window-manager close is ignored while running."""
+        self._closable = True
+        _res = self.close()
+
+    @override
+    def closeEvent(self, event: QCloseEvent) -> None:
+        # Alt+F4 and the window menu bypass keyPressEvent; Cancel is the way out.
+        if self._closable:
+            super().closeEvent(event)
+            return
+        _res = event.ignore()
 
     @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
@@ -129,28 +144,44 @@ class CompletionDialog(QDialog):
         self.setWindowTitle(_("Finished"))
         self.setMinimumWidth(460)
         self._rows: list[ResultItem] = list(result_items)
-        self._output_folder: str = output_folder or self._result_folder()
+        self._output_folders: list[str] = (
+            [output_folder] if output_folder else self._result_folders()
+        )
+        cancelled = sum(1 for item in self._rows if item.state is ResultState.CANCELLED)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(12)
 
-        headline = QLabel(_("Compression finished"))
-        headline_font = headline.font()
+        self.headline: QLabel = QLabel(
+            _("Compression cancelled") if cancelled else _("Compression finished")
+        )
+        headline_font = self.headline.font()
         headline_font.setPointSize(14)
         headline_font.setBold(True)
-        headline.setFont(headline_font)
-        layout.addWidget(headline)
+        self.headline.setFont(headline_font)
+        layout.addWidget(self.headline)
 
         original, after = batch_size_totals(result_items)
         grid = QGridLayout()
         grid.setHorizontalSpacing(24)
         grid.setVerticalSpacing(4)
-        _res = self._grid_row(grid, 0, _("Images"), str(summary.total))
-        _res = self._grid_row(grid, 1, _("Time"), _elapsed_text(elapsed_seconds))
-        _res = self._grid_row(grid, 2, _("Size"), f"{sizeof_fmt(original)} → {sizeof_fmt(after)}")
-        _res = self._grid_row(grid, 3, _("Skipped"), str(summary.skipped))
-        self.failed_label: QLabel = self._grid_row(grid, 4, _("Failed"), str(summary.failed))
+        row = 0
+        _res = self._grid_row(grid, row, _("Images"), str(summary.total))
+        row += 1
+        _res = self._grid_row(grid, row, _("Time"), _elapsed_text(elapsed_seconds))
+        row += 1
+        if original:
+            _res = self._grid_row(
+                grid, row, _("Size"), f"{sizeof_fmt(original)} → {sizeof_fmt(after)}"
+            )
+            row += 1
+        _res = self._grid_row(grid, row, _("Skipped"), str(summary.skipped))
+        row += 1
+        if cancelled:
+            _res = self._grid_row(grid, row, _("Cancelled"), str(cancelled))
+            row += 1
+        self.failed_label: QLabel = self._grid_row(grid, row, _("Failed"), str(summary.failed))
         if summary.failed:
             self.failed_label.setStyleSheet(f"color: {QColor(Qt.GlobalColor.red).name()};")
         layout.addLayout(grid)
@@ -162,7 +193,7 @@ class CompletionDialog(QDialog):
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.button(QDialogButtonBox.StandardButton.Close).setText(_("Close"))
-        if self._output_folder:
+        if len(self._output_folders) == 1:
             open_folder = QPushButton(_("Open Output Folder"))
             _res = open_folder.clicked.connect(self._open_output_folder)
             buttons.addButton(open_folder, QDialogButtonBox.ButtonRole.ActionRole)
@@ -184,12 +215,14 @@ class CompletionDialog(QDialog):
         others = [item for item in self._rows if item.state is not ResultState.ERROR]
         shown = failures[:_MAX_LISTED]
         shown += others[: max(0, _MAX_LISTED - len(shown))]
+        error_icon = shield_alert_icon(QColor(Qt.GlobalColor.red), 16) if failures else None
         for item in shown:
             entry = QListWidgetItem(self._row_text(item))
             entry.setToolTip(plain_tooltip(item.error_details_message or item.error_message))
             if item.state is ResultState.ERROR:
                 entry.setForeground(QColor(Qt.GlobalColor.red))
-                entry.setIcon(shield_alert_icon(QColor(Qt.GlobalColor.red), 16))
+                if error_icon is not None:
+                    entry.setIcon(error_icon)
             self.list.addItem(entry)
         remaining = len(self._rows) - len(shown)
         if remaining:
@@ -214,24 +247,30 @@ class CompletionDialog(QDialog):
                 percent = savings_percent(item.size, item.new_size)
                 return _("{name} — {percent}%").format(name=name, percent=percent)
 
-    def _result_folder(self) -> str:
-        """The folder the batch wrote to, when it did not go to one output folder."""
+    def _result_folders(self) -> list[str]:
+        """The folders the batch wrote to, when it did not use one output folder."""
+        folders: list[str] = []
         for item in self._rows:
             folder = os.path.dirname(item.new_filename)
-            if folder and os.path.isdir(folder):
-                return folder
-        return ""
+            # Membership first: a large batch must not stat once per row.
+            if folder and folder not in folders and os.path.isdir(folder):
+                folders.append(folder)
+        return folders
 
     def _open_output_folder(self) -> None:
-        if os.path.isdir(self._output_folder):
-            _res = QDesktopServices.openUrl(QUrl.fromLocalFile(self._output_folder))
+        if not self._output_folders:
+            return
+        folder = self._output_folders[0]
+        if os.path.isdir(folder):
+            _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
 
 
 def _elapsed_text(seconds: float) -> str:
     if seconds < 60:
         return _("{seconds:.1f} s").format(seconds=seconds)
-    minutes = int(seconds // 60)
-    return _("{minutes} min {seconds:.0f} s").format(minutes=minutes, seconds=seconds % 60)
+    total = round(seconds)
+    minutes, secs = divmod(total, 60)
+    return _("{minutes} min {seconds:.0f} s").format(minutes=minutes, seconds=secs)
 
 
 class AboutView(QWidget):
@@ -322,9 +361,16 @@ class AboutView(QWidget):
 
         layout.addSpacing(14)
         self.copy_button: QPushButton = QPushButton(_("Copy Environment"))
-        self.copy_button.setFixedWidth(180)
+        self.copy_button.setMinimumWidth(180)
+        # The probe runs off the UI thread; wait for it so the copied text
+        # always carries the tool versions.
+        self.copy_button.setEnabled(False)
         _res = self.copy_button.clicked.connect(self._copy_environment)
         layout.addWidget(self.copy_button, alignment=Qt.AlignmentFlag.AlignHCenter)
+        self._copy_reset: QTimer = QTimer(self)
+        self._copy_reset.setSingleShot(True)
+        self._copy_reset.setInterval(_COPY_RESET_MS)
+        _res = self._copy_reset.timeout.connect(self._reset_copy_button)
         layout.addStretch(1)
 
     def _build_log_level(self) -> QComboBox:
@@ -343,7 +389,7 @@ class AboutView(QWidget):
     def _add_row(self, grid: QGridLayout, row: int, label: str, value: QWidget) -> None:
         key = QLabel(label)
         self._mute(key)
-        key.setFixedWidth(64)
+        key.setMinimumWidth(64)
         key.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         grid.addWidget(key, row, 0)
         if isinstance(value, QLabel):
@@ -370,7 +416,9 @@ class AboutView(QWidget):
         return label
 
     def _path_link(self, path: str) -> QLabel:
-        return self._link(html.escape(path), QUrl.fromLocalFile(path))
+        label = self._link(html.escape(path), QUrl.fromLocalFile(path))
+        label.setToolTip(plain_tooltip(path))
+        return label
 
     def populate(self) -> None:
         if self._populated:
@@ -380,11 +428,12 @@ class AboutView(QWidget):
         # them off the UI thread for the environment copied into bug reports.
         worker = VersionProbeTask()
         _res = worker.versions_ready.connect(self._on_versions)
+        _res = worker.finished.connect(self._on_probe_finished)
         self._probe_worker = worker
         start_task(worker)
 
     def _env_text(self) -> str:
-        lines: list[str] = []
+        lines: list[str] = [f"ImSlim: {__version__}"]
         lines += [f"{key}: {value}" for key, value in static_about_pairs()]
         lines += [f"{key}: {value}" for key, value in system_info_pairs()]
         qt_platform = QApplication.platformName()
@@ -395,11 +444,24 @@ class AboutView(QWidget):
 
     def _on_versions(self, tool_pairs: list[tuple[str, str]]) -> None:
         self._tool_pairs = tool_pairs
+        self.copy_button.setEnabled(True)
+
+    def _on_probe_finished(self) -> None:
+        self._probe_worker = None
+        self.copy_button.setEnabled(True)
+
+    def cancel_probe(self, _result: int = 0) -> None:
+        """Stop the probe when the About window closes or the app quits."""
+        if self._probe_worker is not None:
+            self._probe_worker.cancel()
+
+    def _reset_copy_button(self) -> None:
+        self.copy_button.setText(_("Copy Environment"))
 
     def _copy_environment(self) -> None:
         QApplication.clipboard().setText(self._env_text())
         self.copy_button.setText(_("Copied"))
-        QTimer.singleShot(2000, lambda: self.copy_button.setText(_("Copy Environment")))
+        self._copy_reset.start()
 
 
 class AboutDialog(QDialog):
@@ -410,6 +472,7 @@ class AboutDialog(QDialog):
         self.setWindowTitle(_("About ImSlim"))
         self.resize(560, 480)
         self.tab: AboutView = AboutView(settings)
+        _res = self.finished.connect(self.tab.cancel_probe)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.tab)

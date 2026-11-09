@@ -138,7 +138,7 @@ class NowRunner(QObject):
     def _close_progress(self) -> None:
         self._timer.stop()
         if self._progress is not None:
-            _res = self._progress.close()
+            self._progress.finish()
             self._progress = None
 
     def _quit(self) -> None:

@@ -9,7 +9,7 @@ from .batch_options import BatchOptions
 from .image_utils import get_image_paths_from_folder
 from .result_item import ResultItem
 from .result_item_manager import ResultItemManager, is_generated_output
-from .system_info import tool_version_pairs, worker_count
+from .system_info import VersionProbeCancelled, tool_version_pairs, worker_count
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +56,19 @@ class VersionProbeTask(Task):
 
     versions_ready: Signal = Signal(list)
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._cancel_event: threading.Event = threading.Event()
+
+    def cancel(self) -> None:
+        self._cancel_event.set()
+
     @override
     def run(self) -> None:
         try:
-            self.versions_ready.emit(tool_version_pairs())
+            self.versions_ready.emit(tool_version_pairs(self._cancel_event))
+        except VersionProbeCancelled:
+            logger.debug("Version probe cancelled")
         finally:
             self.finished.emit()
 

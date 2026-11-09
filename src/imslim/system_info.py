@@ -1,10 +1,10 @@
-import functools
 import locale
 import logging
 import os
 import platform
 import re
 import subprocess
+import threading
 
 from ._i18n import _
 from .binary_resolver import KNOWN_TOOLS, resolve_tool
@@ -43,30 +43,54 @@ _JPEGLI_SIBLING = {"cjpegli": "cjxl", "djpegli": "djxl"}
 _NO_VERSION_TOOLS = frozenset({"jxlinfo"})
 
 
-@functools.cache
-def tool_version_pairs() -> list[tuple[str, str]]:
-    # Cached: each probe spawns a process per tool, and reopening About would
-    # otherwise start another full probe while the old one is still running.
-    resolved: dict[str, str | None] = {}
-    for tool in KNOWN_TOOLS:
-        try:
-            resolved[tool] = resolve_tool(tool)
-        except OSError:
-            resolved[tool] = None
-    pairs: list[tuple[str, str]] = []
-    for tool in KNOWN_TOOLS:
-        path = resolved[tool]
-        if path is None or tool in _NO_VERSION_TOOLS:
-            pairs.append((tool, _("Version not available")))
-            continue
-        sibling = _JPEGLI_SIBLING.get(tool)
-        if sibling is not None:
-            sibling_path = resolved.get(sibling)
-            if sibling_path is not None:
-                pairs.append((tool, _tool_version(_version_flag(sibling_path, sibling))))
+class VersionProbeCancelled(Exception):
+    """The caller stopped waiting for the tool versions."""
+
+
+_version_cache: list[tuple[str, str]] | None = None
+_version_lock = threading.Lock()
+
+
+def tool_version_pairs(cancel: threading.Event | None = None) -> list[tuple[str, str]]:
+    """Probe every tool version once per process.
+
+    Cached: each probe spawns a process per tool, and reopening About would
+    otherwise start another full probe while the old one is still running. The
+    lock serialises callers; a cancelled probe raises and leaves the cache
+    empty so the next About window tries again.
+    """
+    global _version_cache
+    with _version_lock:
+        if _version_cache is not None:
+            return _version_cache
+        resolved: dict[str, str | None] = {}
+        for tool in KNOWN_TOOLS:
+            _raise_if_cancelled(cancel)
+            try:
+                resolved[tool] = resolve_tool(tool)
+            except OSError:
+                resolved[tool] = None
+        pairs: list[tuple[str, str]] = []
+        for tool in KNOWN_TOOLS:
+            _raise_if_cancelled(cancel)
+            path = resolved[tool]
+            if path is None or tool in _NO_VERSION_TOOLS:
+                pairs.append((tool, _("Version not available")))
                 continue
-        pairs.append((tool, _tool_version(_version_flag(path, tool))))
-    return pairs
+            sibling = _JPEGLI_SIBLING.get(tool)
+            if sibling is not None:
+                sibling_path = resolved.get(sibling)
+                if sibling_path is not None:
+                    pairs.append((tool, _tool_version(_version_flag(sibling_path, sibling))))
+                    continue
+            pairs.append((tool, _tool_version(_version_flag(path, tool))))
+        _version_cache = pairs
+        return pairs
+
+
+def _raise_if_cancelled(cancel: threading.Event | None) -> None:
+    if cancel is not None and cancel.is_set():
+        raise VersionProbeCancelled
 
 
 def system_info_pairs() -> list[tuple[str, str]]:

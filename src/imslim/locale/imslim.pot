@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: imslim 2.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 20:03+0000\n"
+"POT-Creation-Date: 2026-11-09 20:21+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -61,154 +61,162 @@ msgstr ""
 msgid "Format of this file is not supported."
 msgstr ""
 
-#: src/imslim/dialogs.py:46
+#: src/imslim/dialogs.py:47
 msgid "None"
 msgstr ""
 
-#: src/imslim/dialogs.py:47
+#: src/imslim/dialogs.py:48
 msgid "Debug"
 msgstr ""
 
-#: src/imslim/dialogs.py:48
+#: src/imslim/dialogs.py:49
 msgid "Info"
 msgstr ""
 
-#: src/imslim/dialogs.py:49 src/imslim/result_item_row.py:223
+#: src/imslim/dialogs.py:50 src/imslim/result_item_row.py:223
 msgid "Warning"
 msgstr ""
 
-#: src/imslim/dialogs.py:50 src/imslim/now.py:113 src/imslim/now.py:121
+#: src/imslim/dialogs.py:51 src/imslim/now.py:113 src/imslim/now.py:121
 #: src/imslim/result_item_row.py:215 src/imslim/window.py:565
 #: src/imslim/window.py:571
 msgid "Error"
 msgstr ""
 
-#: src/imslim/dialogs.py:69
+#: src/imslim/dialogs.py:71
 msgid "Processing…"
 msgstr ""
 
-#: src/imslim/dialogs.py:76
+#: src/imslim/dialogs.py:78
 msgid "Cancel"
 msgstr ""
 
-#: src/imslim/dialogs.py:89
+#: src/imslim/dialogs.py:91
 #, python-brace-format
 msgid "{done} of {total} images"
 msgstr ""
 
-#: src/imslim/dialogs.py:129
+#: src/imslim/dialogs.py:144
 msgid "Finished"
 msgstr ""
 
-#: src/imslim/dialogs.py:138
+#: src/imslim/dialogs.py:157
+msgid "Compression cancelled"
+msgstr ""
+
+#: src/imslim/dialogs.py:157
 msgid "Compression finished"
 msgstr ""
 
-#: src/imslim/dialogs.py:149 src/imslim/formats.py:314
+#: src/imslim/dialogs.py:170 src/imslim/formats.py:314
 msgid "Images"
 msgstr ""
 
-#: src/imslim/dialogs.py:150
+#: src/imslim/dialogs.py:172
 msgid "Time"
 msgstr ""
 
-#: src/imslim/dialogs.py:151 src/imslim/properties.py:33
+#: src/imslim/dialogs.py:176 src/imslim/properties.py:33
 msgid "Size"
 msgstr ""
 
-#: src/imslim/dialogs.py:152 src/imslim/result_item_row.py:203
+#: src/imslim/dialogs.py:179 src/imslim/result_item_row.py:203
 msgid "Skipped"
 msgstr ""
 
-#: src/imslim/dialogs.py:153 src/imslim/result_item_row.py:71
+#: src/imslim/dialogs.py:182 src/imslim/result_item_row.py:69
+msgid "Cancelled"
+msgstr ""
+
+#: src/imslim/dialogs.py:184 src/imslim/result_item_row.py:71
 msgid "Failed"
 msgstr ""
 
-#: src/imslim/dialogs.py:164 src/imslim/dialogs.py:417
+#: src/imslim/dialogs.py:195 src/imslim/dialogs.py:480
 #: src/imslim/options_view.py:433 src/imslim/properties.py:89
 msgid "Close"
 msgstr ""
 
-#: src/imslim/dialogs.py:166
+#: src/imslim/dialogs.py:197
 msgid "Open Output Folder"
 msgstr ""
 
-#: src/imslim/dialogs.py:197
+#: src/imslim/dialogs.py:230
 #, python-brace-format
 msgid "… and {count} more files"
 msgstr ""
 
-#: src/imslim/dialogs.py:207
+#: src/imslim/dialogs.py:240
 #, python-brace-format
 msgid "Failed: {name}"
 msgstr ""
 
-#: src/imslim/dialogs.py:210
+#: src/imslim/dialogs.py:243
 #, python-brace-format
 msgid "Skipped: {name}"
 msgstr ""
 
-#: src/imslim/dialogs.py:212
+#: src/imslim/dialogs.py:245
 #, python-brace-format
 msgid "Cancelled: {name}"
 msgstr ""
 
-#: src/imslim/dialogs.py:215
+#: src/imslim/dialogs.py:248
 #, python-brace-format
 msgid "{name} — {percent}%"
 msgstr ""
 
-#: src/imslim/dialogs.py:232
+#: src/imslim/dialogs.py:270
 #, python-brace-format
 msgid "{seconds:.1f} s"
 msgstr ""
 
-#: src/imslim/dialogs.py:234
+#: src/imslim/dialogs.py:273
 #, python-brace-format
 msgid "{minutes} min {seconds:.0f} s"
 msgstr ""
 
-#: src/imslim/dialogs.py:286
+#: src/imslim/dialogs.py:325
 msgid "Compress common image formats, lossless or lossy."
 msgstr ""
 
-#: src/imslim/dialogs.py:301
+#: src/imslim/dialogs.py:340
 msgid "Version"
 msgstr ""
 
-#: src/imslim/dialogs.py:305
+#: src/imslim/dialogs.py:344
 msgid "Config"
 msgstr ""
 
-#: src/imslim/dialogs.py:307
+#: src/imslim/dialogs.py:346
 msgid "Logs"
 msgstr ""
 
-#: src/imslim/dialogs.py:312
+#: src/imslim/dialogs.py:351
 msgid "Latest log"
 msgstr ""
 
-#: src/imslim/dialogs.py:313
+#: src/imslim/dialogs.py:352
 msgid "Open latest log"
 msgstr ""
 
-#: src/imslim/dialogs.py:316
+#: src/imslim/dialogs.py:355
 msgid "Log level"
 msgstr ""
 
-#: src/imslim/dialogs.py:320
+#: src/imslim/dialogs.py:359
 msgid "Source"
 msgstr ""
 
-#: src/imslim/dialogs.py:324 src/imslim/dialogs.py:402
+#: src/imslim/dialogs.py:363 src/imslim/dialogs.py:459
 msgid "Copy Environment"
 msgstr ""
 
-#: src/imslim/dialogs.py:401
+#: src/imslim/dialogs.py:463
 msgid "Copied"
 msgstr ""
 
-#: src/imslim/dialogs.py:410 src/imslim/options_view.py:270
+#: src/imslim/dialogs.py:472 src/imslim/options_view.py:270
 #: src/imslim/options_view.py:271
 msgid "About ImSlim"
 msgstr ""
@@ -594,9 +602,9 @@ msgstr ""
 msgid "Type"
 msgstr ""
 
-#: src/imslim/properties.py:32 src/imslim/system_info.py:76
-#: src/imslim/system_info.py:82 src/imslim/system_info.py:117
-#: src/imslim/system_info.py:137
+#: src/imslim/properties.py:32 src/imslim/system_info.py:100
+#: src/imslim/system_info.py:106 src/imslim/system_info.py:141
+#: src/imslim/system_info.py:161
 msgid "Unknown"
 msgstr ""
 
@@ -696,10 +704,6 @@ msgstr ""
 msgid "Compressing…"
 msgstr ""
 
-#: src/imslim/result_item_row.py:69
-msgid "Cancelled"
-msgstr ""
-
 #: src/imslim/result_item_row.py:75
 msgid "Already optimal"
 msgstr ""
@@ -714,8 +718,8 @@ msgid ""
 "a larger file size."
 msgstr ""
 
-#: src/imslim/system_info.py:32 src/imslim/system_info.py:60
-#: src/imslim/system_info.py:157 src/imslim/system_info.py:166
+#: src/imslim/system_info.py:32 src/imslim/system_info.py:78
+#: src/imslim/system_info.py:181 src/imslim/system_info.py:190
 msgid "Version not available"
 msgstr ""
 

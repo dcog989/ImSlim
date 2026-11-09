@@ -234,7 +234,7 @@ class ImSlimWindow(QWidget):
             return
         self._progress_timer.stop()
         if self._progress is not None:
-            _res = self._progress.close()
+            self._progress.finish()
             self._progress = None
         self._finish_batch()
         self._refresh_selected()
@@ -442,7 +442,7 @@ class ImSlimWindow(QWidget):
     def stop_compression(self) -> None:
         self.flow.cancel()
         if self._progress is not None:
-            _res = self._progress.close()
+            self._progress.finish()
             self._progress = None
 
     def on_paste(self) -> None:
@@ -578,6 +578,8 @@ class ImSlimWindow(QWidget):
         Runs on close and on aboutToQuit: Ctrl+Q leaves the event loop without a
         closeEvent, so cleanup cannot live in closeEvent alone.
         """
+        if self.about_dialog is not None:
+            self.about_dialog.tab.cancel_probe()
         self._cancel_preview()
         if self._preview_dir:
             shutil.rmtree(self._preview_dir, ignore_errors=True)
