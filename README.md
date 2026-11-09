@@ -1,8 +1,6 @@
 # ImSlim
 
-A Linux image compressor / converter for all common image formats. Lossless or lossy, individually or in batch. <any image type> -> <any image type>.
-
-Inspired by [Curtail](https://github.com/Huluti/Curtail) - feature parity + much more.
+A Linux image compressor / converter for all common image formats. Lossless or lossy, individually or in batch, GUI or instant processing.
 
 ![screen-1](assets/screen-1.webp)
 ![screen-2](assets/screen-2.webp)
@@ -18,7 +16,7 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail) - feature parity + much
 - convert any input format to any supported output format.
 - optionally strip metadata (EXIF/XMP/JUMBF), reset file attributes.
 - save output next to the original, to a custom folder, or backup->overwrite originals.
-- optionally write the results into an `imslim-<timestamp>` directory.
+- optionally write the results into an `imslim-<timestamp>-<pid>` directory.
 - skip files whose compressed result would be larger.
 - recurse directories for batch compression.
 - three-column window: queue, options, and a live original/processed comparison.
@@ -36,7 +34,7 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail) - feature parity + much
 bash install_appimage.sh ImSlim-*-linux-x86_64.AppImage
 ```
 
-This copies the AppImage to `~/Applications`, adds ImSlim to your application menu, and registers it as the handler for the supported image types.
+This copies the AppImage to `~/Applications`, adds ImSlim to your application menu, and registers it as a handler for the supported image types.
 
 ## Command line
 
@@ -65,7 +63,7 @@ ImSlim is built with Python / PySide6. The compression libraries are built from 
 - [pngquant](https://pngquant.org)
 - [svgo](https://github.com/svg/svgo)
 
-The AppImage and wheel carry these binaries, so no system tools are needed at runtime. Logs are written to `~/.local/state/ImSlim/imslim.log` (rotating).
+The AppImage and wheel carry these binaries, so no system tools are needed at runtime. Logs are written to `~/.local/state/ImSlim/imslim.log` (rotating); ImSlimNow writes `imslim-now.log` beside it so the two processes never rotate the same file.
 
 ### Development
 
