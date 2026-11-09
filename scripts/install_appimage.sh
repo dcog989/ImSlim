@@ -6,9 +6,14 @@
 # supported image types, and refreshes the menu cache. Run once after
 # downloading an AppImage from a release; launch ImSlim like any other app
 # afterwards.
+#
+# The desktop entries and icon come from next to this script (release assets)
+# or from the repository, so download them with the script:
+#   install_appimage.sh imslim.desktop imslim-now.desktop imslim.svg
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "$HERE/.." && pwd)"
 
 APPIMAGE="${1:-}"
 if [[ -z "$APPIMAGE" ]]; then
@@ -26,58 +31,30 @@ ICON_DIR="$DATA_HOME/icons/hicolor/scalable/apps"
 DESKTOP_DIR="$DATA_HOME/applications"
 TARGET="$APPS_DIR/ImSlim.AppImage"
 
+# Release assets land next to this script; a checkout keeps them under assets/.
+find_asset() {
+    local name="$1" path
+    for path in "$HERE/$name" "$ROOT/assets/$name" "$ROOT/src/imslim/assets/$name"; do
+        if [[ -f "$path" ]]; then
+            printf '%s' "$path"
+            return 0
+        fi
+    done
+    echo "missing $name next to this script; download it from the release" >&2
+    return 1
+}
+
+DESKTOP_SOURCE="$(find_asset imslim.desktop)"
+NOW_DESKTOP_SOURCE="$(find_asset imslim-now.desktop)"
+ICON_SOURCE="$(find_asset imslim.svg)"
+
 mkdir -p "$APPS_DIR" "$ICON_DIR" "$DESKTOP_DIR"
 install -Dm755 "$APPIMAGE" "$TARGET"
 
-# Prefer the repo's desktop entry/icon so they stay in sync; fall back to the
-# embedded copies so the script also works standalone (e.g. as a release asset).
-DESKTOP_SOURCE="$ROOT/assets/imslim.desktop"
-if [[ -f "$DESKTOP_SOURCE" ]]; then
-    sed "s|^Exec=.*|Exec=\"$TARGET\" %F|" "$DESKTOP_SOURCE" > "$DESKTOP_DIR/imslim.desktop"
-else
-    cat > "$DESKTOP_DIR/imslim.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=ImSlim
-GenericName=Image Compressor
-Comment=Compress PNG, JPEG, GIF, WebP, AVIF, JXL and SVG images
-Exec="$TARGET" %F
-Icon=imslim
-Terminal=false
-Categories=Graphics;Utility;
-Keywords=image;compress;optimize;png;jpeg;webp;avif;jxl;svg;
-MimeType=inode/directory;image/png;image/jpeg;image/gif;image/webp;image/avif;image/jxl;image/svg+xml;image/bmp;image/tiff;
-EOF
-fi
-
-if [[ -f "$ROOT/assets/imslim-now.desktop" ]]; then
-    sed "s|^Exec=.*|Exec=\"$TARGET\" --now %F|" "$ROOT/assets/imslim-now.desktop" \
-        > "$DESKTOP_DIR/imslim-now.desktop"
-else
-    cat > "$DESKTOP_DIR/imslim-now.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=ImSlimNow
-GenericName=Image Compressor
-Comment=Compress images immediately, without opening ImSlim
-Exec="$TARGET" --now %F
-Icon=imslim
-Terminal=false
-NoDisplay=true
-Categories=Graphics;Utility;
-Keywords=image;compress;optimize;png;jpeg;webp;avif;jxl;svg;
-MimeType=inode/directory;image/png;image/jpeg;image/gif;image/webp;image/avif;image/jxl;image/svg+xml;image/bmp;image/tiff;
-EOF
-fi
-
-ICON_SOURCE="$ROOT/src/imslim/assets/imslim.svg"
-if [[ -f "$ICON_SOURCE" ]]; then
-    install -Dm644 "$ICON_SOURCE" "$ICON_DIR/imslim.svg"
-else
-    printf '%s' \
-        "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MDAgNTAwIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8dGl0bGU+SW1TbGltIExvZ288L3RpdGxlPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI1MCAyNTApIHNjYWxlKDEuNDM3NSkgdHJhbnNsYXRlKC0yNTAgLTI1MCkiIGZpbGw9IiMwMGJjODUiPgogICAgPCEtLSBUb3AgSG9yaXpvbnRhbCBCYXIgLS0+CiAgICA8cmVjdCB4PSIxNTAiIHk9IjkwIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMyIiByeD0iOCIgLz4KCiAgICA8IS0tIFRhcGVyZWQgQ2VudGVyIFZlcnRpY2FsIEJhciAtLT4KICAgIDwhLS0gVG9wIHdpZHRoOiAxMDBweCAoMjAwIHRvIDMwMCksIE1pZGRsZSB3aWR0aDogMjBweCAoMjQwIHRvIDI2MCksIEJvdHRvbSB3aWR0aDogMTAwcHggKDIwMCB0byAzMDApIC0tPgogICAgPHBhdGgKICAgICAgZD0iTSAyMDAsMTM4CiAgICAgICAgICAgICBIIDMwMAogICAgICAgICAgICAgUSAyMjAsMjUwIDMwMCwzNjIKICAgICAgICAgICAgIEggMjAwCiAgICAgICAgICAgICBRIDI4MCwyNTAgMjAwLDEzOCBaIgogICAgLz4KCiAgICA8IS0tIEJvdHRvbSBIb3Jpem9udGFsIEJhciAtLT4KICAgIDxyZWN0IHg9IjE1MCIgeT0iMzc4IiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjMyIiByeD0iOCIgLz4KICA8L2c+Cjwvc3ZnPgo=" \
-        | base64 --decode > "$ICON_DIR/imslim.svg"
-fi
+sed "s|^Exec=.*|Exec=\"$TARGET\" %F|" "$DESKTOP_SOURCE" > "$DESKTOP_DIR/imslim.desktop"
+sed "s|^Exec=.*|Exec=\"$TARGET\" --now %F|" "$NOW_DESKTOP_SOURCE" \
+    > "$DESKTOP_DIR/imslim-now.desktop"
+install -Dm644 "$ICON_SOURCE" "$ICON_DIR/imslim.svg"
 
 if command -v kbuildsycoca6 >/dev/null 2>&1; then
     kbuildsycoca6 >/dev/null 2>&1 || true

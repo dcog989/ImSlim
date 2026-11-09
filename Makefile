@@ -15,7 +15,7 @@ check:
 	uv run pytest
 
 clean:
-	rm -rf .venv dist build src/*.egg-info .ruff_cache .pytest_cache && find . -name __pycache__ -type d -exec rm -rf {} +
+	rm -rf .venv dist build .ruff_cache .pytest_cache && find . -name __pycache__ -type d -exec rm -rf {} +
 
 # The bundled tools are deliberately kept out of `clean`: rebuilding them takes
 # minutes (and re-clones every source into .build).
@@ -35,9 +35,9 @@ install: require-tools
 	uv tool install . --force
 	mkdir -p $(DATA_HOME)/applications $(DATA_HOME)/icons/hicolor/scalable/apps
 	@BIN=$$(command -v imslim 2>/dev/null || echo $(HOME)/.local/bin/imslim); \
-	sed "s|^Exec=.*|Exec=$$BIN %F|" assets/imslim.desktop | \
+	sed "s|^Exec=.*|Exec=\"$$BIN\" %F|" assets/imslim.desktop | \
 		install -Dm644 /dev/stdin $(DATA_HOME)/applications/imslim.desktop; \
-	sed "s|^Exec=.*|Exec=$$BIN --now %F|" assets/imslim-now.desktop | \
+	sed "s|^Exec=.*|Exec=\"$$BIN\" --now %F|" assets/imslim-now.desktop | \
 		install -Dm644 /dev/stdin $(DATA_HOME)/applications/imslim-now.desktop
 	install -Dm644 src/imslim/assets/imslim.svg $(DATA_HOME)/icons/hicolor/scalable/apps/imslim.svg
 	@if command -v kbuildsycoca6 >/dev/null 2>&1; then kbuildsycoca6; \
