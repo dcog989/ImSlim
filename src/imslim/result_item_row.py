@@ -174,10 +174,10 @@ class ResultItemRow(QWidget):
         self._apply_background()
 
     def _apply_background(self) -> None:
-        # The parent's palette carries the queue's tinted background; read it
-        # live instead of storing a copy, which would keep the old theme.
-        parent = self.parentWidget()
-        palette = QPalette(parent.palette() if parent is not None else QApplication.palette())
+        # Read the live application palette: the row is built before it is
+        # parented, so this is the same base the old captured copy held, without
+        # keeping the old theme or compounding the blend on a repaint.
+        palette = QPalette(QApplication.palette())
         window = palette.color(QPalette.ColorRole.Window)
         base = palette.color(QPalette.ColorRole.Base)
         if self._selected:
