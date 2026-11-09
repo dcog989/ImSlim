@@ -53,6 +53,18 @@ def png_exif_payload(path: str) -> bytes | None:
     return None
 
 
+def png_size(path: str) -> tuple[int, int] | None:
+    """Return a PNG's pixel size from its header, or None when it is not a PNG."""
+    try:
+        with open(path, "rb") as handle:
+            head = handle.read(24)
+    except OSError:
+        return None
+    if len(head) < 24 or head[:8] != _PNG_SIGNATURE or head[12:16] != b"IHDR":
+        return None
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+
+
 def _copy_bytes(source: IO[bytes], target: IO[bytes], count: int) -> None:
     while count:
         chunk = source.read(min(count, 64 * 1024))
