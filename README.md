@@ -4,9 +4,6 @@ A Linux image compressor / converter for all common image formats. Lossless or l
 
 ![screen-1](assets/screen-1.webp)
 ![screen-2](assets/screen-2.webp)
-![screen-3](assets/screen-3.webp)
-![screen-4](assets/screen-4.webp)
-![screen-5](assets/screen-5.webp)
 
 ## Features
 
@@ -95,7 +92,7 @@ make upgrade        # refresh dependency lockfile to newest versions
 
 ```sh
 uv tool upgrade imslim       # just imslim
-uv lock --upgrade && uv sync # this project's Python deps (run in src/dicmerge)
+uv lock --upgrade && uv sync # this project's Python deps
 uv tool upgrade --all        # global uv-installed tools
 ```
 
