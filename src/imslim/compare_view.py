@@ -236,6 +236,9 @@ class CompareView(QWidget):
         self._request: int = 0
         self._tokens: dict[ImagePane, int] = {}
         self._pending: dict[int, ImagePane] = {}
+        # The source currently shown; repeated item updates must not decode it
+        # again (that also resets the zoom and pan the user set).
+        self._shown_original: str = ""
         self._original: ImagePane = ImagePane(_("Select a file to preview it."))
         self._processed: ImagePane = ImagePane(_("The processed image appears here."))
 
@@ -332,7 +335,9 @@ class CompareView(QWidget):
         self.time_label.setText(
             time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime)) if mtime else ""
         )
-        self._load(self._original, path, _("Loading…"))
+        if path != self._shown_original:
+            self._shown_original = path
+            self._load(self._original, path, _("Loading…"))
 
     def show_processed(
         self,
@@ -364,6 +369,7 @@ class CompareView(QWidget):
 
     def clear(self) -> None:
         self._tokens[self._original] = -1
+        self._shown_original = ""
         self.path_label.setText("")
         self.size_label.setText("")
         self.time_label.setText("")

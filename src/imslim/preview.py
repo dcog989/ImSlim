@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 import tempfile
+from contextlib import nullcontext
 
 from PySide6.QtCore import QMimeDatabase, QSize
 from PySide6.QtGui import QImage, QImageReader
@@ -56,17 +57,18 @@ def _read_with_tool(path: str) -> QImage | None:
         with tempfile.TemporaryDirectory(prefix="imslim-preview-") as directory:
             destination = os.path.join(directory, "preview.png")
             for command in decode_commands(mime, path, destination):
-                # A MIME in DECODER_TOOLS always resolves to a bundled tool, so
-                # this command carries argv; the Qt fallback is never selected.
-                if command.argv is not None:
-                    _res = subprocess.run(
-                        command.argv,
-                        check=True,
-                        capture_output=True,
-                        timeout=_DECODER_TIMEOUT_SECONDS,
-                    )
-                elif command.action is not None:
-                    command.action()
+                # Same bound as the batch path: a full-size decode is hundreds
+                # of MB, so only a couple may run at once.
+                with command.limit if command.limit is not None else nullcontext():
+                    if command.argv is not None:
+                        _res = subprocess.run(
+                            command.argv,
+                            check=True,
+                            capture_output=True,
+                            timeout=_DECODER_TIMEOUT_SECONDS,
+                        )
+                    elif command.action is not None:
+                        command.action()
             return _read_with_qt(destination)
     except (OSError, subprocess.SubprocessError) as err:
         logger.warning("Could not decode preview for %s: %s", path, err)
