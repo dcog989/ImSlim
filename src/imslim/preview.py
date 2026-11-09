@@ -56,6 +56,8 @@ def _read_with_tool(path: str) -> QImage | None:
         with tempfile.TemporaryDirectory(prefix="imslim-preview-") as directory:
             destination = os.path.join(directory, "preview.png")
             for command in decode_commands(mime, path, destination):
+                # A MIME in DECODER_TOOLS always resolves to a bundled tool, so
+                # this command carries argv; the Qt fallback is never selected.
                 if command.argv is not None:
                     _res = subprocess.run(
                         command.argv,
@@ -63,8 +65,6 @@ def _read_with_tool(path: str) -> QImage | None:
                         capture_output=True,
                         timeout=_DECODER_TIMEOUT_SECONDS,
                     )
-                elif command.action is not None:
-                    command.action()
             return _read_with_qt(destination)
     except (OSError, subprocess.SubprocessError) as err:
         logger.warning("Could not decode preview for %s: %s", path, err)

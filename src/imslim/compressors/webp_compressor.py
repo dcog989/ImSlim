@@ -5,10 +5,15 @@ from ..binary_resolver import resolve_tool
 from ..commands import Command, tokens
 from ..compressor import Compressor
 from ..conversion import decode_commands
-from ..formats import CompressorType
+from ..formats import OUTPUT_EXTENSIONS, TARGET_EXTENSIONS, CompressorType, Format
 from ..result_item import ResultItem
 
-_CONVERTED_MIME_TYPES = ("image/bmp", "image/tiff")
+# Sources that re-encode to WebP; cwebp cannot read them, so decode first.
+_CONVERTED_MIME_TYPES = frozenset(
+    mime
+    for mime, extension in OUTPUT_EXTENSIONS.items()
+    if extension == TARGET_EXTENSIONS[Format.WEBP]
+)
 # maximum cpu power for lossless
 _LOSSLESS_QUALITY = 100
 

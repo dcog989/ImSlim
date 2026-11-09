@@ -258,16 +258,12 @@ NATIVE_INPUTS: dict[Format, frozenset[str]] = {
 }
 
 
-def _build_decoder_tools() -> dict[str, str]:
-    tools: dict[str, str] = {}
-    for spec in FORMAT_SPECS:
-        if spec.decoder is not None:
-            for mime in spec.source_mimes:
-                tools[mime] = spec.decoder
-    return tools
-
-
-DECODER_TOOLS: dict[str, str] = _build_decoder_tools()
+DECODER_TOOLS: dict[str, str] = {
+    mime: decoder
+    for spec in FORMAT_SPECS
+    if (decoder := spec.decoder) is not None
+    for mime in spec.source_mimes
+}
 
 IMAGE_EXTENSIONS: tuple[str, ...] = tuple(
     extension for spec in FORMAT_SPECS for extension in spec.source_extensions
