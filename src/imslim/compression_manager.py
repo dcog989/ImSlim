@@ -167,7 +167,8 @@ class CompressionManager:
                     c_update_result_item(result_item)
                 result_items = result_items[:prepared_count]
 
-            # Avoid oversubscribing: encode tools (e.g. cwebp -mt) already thread internally.
+            # Encoders are capped to two threads per job, so half the cores as
+            # workers keeps the total near the core count.
             max_workers = worker_count()
             max_pending = max_workers * _MAX_PENDING_PER_WORKER
             with ThreadPoolExecutor(max_workers=max_workers) as executor:

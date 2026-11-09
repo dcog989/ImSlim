@@ -9,7 +9,7 @@ A Linux image compressor / converter for all common image formats. Lossless or l
 
 - compress common image formats (PNG, JPEG, GIF, WebP, AVIF, JXL, SVG) lossless or lossy.
 - BMP + TIFF are always encoded to WebP.
-- animated GIFs are always compressed losslessly.
+- animated GIFs and PNGs are always compressed losslessly; animated WebP is flattened to its first frame.
 - convert any input format to any supported output format.
 - optionally strip metadata (EXIF/XMP/JUMBF), reset file attributes.
 - save output next to the original, to a custom folder, or backup->overwrite originals.

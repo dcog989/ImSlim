@@ -1,6 +1,7 @@
 """Exact argv for every encoder: the flag strings the external tools depend on."""
 
 import os
+from pathlib import Path
 
 import pytest
 
@@ -18,7 +19,6 @@ from imslim.result_item import ResultItem
 _SOURCE = "photo"
 _TMP = "photo.tmp"
 _PNG_INTERMEDIATE = "photo.tmp.png"
-_JPEG_ENCODED = "photo.tmp.enc.jpg"
 _WEBP_INTERMEDIATE = "photo.tmp.png"
 
 
@@ -46,10 +46,10 @@ _KNOBS: dict[str, int | bool] = {
 
 _PNGQ_LOSSY = _cmd(f"pngquant --quality=0-42 -f {_SOURCE} --output {_TMP}")
 _PNGQ_LOSSY_STRIP = _cmd(f"pngquant --quality=0-42 -f --strip {_SOURCE} --output {_TMP}")
-_OXI_LOSSY = _cmd(f"oxipng -o 3 -i 0 --preserve {_TMP} --out {_TMP}")
-_OXI_SOURCE = _cmd(f"oxipng -o 3 -i 0 --preserve {_SOURCE} --out {_TMP}")
-_OXI_LOSSY_STRIP = _cmd(f"oxipng -o 3 -i 0 --strip safe --preserve {_TMP} --out {_TMP}")
-_OXI_SOURCE_STRIP = _cmd(f"oxipng -o 3 -i 0 --strip safe --preserve {_SOURCE} --out {_TMP}")
+_OXI_LOSSY = _cmd(f"oxipng -o 3 -i 0 -t 2 {_TMP} --out {_TMP}")
+_OXI_SOURCE = _cmd(f"oxipng -o 3 -i 0 -t 2 {_SOURCE} --out {_TMP}")
+_OXI_LOSSY_STRIP = _cmd(f"oxipng -o 3 -i 0 -t 2 --strip safe {_TMP} --out {_TMP}")
+_OXI_SOURCE_STRIP = _cmd(f"oxipng -o 3 -i 0 -t 2 --strip safe {_SOURCE} --out {_TMP}")
 _PNG_LOSSY_KEEP = [_PNGQ_LOSSY, _OXI_LOSSY, None]  # None: metadata chunk copy
 _PNG_LOSSY_STRIP = [_PNGQ_LOSSY_STRIP, _OXI_LOSSY_STRIP]
 _PNG_LOSSLESS_KEEP = [_OXI_SOURCE]
@@ -57,20 +57,16 @@ _PNG_LOSSLESS_STRIP = [_OXI_SOURCE_STRIP]
 
 _JPEGTRAN_KEEP = _cmd(f"jpegtran -optimize -copy all -outfile {_TMP} {_SOURCE}")
 _JPEGTRAN_ICC = _cmd(f"jpegtran -optimize -copy icc -outfile {_TMP} {_SOURCE}")
-_JPEGTRAN_ENCODED_ICC = _cmd(f"jpegtran -copy icc -outfile {_TMP} {_JPEG_ENCODED}")
 _DJPEGLI = _cmd(f"djpegli {_SOURCE} {_PNG_INTERMEDIATE}")
 _CJPEGLI_KEEP = _cmd(f"cjpegli {_PNG_INTERMEDIATE} {_TMP} --quality 42 --progressive_level=0")
-_CJPEGLI_STRIP = _cmd(
-    f"cjpegli {_PNG_INTERMEDIATE} {_JPEG_ENCODED} --quality 42 --progressive_level=0"
-)
+_CJPEGLI_STRIP = _cmd(f"cjpegli {_PNG_INTERMEDIATE} {_TMP} --quality 42 --progressive_level=0")
 _JPEG_LOSSY_KEEP = [_DJPEGLI, _CJPEGLI_KEEP, None]
-_JPEG_LOSSY_STRIP = [_DJPEGLI, _CJPEGLI_STRIP, _JPEGTRAN_ENCODED_ICC]
 
-_CWEBP_LOSSY = _cmd(f"cwebp -metadata all -mt -m 3 -q 42 -o {_TMP} {_SOURCE}")
-_CWEBP_LOSSY_ICC = _cmd(f"cwebp -metadata icc -mt -m 3 -q 42 -o {_TMP} {_SOURCE}")
-_CWEBP_LL = _cmd(f"cwebp -metadata all -lossless -mt -m 3 -q 100 -o {_TMP} {_SOURCE}")
-_CWEBP_LL_ICC = _cmd(f"cwebp -metadata icc -lossless -mt -m 3 -q 100 -o {_TMP} {_SOURCE}")
-_CWEBP_BMP = _cmd(f"cwebp -metadata all -mt -m 3 -q 42 -o {_TMP} {_WEBP_INTERMEDIATE}")
+_CWEBP_LOSSY = _cmd(f"cwebp -metadata all -m 3 -q 42 -o {_TMP} {_SOURCE}")
+_CWEBP_LOSSY_ICC = _cmd(f"cwebp -metadata icc -m 3 -q 42 -o {_TMP} {_SOURCE}")
+_CWEBP_LL = _cmd(f"cwebp -metadata all -lossless -m 3 -q 100 -o {_TMP} {_SOURCE}")
+_CWEBP_LL_ICC = _cmd(f"cwebp -metadata icc -lossless -m 3 -q 100 -o {_TMP} {_SOURCE}")
+_CWEBP_BMP = _cmd(f"cwebp -metadata all -m 3 -q 42 -o {_TMP} {_WEBP_INTERMEDIATE}")
 
 _AVIF_LOSSY = _cmd(f"avifenc -q 42 -a tune=iq -d 10 --speed 6 -j 2 {_SOURCE} {_TMP}")
 _AVIF_LOSSY_STRIP = _cmd(
@@ -81,14 +77,17 @@ _AVIF_LL_STRIP = _cmd(
     f"avifenc --ignore-exif --ignore-xmp --lossless --speed 6 -j 2 {_SOURCE} {_TMP}"
 )
 
-_CJXL_LOSSY = _cmd(f"cjxl -q 42 -e 3 {_SOURCE} {_TMP}")
-_CJXL_LOSSLESS = _cmd(f"cjxl -q 100 -e 3 {_SOURCE} {_TMP}")
+_CJXL_STRIP = "-x strip=exif -x strip=xmp -x strip=jumbf"
+_CJXL_LOSSY = _cmd(f"cjxl -q 42 -e 3 --num_threads=2 {_SOURCE} {_TMP}")
+_CJXL_LOSSLESS = _cmd(f"cjxl -q 100 -e 3 --num_threads=2 {_SOURCE} {_TMP}")
+_CJXL_LOSSY_STRIP = _cmd(f"cjxl -q 42 -e 3 --num_threads=2 {_CJXL_STRIP} {_SOURCE} {_TMP}")
+_CJXL_LOSSLESS_STRIP = _cmd(f"cjxl -q 100 -e 3 --num_threads=2 {_CJXL_STRIP} {_SOURCE} {_TMP}")
 _DJXL_DECODE = _cmd(f"djxl {_SOURCE} {_PNG_INTERMEDIATE}")
 _DJXL_EXIF = _cmd(f"djxl {_SOURCE} - --output_format exif")
 _DJXL_XMP = _cmd(f"djxl {_SOURCE} - --output_format xmp")
 _DJXL_JUMBF = _cmd(f"djxl {_SOURCE} - --output_format jumbf")
 _CJXL_SIDECARS = _cmd(
-    "cjxl -q 42 -e 3 "
+    "cjxl -q 42 -e 3 --num_threads=2 "
     "-x exif=photo.tmp.exif -x xmp=photo.tmp.xmp -x jumbf=photo.tmp.jumbf "
     f"{_PNG_INTERMEDIATE} {_TMP}"
 )
@@ -96,7 +95,7 @@ _JXL_WITH_SIDECARS = [_DJXL_DECODE, _DJXL_EXIF, _DJXL_XMP, _DJXL_JUMBF, _CJXL_SI
 _JXL_SIDECAR_PATHS = [None, "photo.tmp.exif", "photo.tmp.xmp", "photo.tmp.jumbf", None]
 _DJPEGLI_CONVERT = _cmd(f"djpegli {_SOURCE} photo.tmp.convert.png")
 _CJXL_JPEG_SIDECARS = _cmd(
-    "cjxl -q 42 -e 3 "
+    "cjxl -q 42 -e 3 --num_threads=2 "
     "-x exif=photo.tmp.exif -x xmp=photo.tmp.xmp -x jumbf=photo.tmp.jumbf "
     "photo.tmp.convert.png photo.tmp"
 )
@@ -113,7 +112,6 @@ def _options(
     target_format: Format,
     lossy: bool,
     metadata: bool = True,
-    file_attributes: bool = True,
     knobs: dict[str, int | bool] | None = None,
 ) -> BatchOptions:
     return BatchOptions(
@@ -123,7 +121,7 @@ def _options(
         recursive=False,
         lossy=lossy,
         metadata=metadata,
-        file_attributes=file_attributes,
+        file_attributes=True,
         compression_timeout=60,
         knobs=_KNOBS if knobs is None else knobs,
     )
@@ -159,39 +157,80 @@ def test_png_command(lossy: bool, metadata: bool, expected: list[list[str] | Non
     assert _argv(PNGCompressor().commands(_item("image/png"), options)) == expected
 
 
-def test_png_drops_preserve_when_file_attributes_off() -> None:
-    options = _options(Format.PNG, lossy=False, file_attributes=False)
-    argv = _argv(PNGCompressor().commands(_item("image/png"), options))
+def test_png_animated_lossy_stays_lossless() -> None:
+    item = _item("image/png")
+    item.is_animated = True
+    options = _options(Format.PNG, lossy=True)
 
-    assert "--preserve" not in argv[0]
+    assert _argv(PNGCompressor().commands(item, options)) == [_OXI_SOURCE]
 
 
-@pytest.mark.parametrize(
-    ("metadata", "expected"),
-    [
-        pytest.param(True, _JPEGTRAN_KEEP, id="keep-metadata"),
-        pytest.param(False, _JPEGTRAN_ICC, id="strip-metadata"),
-    ],
-)
-def test_jpeg_lossless_command(metadata: bool, expected: list[str]) -> None:
-    options = _options(Format.JPEG, lossy=False, metadata=metadata)
+def test_jpeg_lossless_command_keeps_metadata() -> None:
+    options = _options(Format.JPEG, lossy=False, metadata=True)
     commands = JPEGCompressor().commands(_item("image/jpeg"), options)
 
-    assert _argv(commands) == [expected]
+    assert _argv(commands) == [_JPEGTRAN_KEEP]
 
 
-@pytest.mark.parametrize(
-    ("metadata", "expected"),
-    [
-        pytest.param(True, _JPEG_LOSSY_KEEP, id="keep-metadata"),
-        pytest.param(False, _JPEG_LOSSY_STRIP, id="strip-metadata"),
-    ],
-)
-def test_jpeg_lossy_command(metadata: bool, expected: list[list[str] | None]) -> None:
-    options = _options(Format.JPEG, lossy=True, metadata=metadata)
+def test_jpeg_lossless_command_strips_metadata() -> None:
+    options = _options(Format.JPEG, lossy=False, metadata=False)
     commands = JPEGCompressor().commands(_item("image/jpeg"), options)
 
-    assert _argv(commands) == expected
+    assert commands[0].argv == _JPEGTRAN_ICC
+    assert commands[-1].argv is None
+    assert commands[-1].action is not None
+
+
+def _jpeg_with_orientation(path: Path, orientation: int) -> None:
+    tiff = (
+        b"II*\x00"
+        + (8).to_bytes(4, "little")
+        + (1).to_bytes(2, "little")
+        + (0x0112).to_bytes(2, "little")
+        + (3).to_bytes(2, "little")
+        + (1).to_bytes(4, "little")
+        + orientation.to_bytes(2, "little")
+        + b"\x00\x00"
+        + (0).to_bytes(4, "little")
+    )
+    payload = b"Exif\x00\x00" + tiff
+    app1 = b"\xff\xe1" + (len(payload) + 2).to_bytes(2, "big") + payload
+    path.write_bytes(b"\xff\xd8" + app1 + b"\xff\xda")
+
+
+def test_jpeg_lossless_applies_orientation_when_stripping(tmp_path) -> None:
+    source = tmp_path / "photo.jpg"
+    _jpeg_with_orientation(source, 6)
+    item = ResultItem(
+        filename=str(source),
+        mime_type="image/jpeg",
+        tmp_filename=str(tmp_path / "out.jpg"),
+    )
+    options = _options(Format.JPEG, lossy=False, metadata=False)
+    commands = JPEGCompressor().build_command(item, options, str(source))
+
+    argv = commands[0].argv
+    assert argv is not None
+    assert argv[argv.index("-rotate") + 1] == "90"
+
+
+def test_jpeg_lossy_command_keeps_metadata() -> None:
+    options = _options(Format.JPEG, lossy=True, metadata=True)
+    commands = JPEGCompressor().commands(_item("image/jpeg"), options)
+
+    assert _argv(commands) == _JPEG_LOSSY_KEEP
+
+
+def test_jpeg_lossy_command_strips_metadata() -> None:
+    options = _options(Format.JPEG, lossy=True, metadata=False)
+    commands = JPEGCompressor().commands(_item("image/jpeg"), options)
+
+    # The decode is the Qt helper (it applies the EXIF orientation).
+    assert commands[0].argv is not None
+    assert "imslim.image_convert" in commands[0].argv or "--decode-png" in commands[0].argv
+    assert commands[1].argv == _CJPEGLI_STRIP
+    assert commands[-1].argv is None
+    assert commands[-1].action is not None
 
 
 def test_jpeg_lossy_keep_metadata_copies_exif_back() -> None:
@@ -244,6 +283,27 @@ def test_webp_decodes_bmp_source_first() -> None:
     assert commands[1].argv == _CWEBP_BMP
 
 
+def test_webp_decodes_animated_webp_first() -> None:
+    item = _item("image/webp")
+    item.is_animated = True
+    options = _options(Format.KEEP, lossy=True)
+    commands = WEBPCompressor().commands(item, options)
+
+    assert commands[0].argv is not None
+    assert "imslim.image_convert" in commands[0].argv or "--decode-png" in commands[0].argv
+    assert commands[1].argv == _CWEBP_BMP
+
+
+def test_webp_decodes_jpeg_first_when_stripping_metadata() -> None:
+    options = _options(Format.WEBP, lossy=True, metadata=False)
+    commands = WEBPCompressor().commands(_item("image/jpeg"), options)
+
+    assert commands[0].argv is not None
+    assert "imslim.image_convert" in commands[0].argv or "--decode-png" in commands[0].argv
+    assert commands[1].argv is not None
+    assert commands[1].argv[-1] == _WEBP_INTERMEDIATE
+
+
 @pytest.mark.parametrize(
     ("lossy", "metadata", "expected"),
     [
@@ -261,18 +321,19 @@ def test_avif_command(lossy: bool, metadata: bool, expected: list[str]) -> None:
 
 
 @pytest.mark.parametrize(
-    ("lossy", "expected"),
+    ("lossy", "metadata", "expected"),
     [
-        pytest.param(True, _CJXL_LOSSY, id="lossy"),
-        pytest.param(False, _CJXL_LOSSLESS, id="lossless"),
+        pytest.param(True, True, _CJXL_LOSSY, id="lossy-keep"),
+        pytest.param(True, False, _CJXL_LOSSY_STRIP, id="lossy-strip"),
+        pytest.param(False, True, _CJXL_LOSSLESS, id="lossless-keep"),
+        pytest.param(False, False, _CJXL_LOSSLESS_STRIP, id="lossless-strip"),
     ],
 )
-def test_jxl_quality_ignores_metadata(lossy: bool, expected: list[str]) -> None:
-    for metadata in (True, False):
-        options = _options(Format.JXL, lossy, metadata)
-        commands = JXLCompressor().commands(_item("image/png"), options)
+def test_jxl_command(lossy: bool, metadata: bool, expected: list[str]) -> None:
+    options = _options(Format.JXL, lossy, metadata)
+    commands = JXLCompressor().commands(_item("image/png"), options)
 
-        assert _argv(commands) == [expected]
+    assert _argv(commands) == [expected]
 
 
 def test_jxl_extracts_metadata_sidecars_for_non_png_source() -> None:
@@ -335,11 +396,21 @@ def test_gif_command(
 
 
 @pytest.mark.parametrize(
-    ("maximum", "expected_name"),
-    [(False, "svgo.config.cjs"), (True, "svgo.maximum.config.cjs")],
+    ("maximum", "metadata", "expected_name"),
+    [
+        (False, True, "svgo.config.cjs"),
+        (False, False, "svgo.strip.config.cjs"),
+        (True, True, "svgo.maximum.config.cjs"),
+        (True, False, "svgo.maximum-strip.config.cjs"),
+    ],
 )
-def test_svg_command(maximum: bool, expected_name: str) -> None:
-    options = _options(Format.KEEP, lossy=True, knobs={**_KNOBS, "svg-maximum-level": maximum})
+def test_svg_command(maximum: bool, metadata: bool, expected_name: str) -> None:
+    options = _options(
+        Format.KEEP,
+        lossy=True,
+        metadata=metadata,
+        knobs={**_KNOBS, "svg-maximum-level": maximum},
+    )
     argv = _argv(SVGCompressor().commands(_item("image/svg+xml"), options))[0]
 
     assert argv[:2] == ["svgo", "--config"]

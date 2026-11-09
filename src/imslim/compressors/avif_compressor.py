@@ -3,7 +3,7 @@ from typing import override
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..commands import Command, tokens
-from ..compressor import Compressor
+from ..compressor import ENCODER_THREADS_PER_JOB, Compressor
 from ..conversion import decode_commands
 from ..formats import CompressorType, Format, native_inputs
 from ..result_item import ResultItem
@@ -12,9 +12,6 @@ from ..result_item import ResultItem
 _ENCODE_BIT_DEPTH = 10
 # avifenc --speed range is 0-10 (slowest/best to fastest/worst).
 _MAX_SPEED = 10
-# The compression pool runs one job per two CPU threads, and avifenc defaults
-# to '-j all'; two threads per job keeps the total near the core count.
-_THREADS_PER_JOB = 2
 # Source formats avifenc reads itself, derived from the AVIF target's native
 # inputs minus AVIF itself, which avifenc cannot read.
 _ENCODER_INPUTS = native_inputs(Format.AVIF) - {"image/avif"}
@@ -26,15 +23,18 @@ class AVIFCompressor(Compressor):
     def get_file_type(cls) -> CompressorType:
         return CompressorType.AVIF
 
-    def _reads_input(self, result_item: ResultItem, input_path: str) -> bool:
+    def _reads_input(self, result_item: ResultItem, input_path: str, options: BatchOptions) -> bool:
         """True when avifenc can read `input_path` itself.
 
         Either a source format avifenc reads, or the PNG the pipeline already
         pre-decoded for a format it cannot read. Passing a JPEG straight through
-        keeps its EXIF/XMP, which a decode to PNG would drop.
+        keeps its EXIF/XMP, which a decode to PNG would drop. Stripping metadata
+        needs a decode so the EXIF orientation is applied before it disappears.
         """
         if input_path != result_item.filename:
             return True
+        if result_item.mime_type == "image/jpeg" and not options.metadata:
+            return False
         return result_item.mime_type in _ENCODER_INPUTS
 
     @override
@@ -45,9 +45,14 @@ class AVIFCompressor(Compressor):
         encode_input = input_path
 
         # avifenc can't read AVIF input, so decode to a temporary PNG first.
-        if not self._reads_input(result_item, input_path):
+        if not self._reads_input(result_item, input_path, options):
             intermediate = self._intermediate_path(result_item)
-            commands += decode_commands(result_item.mime_type, input_path, intermediate)
+            commands += decode_commands(
+                result_item.mime_type,
+                input_path,
+                intermediate,
+                apply_orientation=not options.metadata,
+            )
             encode_input = intermediate
 
         avifenc = [resolve_tool("avifenc")]
@@ -67,7 +72,7 @@ class AVIFCompressor(Compressor):
 
         # higher effort -> slower but better compression (speed 0-10, default 6)
         avifenc += tokens(t"--speed {_MAX_SPEED - options.level('avif-effort')}")
-        avifenc += tokens(t"-j {_THREADS_PER_JOB}")
+        avifenc += tokens(t"-j {ENCODER_THREADS_PER_JOB}")
         avifenc += [encode_input, result_item.tmp_filename]
 
         commands.append(Command(avifenc, temp_files=(result_item.tmp_filename,)))

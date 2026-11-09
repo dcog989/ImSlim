@@ -1,4 +1,4 @@
-from imslim.exif import _format_value, _parse_tiff, read_exif
+from imslim.exif import _format_value, _parse_tiff, jpeg_orientation, read_exif
 
 
 def _tiff_block() -> bytes:
@@ -46,6 +46,22 @@ def test_read_exif_ignores_non_image_data(tmp_path) -> None:
     path.write_bytes(b"not an image")
 
     assert read_exif(str(path)) == []
+
+
+def test_jpeg_orientation_reads_the_app1_block(tmp_path) -> None:
+    payload = b"Exif\x00\x00" + _tiff_block()
+    app1 = b"\xff\xe1" + (len(payload) + 2).to_bytes(2, "big") + payload
+    path = tmp_path / "photo.jpg"
+    path.write_bytes(b"\xff\xd8" + app1 + b"\xff\xda")
+
+    assert jpeg_orientation(str(path)) == 6
+
+
+def test_jpeg_orientation_defaults_to_normal(tmp_path) -> None:
+    path = tmp_path / "photo.jpg"
+    path.write_bytes(b"not an image")
+
+    assert jpeg_orientation(str(path)) == 1
 
 
 def test_parse_tiff_ignores_a_cyclic_exif_ifd() -> None:

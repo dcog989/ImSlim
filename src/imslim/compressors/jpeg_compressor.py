@@ -6,13 +6,25 @@ from ..binary_resolver import resolve_tool
 from ..commands import Command, tokens
 from ..compressor import Compressor
 from ..conversion import decode_commands
+from ..exif import jpeg_orientation
 from ..formats import CompressorType
-from ..jpeg_metadata import transfer_metadata
+from ..jpeg_metadata import strip_metadata, transfer_metadata
 from ..result_item import ResultItem
 
 # cjpegli cannot encode losslessly; quality 100 is the closest it gets, so a
 # lossless request must not fall back to the lossy knob's default of 90.
 _LOSSLESS_QUALITY = 100
+
+# EXIF Orientation -> the matching lossless jpegtran transform.
+_ORIENTATION_TRANSFORMS: dict[int, list[str]] = {
+    2: ["-flip", "horizontal"],
+    3: ["-rotate", "180"],
+    4: ["-flip", "vertical"],
+    5: ["-transpose"],
+    6: ["-rotate", "90"],
+    7: ["-transverse"],
+    8: ["-rotate", "270"],
+}
 
 
 class JPEGCompressor(Compressor):
@@ -20,9 +32,6 @@ class JPEGCompressor(Compressor):
     @classmethod
     def get_file_type(cls) -> CompressorType:
         return CompressorType.JPEG
-
-    def _encoded_path(self, result_item: ResultItem) -> str:
-        return result_item.tmp_filename + ".enc.jpg"
 
     @override
     def build_command(
@@ -42,12 +51,22 @@ class JPEGCompressor(Compressor):
         if options.flag("jpg-progressive"):
             jpegtran.append("-progressive")
 
+        if not options.metadata:
+            # Stripping the EXIF tag would leave the pixels unrotated, so apply
+            # the orientation losslessly first.
+            jpegtran += _ORIENTATION_TRANSFORMS.get(jpeg_orientation(input_path), [])
+
         # Keep the ICC profile when stripping metadata so colors still render correctly.
         jpegtran += ["-copy", "all" if options.metadata else "icc"]
 
         jpegtran += ["-outfile", result_item.tmp_filename, input_path]
 
-        return [Command(jpegtran, temp_files=(result_item.tmp_filename,))]
+        commands = [Command(jpegtran, temp_files=(result_item.tmp_filename,))]
+        if not options.metadata:
+            # mozjpeg may write the original file instead of a smaller
+            # re-encode, so strip in-process as well.
+            commands.append(Command(action=partial(strip_metadata, result_item.tmp_filename)))
+        return commands
 
     def _build_lossy_command(
         self, result_item: ResultItem, options: BatchOptions, input_path: str
@@ -56,39 +75,38 @@ class JPEGCompressor(Compressor):
         encode_input = input_path
 
         # jpegli can't read JPEG input, so decode to a temporary PNG first.
-        # PNG/YUV inputs (native PNG or a conversion intermediate) feed cjpegli directly.
+        # PNG inputs (native PNG or a conversion intermediate) feed cjpegli directly.
+        # Stripping metadata decodes with Qt so the EXIF orientation is applied
+        # before the tag disappears.
         if result_item.mime_type == "image/jpeg" and not self._input_is_png(
             result_item, input_path
         ):
             intermediate = self._intermediate_path(result_item)
-            commands += decode_commands(result_item.mime_type, input_path, intermediate)
+            commands += decode_commands(
+                result_item.mime_type,
+                input_path,
+                intermediate,
+                apply_orientation=not options.metadata,
+            )
             encode_input = intermediate
 
-        encoded_path: str | None = None
-        output = result_item.tmp_filename
-        if not options.metadata:
-            encoded_path = self._encoded_path(result_item)
-            output = encoded_path
-
         quality = options.level("jpg-lossy-level") if options.lossy else _LOSSLESS_QUALITY
-        cjpegli = tokens(t"{resolve_tool('cjpegli')} {encode_input} {output} --quality {quality}")
+        cjpegli = tokens(
+            t"{resolve_tool('cjpegli')} {encode_input} {result_item.tmp_filename} "
+            + t"--quality {quality}"
+        )
         cjpegli.append(
             "--progressive_level=2" if options.flag("jpg-progressive") else "--progressive_level=0"
         )
+        commands.append(Command(cjpegli, temp_files=(result_item.tmp_filename,)))
 
-        commands.append(Command(cjpegli, temp_files=(output,)))
-
-        if encoded_path is not None:
-            # jpegli carries ICC/EXIF/XMP from the PNG; strip all but the ICC profile
-            jpegtran = tokens(
-                t"{resolve_tool('jpegtran')} -copy icc -outfile {result_item.tmp_filename} "
-                + t"{encoded_path}"
-            )
-            commands.append(Command(jpegtran, temp_files=(result_item.tmp_filename,)))
-        elif result_item.mime_type == "image/jpeg":
-            # Metadata is kept, but the encoder was fed a PNG decoded from the
-            # original and that PNG carries no EXIF/XMP, so copy it back over.
-            commands.append(self._metadata_command(result_item))
+        if options.metadata:
+            if result_item.mime_type == "image/jpeg":
+                # Metadata is kept, but the encoder was fed a PNG decoded from the
+                # original and that PNG carries no EXIF/XMP, so copy it back over.
+                commands.append(self._metadata_command(result_item))
+        else:
+            commands.append(Command(action=partial(strip_metadata, result_item.tmp_filename)))
 
         return commands
 

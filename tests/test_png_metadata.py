@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PySide6.QtGui import QImage
 
-from imslim.png_metadata import transfer_png_metadata
+from imslim.png_metadata import normalize_png_exif, transfer_png_metadata
 
 
 def _png(path: Path) -> None:
@@ -65,3 +65,30 @@ def test_does_nothing_without_source_metadata(tmp_path: Path) -> None:
     transfer_png_metadata(str(source), str(target))
 
     assert target.read_bytes() == expected
+
+
+def test_normalizes_a_prefixed_exif_chunk(tmp_path: Path) -> None:
+    target = tmp_path / "target.png"
+    _png(target)
+    _add_chunk(target, b"eXIf", b"Exif\x00\x00II*\x00\x08\x00\x00\x00")
+    temp = tmp_path / "target.normalize.png"
+
+    normalize_png_exif(str(target), str(temp))
+
+    data = target.read_bytes()
+    assert b"Exif\x00\x00" not in data
+    assert b"II*\x00\x08\x00\x00\x00" in data
+    assert not temp.exists()
+
+
+def test_normalize_leaves_a_valid_exif_chunk_alone(tmp_path: Path) -> None:
+    target = tmp_path / "target.png"
+    _png(target)
+    _add_chunk(target, b"eXIf", b"II*\x00\x08\x00\x00\x00")
+    expected = target.read_bytes()
+    temp = tmp_path / "target.normalize.png"
+
+    normalize_png_exif(str(target), str(temp))
+
+    assert target.read_bytes() == expected
+    assert not temp.exists()

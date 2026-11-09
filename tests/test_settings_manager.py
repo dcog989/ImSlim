@@ -81,6 +81,17 @@ def test_timeout_from_the_config_file_is_clamped() -> None:
     assert SettingsManager().compression_timeout == COMPRESSION_TIMEOUT_MAX
 
 
+def test_knob_from_the_config_file_is_clamped() -> None:
+    store = _store()
+    store.setValue("avif-effort", 99)
+    store.sync()
+    assert SettingsManager().knob("avif-effort") == 10
+
+    store.setValue("avif-effort", -5)
+    store.sync()
+    assert SettingsManager().knob("avif-effort") == 0
+
+
 def test_unrecognised_boolean_falls_back_to_the_default() -> None:
     store = _store()
     store.setValue("metadata", "banana")

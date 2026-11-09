@@ -65,6 +65,8 @@ def _read_with_tool(path: str) -> QImage | None:
                         capture_output=True,
                         timeout=_DECODER_TIMEOUT_SECONDS,
                     )
+                elif command.action is not None:
+                    command.action()
             return _read_with_qt(destination)
     except (OSError, subprocess.SubprocessError) as err:
         logger.warning("Could not decode preview for %s: %s", path, err)

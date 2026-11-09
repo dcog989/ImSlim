@@ -9,8 +9,14 @@ from PySide6.QtCore import QMimeDatabase
 
 from ._i18n import _
 from .batch_options import BatchOptions
-from .formats import ALLOWED_MIME_TYPES, OUTPUT_EXTENSIONS, TARGET_EXTENSIONS, is_converting
-from .image_utils import is_animated_image
+from .formats import (
+    ALLOWED_MIME_TYPES,
+    OUTPUT_EXTENSIONS,
+    TARGET_EXTENSIONS,
+    Format,
+    is_converting,
+)
+from .image_utils import ANIMATED_MIME_TYPES, is_animated_image
 from .result_item import ResultItem, ResultState
 from .settings_manager import SAVE_BACKUP_OVERWRITE, SAVE_OUTPUT_FOLDER
 
@@ -93,10 +99,10 @@ class ResultItemManager:
             result_item.set_error(_("Format of this file is not supported."))
             return result_item
 
-        # Sniffed once and carried on the item: the GIF compressor needs it to
-        # pick lossy vs lossless, and a conversion that would drop the animation
-        # warns here. Other formats answer without touching the file.
-        if mime == "image/gif" or is_converting(self.options.target_format):
+        # Sniffed once and carried on the item: the GIF/PNG/WebP compressors use
+        # it to keep or warn about animation. Other formats answer without
+        # touching the file.
+        if mime in ANIMATED_MIME_TYPES or is_converting(self.options.target_format):
             result_item.is_animated = is_animated_image(path, mime)
 
         result_item.warning_message = self._animation_warning(result_item)
@@ -157,7 +163,16 @@ class ResultItemManager:
         return self._output_path(path, _BACKUP_MARKER, mime)
 
     def _animation_warning(self, result_item: ResultItem) -> str:
-        if result_item.is_animated and is_converting(self.options.target_format):
+        if not result_item.is_animated:
+            return ""
+        target = self.options.target_format
+        # Same-format PNG keeps its animation (the lossy step is skipped), and
+        # GIF/SVG keep theirs through their own encoders.
+        if result_item.mime_type == "image/png" and target in (Format.KEEP, Format.PNG):
+            return ""
+        if target == Format.KEEP and result_item.mime_type in ("image/gif", "image/svg+xml"):
+            return ""
+        if is_converting(target) or result_item.mime_type == "image/webp":
             return _("Animation will be lost: only the first frame is kept.")
         return ""
 

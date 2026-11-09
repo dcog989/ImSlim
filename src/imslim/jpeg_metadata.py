@@ -7,6 +7,9 @@ moved across from the original file once the encode is done.
 
 from pathlib import Path
 
+# JPEG metadata sits before the start of scan; a huge source must not be read
+# in full just to copy a few APP segments.
+_HEAD_BYTES = 1024 * 1024
 _SOI = b"\xff\xd8"
 _APP1 = 0xE1
 _APP13 = 0xED
@@ -67,6 +70,11 @@ def _split_leading(data: bytes) -> tuple[bytes, bytes, int]:
     raise ValueError("no start-of-scan marker")
 
 
+def _read_head(path: str) -> bytes:
+    with open(path, "rb") as handle:
+        return handle.read(_HEAD_BYTES)
+
+
 def transfer_metadata(source: str, target: str) -> None:
     """Copy the metadata segments of `source` into `target`, in place.
 
@@ -75,7 +83,7 @@ def transfer_metadata(source: str, target: str) -> None:
     `target` is replaced rather than duplicated.
     """
     try:
-        source_data = Path(source).read_bytes()
+        source_data = _read_head(source)
         target_data = Path(target).read_bytes()
         _, source_metadata, _ = _split_leading(source_data)
         target_kept, _, scan_offset = _split_leading(target_data)
@@ -83,7 +91,25 @@ def transfer_metadata(source: str, target: str) -> None:
         return
     if not source_metadata:
         return
-    _res = Path(target).write_bytes(target_kept + source_metadata + target_data[scan_offset:])
+    try:
+        _res = Path(target).write_bytes(target_kept + source_metadata + target_data[scan_offset:])
+    except OSError:
+        return
+
+
+def strip_metadata(target: str) -> None:
+    """Drop EXIF/XMP/comment segments, keeping ICC and color structure."""
+    try:
+        data = Path(target).read_bytes()
+        kept, metadata, scan_offset = _split_leading(data)
+    except OSError, ValueError:
+        return
+    if not metadata:
+        return
+    try:
+        _res = Path(target).write_bytes(kept + data[scan_offset:])
+    except OSError:
+        return
 
 
 # cjxl's `-x exif=/xmp=` sidecars contain the raw payload, without the APP1
@@ -99,7 +125,7 @@ def extract_metadata(source: str, destination: str, kind: str) -> None:
     """
     prefix = _SIDECAR_PREFIXES[kind]
     try:
-        _, segments, _ = _split_leading(Path(source).read_bytes())
+        _, segments, _ = _split_leading(_read_head(source))
     except OSError, ValueError:
         return
 

@@ -15,7 +15,9 @@ from ..result_item import ResultItem
 # always disabled; the rest of preset-default still runs.
 _ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 _SVGO_CONFIG = str(_ASSETS_DIR / "svgo.config.cjs")
+_SVGO_CONFIG_STRIP = str(_ASSETS_DIR / "svgo.strip.config.cjs")
 _SVGO_CONFIG_MAXIMUM = str(_ASSETS_DIR / "svgo.maximum.config.cjs")
+_SVGO_CONFIG_MAXIMUM_STRIP = str(_ASSETS_DIR / "svgo.maximum-strip.config.cjs")
 
 
 class SVGCompressor(Compressor):
@@ -28,7 +30,11 @@ class SVGCompressor(Compressor):
     def build_command(
         self, result_item: ResultItem, options: BatchOptions, input_path: str
     ) -> list[Command]:
-        config = _SVGO_CONFIG_MAXIMUM if options.flag("svg-maximum-level") else _SVGO_CONFIG
+        maximum = options.flag("svg-maximum-level")
+        if options.metadata:
+            config = _SVGO_CONFIG_MAXIMUM if maximum else _SVGO_CONFIG
+        else:
+            config = _SVGO_CONFIG_MAXIMUM_STRIP if maximum else _SVGO_CONFIG_STRIP
         svgo = [resolve_tool("svgo")]
         svgo += tokens(t"--config {config}")
         svgo += tokens(t"-i {input_path} -o {result_item.tmp_filename}")

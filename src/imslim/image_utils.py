@@ -16,6 +16,12 @@ if TYPE_CHECKING:
 _SVG_ANIMATION_PATTERN = re.compile(
     rb"<\s*animate|<\s*set[\s>]|@keyframes|animation\s*:", re.IGNORECASE
 )
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+# Formats whose animation the app has to detect before choosing an encoder.
+ANIMATED_MIME_TYPES: frozenset[str] = frozenset(
+    {"image/gif", "image/webp", "image/png", "image/svg+xml"}
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,18 +30,41 @@ def is_image_path(path: str) -> bool:
     return path.lower().endswith(IMAGE_EXTENSIONS)
 
 
-def is_animated_image(filename: str, mime_type: str) -> bool:
-    """True when the source carries animation (GIF frames or SVG animation).
+def _png_is_animated(filename: str) -> bool:
+    try:
+        with open(filename, "rb") as fp:
+            if fp.read(len(_PNG_SIGNATURE)) != _PNG_SIGNATURE:
+                return False
+            while True:
+                header = fp.read(8)
+                if len(header) < 8:
+                    return False
+                length = int.from_bytes(header[:4], "big")
+                chunk_type = header[4:8]
+                if chunk_type == b"acTL":
+                    return True
+                if chunk_type in (b"IDAT", b"IEND"):
+                    return False
+                _res = fp.seek(4 + length, 1)
+    except OSError:
+        return False
 
-    GIF counts come from Qt; an unknown (-1) count is treated as animated so an
-    animated source is never silently flattened. Other formats are static.
+
+def is_animated_image(filename: str, mime_type: str) -> bool:
+    """True when the source carries animation (GIF/WebP/PNG frames or SVG animation).
+
+    Animated counts come from Qt; an unknown (-1) count is treated as animated
+    so an animated source is never silently flattened. APNG is detected from its
+    `acTL` chunk, which Qt's PNG reader does not report.
     """
-    if mime_type == "image/gif":
+    if mime_type in ("image/gif", "image/webp"):
         # Imported lazily: QtGui needs system GL libraries that a headless
         # environment may lack, and importing this module must not require them.
         from PySide6.QtGui import QImageReader
 
         return QImageReader(filename).imageCount() != 1
+    if mime_type == "image/png":
+        return _png_is_animated(filename)
     if mime_type == "image/svg+xml":
         try:
             with open(filename, "rb") as fp:

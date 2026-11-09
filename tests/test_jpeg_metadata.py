@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from imslim.jpeg_metadata import extract_metadata, transfer_metadata
+from imslim.jpeg_metadata import extract_metadata, strip_metadata, transfer_metadata
 
 _SOI = b"\xff\xd8"
 # Marker bytes only: everything from the start-of-scan marker on is copied
@@ -132,3 +132,57 @@ def test_extract_leaves_no_file_without_metadata(tmp_path: Path, kind: str) -> N
     extract_metadata(source, str(destination), kind)
 
     assert not destination.exists()
+
+
+def test_strip_metadata_keeps_icc_and_image_data(tmp_path: Path) -> None:
+    target = _write(tmp_path, "target.jpg", _JFIF, _ICC, _EXIF, _XMP, _COMMENT)
+
+    strip_metadata(target)
+
+    result = Path(target).read_bytes()
+    assert _EXIF not in result
+    assert _XMP not in result
+    assert _COMMENT not in result
+    assert _JFIF in result
+    assert _ICC in result
+    assert result.endswith(_SCAN + _SCAN_DATA)
+
+
+def test_strip_metadata_does_nothing_without_metadata(tmp_path: Path) -> None:
+    target = _write(tmp_path, "target.jpg", _JFIF, _ICC)
+    expected = Path(target).read_bytes()
+
+    strip_metadata(target)
+
+    assert Path(target).read_bytes() == expected
+
+
+def test_metadata_copy_survives_a_failed_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = _write(tmp_path, "source.jpg", _JFIF, _EXIF)
+    target = _write(tmp_path, "target.jpg", _JFIF)
+    expected = Path(target).read_bytes()
+
+    def fail_write(self: Path, _data: bytes) -> int:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "write_bytes", fail_write)
+    transfer_metadata(source, target)
+
+    assert Path(target).read_bytes() == expected
+
+
+def test_metadata_strip_survives_a_failed_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = _write(tmp_path, "target.jpg", _JFIF, _EXIF)
+    expected = Path(target).read_bytes()
+
+    def fail_write(self: Path, _data: bytes) -> int:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(Path, "write_bytes", fail_write)
+    strip_metadata(target)
+
+    assert Path(target).read_bytes() == expected

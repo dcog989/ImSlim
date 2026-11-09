@@ -5,7 +5,7 @@ from typing import Protocol, TypeVar, cast, final
 
 from PySide6.QtCore import QByteArray, QSettings, QStandardPaths
 
-from .formats import FORMAT_DEFAULT_KNOBS, Format
+from .formats import FORMAT_DEFAULT_KNOBS, FORMAT_KNOB_BOUNDS, Format
 
 LOG_FILE_NAME = "imslim.log"
 
@@ -173,8 +173,12 @@ class SettingsManager:
             self.set_string(key, cast(str, value), sync=sync)
 
     def knob(self, key: str) -> int | bool:
-        """Read a per-format setting by its table-defined key."""
-        return cast("int | bool", self._get(key))
+        """Read a per-format setting by its table-defined key, clamped."""
+        value = self._get(key)
+        if isinstance(value, int) and not isinstance(value, bool):
+            lower, upper = FORMAT_KNOB_BOUNDS.get(key, (value, value))
+            return max(lower, min(upper, value))
+        return cast("int | bool", value)
 
     @property
     def target_format(self) -> Format:

@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 def worker_count(minimum: int = 1) -> int:
     """Half the logical cores, never below ``minimum``.
 
-    Encode tools already thread internally, so saturating every core is
-    wasteful; single-core boxes still get a floor to stay responsive.
+    Encoder jobs are capped to two threads each, so half the cores as workers
+    uses the machine without oversubscribing it.
     """
     return max(minimum, (os.cpu_count() or 1) // 2)
 

@@ -3,8 +3,12 @@ from abc import ABC, abstractmethod
 from .batch_options import BatchOptions
 from .commands import Command
 from .conversion import decode_commands
-from .formats import CompressorType, is_converting, native_inputs
+from .formats import CompressorType, Format, is_converting, native_inputs
 from .result_item import ResultItem
+
+# Each encoding job is capped to this many threads; the pool runs one job per
+# two CPU threads, so the total stays near the core count.
+ENCODER_THREADS_PER_JOB = 2
 
 
 class Compressor(ABC):
@@ -45,5 +49,13 @@ class Compressor(ABC):
         if not is_converting(target) or result_item.mime_type in native_inputs(target):
             return [], result_item.filename
         intermediate = self._conversion_intermediate_path(result_item)
-        commands = decode_commands(result_item.mime_type, result_item.filename, intermediate)
+        # PNG has no EXIF to carry the orientation, and stripped metadata never
+        # does, so apply the EXIF orientation while decoding in those cases.
+        apply_orientation = not options.metadata or target == Format.PNG
+        commands = decode_commands(
+            result_item.mime_type,
+            result_item.filename,
+            intermediate,
+            apply_orientation=apply_orientation,
+        )
         return commands, intermediate

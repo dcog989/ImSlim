@@ -275,6 +275,12 @@ FORMAT_KNOB_KEYS: frozenset[str] = frozenset(
 FORMAT_DEFAULT_KNOBS: dict[str, int | bool] = {
     knob.key: knob.default for spec in FORMAT_SPECS for knob in spec.knobs
 }
+FORMAT_KNOB_BOUNDS: dict[str, tuple[int, int]] = {
+    knob.key: (knob.lower, knob.upper)
+    for spec in FORMAT_SPECS
+    for knob in spec.knobs
+    if knob.kind == "level"
+}
 
 
 def is_converting(target: Format) -> bool:

@@ -43,6 +43,20 @@ _TYPE_SIZES = {1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 9: 4, 10: 8}
 _EXIF_IFD_TAG = 0x8769
 
 
+def jpeg_orientation(path: str) -> int:
+    """EXIF Orientation of a JPEG, or 1 (normal) when absent or unreadable."""
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read(_HEAD_BYTES)
+    except OSError:
+        return 1
+    block = _jpeg_exif_block(data)
+    if block is None:
+        return 1
+    value = _parse_tiff(block).get(0x0112)
+    return value if isinstance(value, int) and value in _ORIENTATIONS else 1
+
+
 def read_exif(path: str) -> list[tuple[str, str]]:
     """Return the EXIF fields the UI shows, in a stable order."""
     try:

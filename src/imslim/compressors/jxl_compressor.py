@@ -5,7 +5,7 @@ from typing import override
 from ..batch_options import BatchOptions
 from ..binary_resolver import resolve_tool
 from ..commands import Command, tokens
-from ..compressor import Compressor
+from ..compressor import ENCODER_THREADS_PER_JOB, Compressor
 from ..conversion import decode_commands
 from ..formats import CompressorType
 from ..jpeg_metadata import extract_metadata
@@ -63,10 +63,16 @@ class JXLCompressor(Compressor):
 
         # effort (1-10, default 7): higher -> slower but better compression
         cjxl += tokens(t"-e {options.level('jxl-effort')}")
+        cjxl.append(f"--num_threads={ENCODER_THREADS_PER_JOB}")
 
         if extracting_metadata:
             for kind in _JXL_METADATA:
                 cjxl += ["-x", f"{kind}={self._sidecar_path(result_item, kind)}"]
+        elif not options.metadata:
+            # cjxl reads metadata from its input; strip it explicitly so a
+            # decoded JXL/PNG does not carry the source's EXIF/XMP into the output.
+            for kind in _JXL_METADATA:
+                cjxl += ["-x", f"strip={kind}"]
 
         cjxl += [encode_input, result_item.tmp_filename]
         commands.append(
