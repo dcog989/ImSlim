@@ -35,6 +35,8 @@ from .formats import (
 )
 from .icons import imslim_icon
 from .settings_manager import (
+    COMPRESSION_TIMEOUT_MAX,
+    COMPRESSION_TIMEOUT_MIN,
     SAVE_BACKUP_OVERWRITE,
     SAVE_NEXT_TO_ORIGINAL,
     SAVE_OUTPUT_FOLDER,
@@ -206,7 +208,7 @@ class OptionsView(QWidget):
         self._update_compression_mode()
 
         self.spin_timeout: QSpinBox = spinbox()
-        self.spin_timeout.setRange(1, 300)
+        self.spin_timeout.setRange(COMPRESSION_TIMEOUT_MIN, COMPRESSION_TIMEOUT_MAX)
         self.spin_timeout.setSuffix(" s")
         self.spin_timeout.setValue(self.settings.compression_timeout)
         self.spin_timeout.setToolTip(

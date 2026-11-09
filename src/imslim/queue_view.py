@@ -373,6 +373,9 @@ class QueueView(QWidget):
     def _view_mode(self) -> str:
         return _VIEW_THUMBNAILS if self.settings.view_mode == _VIEW_THUMBNAILS else _VIEW_DETAILS
 
+    def _thumbnail_size(self) -> int:
+        return max(_THUMBNAIL_SIZE_MIN, min(_THUMBNAIL_SIZE_MAX, self.settings.thumbnail_size))
+
     def _view_tooltip(self) -> str:
         if self._view_mode() == _VIEW_DETAILS:
             return _("List view; click for thumbnails")
@@ -399,9 +402,9 @@ class QueueView(QWidget):
     def _zoom(self, delta: int) -> None:
         if self._view_mode() != _VIEW_THUMBNAILS:
             return
-        size = self.settings.thumbnail_size + delta
-        size = max(_THUMBNAIL_SIZE_MIN, min(_THUMBNAIL_SIZE_MAX, size))
-        if size == self.settings.thumbnail_size:
+        current = self._thumbnail_size()
+        size = max(_THUMBNAIL_SIZE_MIN, min(_THUMBNAIL_SIZE_MAX, current + delta))
+        if size == current:
             return
         self.settings.thumbnail_size = size
         self._rebuild_view()
@@ -542,7 +545,7 @@ class QueueView(QWidget):
         self._restore_selection()
 
     def _apply_grid_metrics(self) -> None:
-        size = self.settings.thumbnail_size
+        size = self._thumbnail_size()
         self.grid.setIconSize(QSize(size, size))
         self.grid.setGridSize(QSize(size + 16, size + 16))
         for entry in self._grid_entries.values():
@@ -553,7 +556,7 @@ class QueueView(QWidget):
             self._show_row_limit()
             return
         entry = QListWidgetItem()
-        size = self.settings.thumbnail_size
+        size = self._thumbnail_size()
         entry.setSizeHint(QSize(size + 16, size + 16))
         entry.setData(Qt.ItemDataRole.UserRole, item)
         entry.setToolTip(item.filename)
@@ -561,7 +564,7 @@ class QueueView(QWidget):
         self._grid_entries[item] = entry
         self._refresh_grid_entry(item)
         if len(self._grid_entries) <= _MAX_THUMBNAILS:
-            task = _GridThumbnail(item.filename, self.settings.thumbnail_size)
+            task = _GridThumbnail(item.filename, size)
             _res = task.loaded.connect(partial(self._set_grid_icon, item))
             start_task(task)
 

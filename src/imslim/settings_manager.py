@@ -29,10 +29,20 @@ def config_file_path() -> str:
     return QSettings("ImSlim", "ImSlim").fileName()
 
 
-def _coerce_bool(raw: object) -> bool:
+_TRUE_WORDS = frozenset(("true", "1", "yes", "on"))
+_FALSE_WORDS = frozenset(("false", "0", "no", "off"))
+
+
+def _coerce_bool(raw: object, default: bool) -> bool:
     if isinstance(raw, bool):
         return raw
-    return str(raw).strip().lower() in ("true", "1", "yes", "on")
+    text = str(raw).strip().lower()
+    if text in _TRUE_WORDS:
+        return True
+    if text in _FALSE_WORDS:
+        return False
+    # A typo must not silently flip a default-on option off.
+    return default
 
 
 def _coerce_int(raw: object, default: int) -> int:
@@ -52,19 +62,20 @@ class _SettingDescriptor(Protocol[_T]):
     def __set__(self, instance: SettingsManager, value: _T) -> None: ...
 
 
-def _setting[T](key: str, _type: type[T]) -> _SettingDescriptor[T]:
+def _setting[T](key: str, _type: type[T], *, sync: bool = True) -> _SettingDescriptor[T]:
     """Build a property binding an attribute name to a settings key.
 
     `_type` is never read at runtime; it exists so the value type is bound at
     the call sites (e.g. `lossy = _setting("lossy", bool)`), which the type
-    checker otherwise cannot infer.
+    checker otherwise cannot infer. `sync=False` keeps hot UI state (view mode,
+    thumbnail size) out of the per-change disk flush.
     """
 
     def getter(self: SettingsManager) -> T:
         return cast(T, self._get(key))  # pyright: ignore[reportPrivateUsage]
 
     def setter(self: SettingsManager, value: T) -> None:
-        self._set(key, cast("str | int | bool", value))  # pyright: ignore[reportPrivateUsage]
+        self._set(key, cast("str | int | bool", value), sync=sync)  # pyright: ignore[reportPrivateUsage]
 
     return cast(_SettingDescriptor[T], cast(object, property(getter, setter)))
 
@@ -72,6 +83,11 @@ def _setting[T](key: str, _type: type[T]) -> _SettingDescriptor[T]:
 SAVE_NEXT_TO_ORIGINAL = 0
 SAVE_BACKUP_OVERWRITE = 1
 SAVE_OUTPUT_FOLDER = 2
+
+# Bounds for the per-file tool timeout, shared by the spin box and the batch
+# snapshot so a hand-edited 0 cannot fail every file.
+COMPRESSION_TIMEOUT_MIN = 1
+COMPRESSION_TIMEOUT_MAX = 300
 
 # Where the Add Files/Directory dialogs start.
 START_HOME = 0
@@ -120,17 +136,20 @@ class SettingsManager:
             self.save_method = SAVE_OUTPUT_FOLDER
         self._settings.setValue("save-method-migrated", True)
 
-    def set_boolean(self, key: str, value: bool) -> None:
+    def set_boolean(self, key: str, value: bool, *, sync: bool = True) -> None:
         self._settings.setValue(key, bool(value))
-        self._settings.sync()
+        if sync:
+            self._settings.sync()
 
-    def set_int(self, key: str, value: int) -> None:
+    def set_int(self, key: str, value: int, *, sync: bool = True) -> None:
         self._settings.setValue(key, int(value))
-        self._settings.sync()
+        if sync:
+            self._settings.sync()
 
-    def set_string(self, key: str, value: str) -> None:
+    def set_string(self, key: str, value: str, *, sync: bool = True) -> None:
         self._settings.setValue(key, str(value))
-        self._settings.sync()
+        if sync:
+            self._settings.sync()
 
     def sync(self) -> None:
         self._settings.sync()
@@ -139,19 +158,19 @@ class SettingsManager:
         default = DEFAULTS[key]
         raw = self._settings.value(key, default)
         if isinstance(default, bool):
-            return _coerce_bool(raw)
+            return _coerce_bool(raw, default)
         if isinstance(default, int):
             return _coerce_int(raw, default)
         return str(raw)
 
-    def _set(self, key: str, value: str | int | bool) -> None:
+    def _set(self, key: str, value: str | int | bool, *, sync: bool = True) -> None:
         default = DEFAULTS[key]
         if isinstance(default, bool):
-            self.set_boolean(key, cast(bool, value))
+            self.set_boolean(key, cast(bool, value), sync=sync)
         elif isinstance(default, int):
-            self.set_int(key, cast(int, value))
+            self.set_int(key, cast(int, value), sync=sync)
         else:
-            self.set_string(key, cast(str, value))
+            self.set_string(key, cast(str, value), sync=sync)
 
     def knob(self, key: str) -> int | bool:
         """Read a per-format setting by its table-defined key."""
@@ -159,11 +178,24 @@ class SettingsManager:
 
     @property
     def target_format(self) -> Format:
-        return Format(str(self._get("target-format")))
+        try:
+            return Format(str(self._get("target-format")))
+        except ValueError:
+            # A hand-edited or renamed value must not stop the app from starting.
+            return Format.KEEP
 
     @target_format.setter
     def target_format(self, value: Format) -> None:
         self._set("target-format", value.value)
+
+    @property
+    def compression_timeout(self) -> int:
+        value = int(self._get("compression-timeout"))
+        return max(COMPRESSION_TIMEOUT_MIN, min(COMPRESSION_TIMEOUT_MAX, value))
+
+    @compression_timeout.setter
+    def compression_timeout(self, value: int) -> None:
+        self._set("compression-timeout", value)
 
     @property
     def window_geometry(self) -> bytes:
@@ -204,9 +236,8 @@ class SettingsManager:
     file_attributes = _setting("file-attributes", bool)
     skip_if_larger = _setting("skip-if-larger", bool)
     timestamp_dir = _setting("timestamp-dir", bool)
-    view_mode = _setting("view-mode", str)
-    thumbnail_size = _setting("thumbnail-size", int)
-    compression_timeout = _setting("compression-timeout", int)
+    view_mode = _setting("view-mode", str, sync=False)
+    thumbnail_size = _setting("thumbnail-size", int, sync=False)
     log_level = _setting("log-level", str)
     log_max_size = _setting("log-max-size", int)
     log_backups = _setting("log-backups", int)

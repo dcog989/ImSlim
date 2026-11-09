@@ -520,4 +520,6 @@ class ImSlimWindow(QWidget):
         self.clipboard.cleanup_unless_used(self._queue_paths())
         self.settings.window_geometry = bytes(self.saveGeometry().data())
         self.settings.layout_state = bytes(self.splitter.saveState().data())
+        # Geometry and the view settings skip the per-change flush; write them now.
+        self.settings.sync()
         super().closeEvent(event)
