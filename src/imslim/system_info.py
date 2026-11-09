@@ -1,3 +1,4 @@
+import functools
 import locale
 import logging
 import os
@@ -40,7 +41,10 @@ def static_about_pairs() -> list[tuple[str, str]]:
 _JPEGLI_SIBLING = {"cjpegli": "cjxl", "djpegli": "djxl"}
 
 
+@functools.cache
 def tool_version_pairs() -> list[tuple[str, str]]:
+    # Cached: each probe spawns a process per tool, and reopening About would
+    # otherwise start another full probe while the old one is still running.
     resolved: dict[str, str | None] = {}
     for tool in KNOWN_TOOLS:
         try:
