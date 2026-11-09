@@ -6,7 +6,9 @@ from datetime import date
 from pathlib import Path
 from typing import override
 
-from .settings_manager import SettingsManager, log_file_path
+from .settings_manager import LOG_FILE_NAME, SettingsManager, log_file_path
+
+NOW_LOG_FILE_NAME = "imslim-now.log"
 
 _LOG_LEVEL_VALUES: dict[str, int] = {
     "DEBUG": logging.DEBUG,
@@ -54,7 +56,9 @@ def _stop_listener() -> None:
 _res = atexit.register(_stop_listener)
 
 
-def configure_logging(settings: SettingsManager | None = None) -> None:
+def configure_logging(
+    settings: SettingsManager | None = None, *, log_name: str = LOG_FILE_NAME
+) -> None:
     """Install console and rotating-file handlers from the log settings.
 
     Re-entrant: a second call replaces the handlers, which keeps tests and the
@@ -83,7 +87,7 @@ def configure_logging(settings: SettingsManager | None = None) -> None:
         return
     level = _LOG_LEVEL_VALUES.get(settings.log_level, logging.INFO)
 
-    log_path = log_file_path()
+    log_path = log_file_path(log_name)
     Path(log_path).parent.mkdir(parents=True, exist_ok=True)
 
     formatter = logging.Formatter(_LOG_FORMAT)

@@ -1,3 +1,4 @@
+import threading
 from collections.abc import Callable
 from string.templatelib import Interpolation, Template
 from typing import NamedTuple, cast
@@ -17,6 +18,8 @@ class Command(NamedTuple):
     ignore_errors: bool = False
     temp_files: tuple[str, ...] = ()
     adapt: Callable[[list[str]], list[str]] | None = None
+    # Bounds concurrent instances of a memory-hungry step (Qt decodes).
+    limit: threading.Semaphore | None = None
 
 
 def tokens(template: Template) -> list[str]:

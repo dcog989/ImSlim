@@ -50,7 +50,7 @@ _OXI_LOSSY = _cmd(f"oxipng -o 3 -i 0 --preserve {_TMP} --out {_TMP}")
 _OXI_SOURCE = _cmd(f"oxipng -o 3 -i 0 --preserve {_SOURCE} --out {_TMP}")
 _OXI_LOSSY_STRIP = _cmd(f"oxipng -o 3 -i 0 --strip safe --preserve {_TMP} --out {_TMP}")
 _OXI_SOURCE_STRIP = _cmd(f"oxipng -o 3 -i 0 --strip safe --preserve {_SOURCE} --out {_TMP}")
-_PNG_LOSSY_KEEP = [_PNGQ_LOSSY, _OXI_LOSSY]
+_PNG_LOSSY_KEEP = [_PNGQ_LOSSY, _OXI_LOSSY, None]  # None: metadata chunk copy
 _PNG_LOSSY_STRIP = [_PNGQ_LOSSY_STRIP, _OXI_LOSSY_STRIP]
 _PNG_LOSSLESS_KEEP = [_OXI_SOURCE]
 _PNG_LOSSLESS_STRIP = [_OXI_SOURCE_STRIP]
@@ -145,7 +145,7 @@ def _tool_argv(commands, tool: str) -> list[str]:
         pytest.param(False, False, _PNG_LOSSLESS_STRIP, id="lossless-strip"),
     ],
 )
-def test_png_command(lossy: bool, metadata: bool, expected: list[list[str]]) -> None:
+def test_png_command(lossy: bool, metadata: bool, expected: list[list[str] | None]) -> None:
     options = _options(Format.PNG, lossy, metadata)
 
     assert _argv(PNGCompressor().commands(_item("image/png"), options)) == expected
@@ -230,8 +230,9 @@ def test_webp_decodes_bmp_source_first() -> None:
     options = _options(Format.KEEP, lossy=True)
     commands = WEBPCompressor().commands(_item("image/bmp"), options)
 
-    assert commands[0].argv is None
-    assert commands[0].action is not None
+    assert commands[0].argv is not None
+    assert "imslim.image_convert" in commands[0].argv or "--decode-png" in commands[0].argv
+    assert commands[0].limit is not None
     assert commands[1].argv == _CWEBP_BMP
 
 

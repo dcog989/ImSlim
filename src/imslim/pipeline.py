@@ -1,6 +1,7 @@
 import logging
 import subprocess
 from collections.abc import Callable
+from contextlib import nullcontext
 from pathlib import Path
 from typing import cast
 
@@ -150,6 +151,16 @@ class CompressionPipeline:
         return last_argv
 
     def _run_one(
+        self,
+        command: Command,
+        result_item: ResultItem,
+        context: CompressionContext,
+        options: BatchOptions,
+    ) -> list[str] | None:
+        with command.limit if command.limit is not None else nullcontext():
+            return self._run_unlimited(command, result_item, context, options)
+
+    def _run_unlimited(
         self,
         command: Command,
         result_item: ResultItem,

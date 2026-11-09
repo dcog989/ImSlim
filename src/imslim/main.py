@@ -12,10 +12,10 @@ from PySide6.QtWidgets import QApplication
 
 from . import __version__
 from ._i18n import _
-from ._logging import configure_logging
+from ._logging import NOW_LOG_FILE_NAME, configure_logging
 from .binary_resolver import KNOWN_TOOLS, resolve_tool
 from .composition import build_app_context
-from .now import EXIT_USAGE, NowRunner
+from .now import EXIT_FAILED, EXIT_USAGE, NowRunner
 from .system_info import static_about_pairs, system_info_pairs
 from .window import ImSlimWindow
 
@@ -352,7 +352,7 @@ class ImSlimApp(QApplication):
     def run_now(self, paths: list[str]) -> int:
         """ImSlimNow: one batch, no main window, no single-instance lock."""
         self.setApplicationDisplayName("ImSlimNow")
-        configure_logging()
+        configure_logging(log_name=NOW_LOG_FILE_NAME)
         _log_startup()
         context = build_app_context()
         runner = NowRunner(context.settings, context.flow)
@@ -388,6 +388,28 @@ def _run_now(argv: list[str]) -> None:
     sys.exit(app.run_now(paths))
 
 
+def _decode_png(argv: list[str]) -> int:
+    """Helper-process mode: decode one source to PNG and exit."""
+    try:
+        index = argv.index("--decode-png")
+        source, destination = argv[index + 1], argv[index + 2]
+    except ValueError, IndexError:
+        print(_("Usage: imslim --decode-png SOURCE DESTINATION"), file=sys.stderr)
+        return EXIT_USAGE
+    # No window is opened by this helper; the offscreen plugin avoids needing
+    # a display when the caller has one but the helper does not need it.
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    _app = QApplication(["imslim-decode"])
+    from .image_convert import to_png
+
+    try:
+        to_png(source, destination)
+    except Exception as err:
+        print(str(err), file=sys.stderr)
+        return EXIT_FAILED
+    return 0
+
+
 def main() -> None:
     info = _info_request(sys.argv[1:])
     if info is not None:
@@ -395,6 +417,8 @@ def main() -> None:
         # could open at all (ssh, cron, a missing display).
         print(info)
         sys.exit(0)
+    if "--decode-png" in sys.argv[1:]:
+        sys.exit(_decode_png(sys.argv[1:]))
     if "--now" in sys.argv[1:]:
         _run_now(sys.argv[1:])
     app = ImSlimApp(sys.argv)

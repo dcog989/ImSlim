@@ -7,13 +7,13 @@ from PySide6.QtCore import QByteArray, QSettings, QStandardPaths
 
 from .formats import FORMAT_DEFAULT_KNOBS, Format
 
-_LOG_FILE_NAME = "imslim.log"
+LOG_FILE_NAME = "imslim.log"
 
 _T = TypeVar("_T")
 
 
-def log_file_path() -> str:
-    """Absolute path of the app's rotating log file.
+def log_file_path(name: str = LOG_FILE_NAME) -> str:
+    """Absolute path of a rotating log file.
 
     Logs are state, not data, so they follow $XDG_STATE_HOME (~/.local/state)
     where available, falling back to the home directory.
@@ -21,7 +21,7 @@ def log_file_path() -> str:
     base = QStandardPaths.writableLocation(
         QStandardPaths.StandardLocation.GenericStateLocation
     ) or QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
-    return os.path.join(base, "ImSlim", _LOG_FILE_NAME)
+    return os.path.join(base, "ImSlim", name)
 
 
 def config_file_path() -> str:
