@@ -214,6 +214,40 @@ def test_finalize_raises_when_temp_file_is_missing(tmp_path) -> None:
     assert source.read_bytes() == _ORIGINAL
 
 
+def test_finalize_refuses_to_overwrite_a_changed_source(tmp_path) -> None:
+    source = tmp_path / "photo.png"
+    source.write_bytes(_ORIGINAL)
+    tmp_file = _tmp_file(tmp_path)
+    backup = tmp_path / "photo.BAK.20240102030405.png"
+    item = _item(source, tmp_file, backup=backup)
+    item.size = source.stat().st_size
+    item.mtime = source.stat().st_mtime - 1
+
+    OutputWriter().finalize(item, _options(SAVE_BACKUP_OVERWRITE))
+
+    assert item.state is ResultState.ERROR
+    assert source.read_bytes() == _ORIGINAL
+    assert not backup.exists()
+    assert tmp_file.exists()
+
+
+def test_finalize_refuses_to_overwrite_a_vanished_source(tmp_path) -> None:
+    source = tmp_path / "photo.png"
+    source.write_bytes(_ORIGINAL)
+    tmp_file = _tmp_file(tmp_path)
+    backup = tmp_path / "photo.BAK.20240102030405.png"
+    item = _item(source, tmp_file, backup=backup)
+    item.size = source.stat().st_size
+    item.mtime = source.stat().st_mtime
+    source.unlink()
+
+    OutputWriter().finalize(item, _options(SAVE_BACKUP_OVERWRITE))
+
+    assert item.state is ResultState.ERROR
+    assert not backup.exists()
+    assert tmp_file.exists()
+
+
 def test_finalize_restores_mode_and_times(tmp_path) -> None:
     source = tmp_path / "photo.png"
     source.write_bytes(_ORIGINAL)

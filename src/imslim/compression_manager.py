@@ -178,6 +178,11 @@ class CompressionManager:
                     if context.cancelled:
                         break_index = index
                         break
+                    if result_item.state is ResultState.ERROR:
+                        # prepare() failed on this item (missing source, no
+                        # output directory); do not spend an encoder run on it.
+                        c_update_result_item(result_item)
+                        continue
                     compressor = self._compressor_for(result_item, options)
                     if compressor is None:
                         result_item.set_error(_("Format of this file is not supported."))

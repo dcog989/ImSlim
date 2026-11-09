@@ -40,6 +40,8 @@ class OutputWriter:
             and result_item.filename == result_item.new_filename
         )
         if overwriting:
+            if not self._source_unchanged(result_item):
+                return
             try:
                 # Rename, not copy: the backup stays in the same folder, so this
                 # keeps the original's metadata at no extra disk IO.
@@ -65,6 +67,21 @@ class OutputWriter:
             return
 
         self._restore_attributes(result_item, final_path, options)
+
+    @staticmethod
+    def _source_unchanged(result_item: ResultItem) -> bool:
+        """Refuse to overwrite a source that changed after it was prepared."""
+        if result_item.mtime < 0:
+            return True
+        try:
+            stat = os.stat(result_item.filename)
+        except OSError as err:
+            result_item.set_error(_("This file doesn't exist."), str(err))
+            return False
+        if stat.st_size == result_item.size and stat.st_mtime == result_item.mtime:
+            return True
+        result_item.set_error(_("This file changed while it was being processed."))
+        return False
 
     def _restore_attributes(
         self, result_item: ResultItem, final_path: str, options: BatchOptions

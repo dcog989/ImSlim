@@ -2,7 +2,7 @@ import pytest
 
 from imslim.batch_options import BatchOptions
 from imslim.formats import Format
-from imslim.result_item import ResultItem
+from imslim.result_item import ResultItem, ResultState
 from imslim.result_item_manager import ResultItemManager, is_generated_output
 from imslim.settings_manager import (
     SAVE_BACKUP_OVERWRITE,
@@ -186,12 +186,85 @@ def test_conversion_overwrite_avoids_an_unrelated_file(tmp_path) -> None:
 
 def test_backup_is_created_only_when_overwriting_the_source(tmp_path) -> None:
     options = _options(SAVE_BACKUP_OVERWRITE, target_format=Format.WEBP)
+    (tmp_path / "photo.webp").write_bytes(b"x")
+    (tmp_path / "scan.tiff").write_bytes(b"x")
     same = ResultItem(filename=str(tmp_path / "photo.webp"), mime_type="image/webp")
     ResultItemManager(options).prepare(same)
-    converted = ResultItem(filename=str(tmp_path / "photo.tiff"), mime_type="image/tiff")
+    converted = ResultItem(filename=str(tmp_path / "scan.tiff"), mime_type="image/tiff")
     ResultItemManager(options).prepare(converted)
 
     assert same.new_filename == same.filename
     assert same.backup_filename
-    assert converted.new_filename == str(tmp_path / "photo.webp")
+    assert converted.new_filename == str(tmp_path / "scan.webp")
     assert converted.backup_filename == ""
+
+
+def test_same_format_overwrite_keeps_the_source_extension(tmp_path) -> None:
+    source = tmp_path / "photo.jpeg"
+    source.write_bytes(b"x")
+    manager = ResultItemManager(_options(SAVE_BACKUP_OVERWRITE, target_format=Format.JPEG))
+
+    item = manager.build(str(source))
+    manager.prepare(item)
+
+    assert item.new_filename == str(source)
+    assert item.backup_filename
+
+
+def test_prepare_reports_a_source_that_disappeared(tmp_path) -> None:
+    source = tmp_path / "photo.png"
+    source.write_bytes(b"x")
+    manager = ResultItemManager(_options())
+    item = manager.build(str(source))
+    source.unlink()
+
+    manager.prepare(item)
+
+    assert item.state is ResultState.ERROR
+    assert not item.new_filename
+
+
+def test_prepare_reports_a_timestamp_dir_that_cannot_be_created(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "photo.png"
+    source.write_bytes(b"x")
+    manager = ResultItemManager(_options(timestamp_dir=True))
+    assert manager.begin_batch()
+    item = manager.build(str(source))
+
+    def fail(*_args: object, **_kwargs: object) -> None:
+        raise OSError("read-only")
+
+    monkeypatch.setattr("imslim.result_item_manager.os.makedirs", fail)
+    manager.prepare(item)
+
+    assert item.state is ResultState.ERROR
+    assert not item.new_filename
+
+
+@pytest.mark.parametrize(
+    ("mime", "target", "warns"),
+    [
+        ("image/gif", Format.KEEP, False),
+        ("image/gif", Format.WEBP, True),
+        ("image/png", Format.KEEP, False),
+        ("image/png", Format.PNG, False),
+        ("image/png", Format.JPEG, True),
+        ("image/webp", Format.KEEP, True),
+        ("image/svg+xml", Format.KEEP, False),
+        ("image/svg+xml", Format.PNG, True),
+    ],
+)
+def test_animated_warning_matches_the_target(mime: str, target: Format, warns: bool) -> None:
+    item = ResultItem(filename="photo", mime_type=mime, is_animated=True)
+
+    warning = ResultItemManager(_options(target_format=target))._animation_warning(item)
+
+    assert bool(warning) is warns
+
+
+def test_no_animation_warning_for_a_still_image() -> None:
+    item = ResultItem(filename="photo", mime_type="image/webp")
+
+    assert ResultItemManager(_options())._animation_warning(item) == ""

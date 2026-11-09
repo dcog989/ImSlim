@@ -15,6 +15,7 @@ from .formats import (
     TARGET_EXTENSIONS,
     Format,
     is_converting,
+    is_format_change,
 )
 from .image_utils import ANIMATED_MIME_TYPES, is_animated_image
 from .result_item import ResultItem, ResultState
@@ -50,6 +51,7 @@ class ResultItemManager:
     def __init__(self, options: BatchOptions) -> None:
         self.options: BatchOptions = options
         self._used_names: set[str] = set()
+        self._next_counters: dict[str, int] = {}
         self._timestamp_dirs: set[str] = set()
         self._batch_timestamp: str = self._new_timestamp()
 
@@ -66,6 +68,7 @@ class ResultItemManager:
         the batch should be aborted.
         """
         self._used_names.clear()
+        self._next_counters.clear()
         self._timestamp_dirs.clear()
         self._batch_timestamp = self._new_timestamp()
         if self.options.save_method == SAVE_OUTPUT_FOLDER:
@@ -117,26 +120,50 @@ class ResultItemManager:
         """
         if not result_item.filename or result_item.mime_type not in ALLOWED_MIME_TYPES:
             return
+        # Refresh the metadata read at analysis time: the file may have changed
+        # or vanished while it sat in the queue.
+        try:
+            stat = os.stat(result_item.filename)
+        except OSError:
+            result_item.set_error(_("This file doesn't exist."))
+            return
+        if stat.st_size <= 0:
+            result_item.set_error(_("Format of this file is not supported."))
+            return
+        result_item.atime = float(stat.st_atime)
+        result_item.mtime = float(stat.st_mtime)
+        result_item.mode = stat.st_mode
+        result_item.size = stat.st_size
         result_item.state = ResultState.IDLE
         result_item.new_size = 0
+        result_item.new_filename = ""
+        result_item.backup_filename = ""
+        result_item.tmp_filename = ""
         result_item.error_message = ""
         result_item.error_details_message = ""
         result_item.warning_message = self._animation_warning(result_item)
-        result_item.new_filename = self.create_new_filename(
-            result_item.filename, result_item.mime_type
-        )
-        result_item.backup_filename = (
-            self.create_backup_filename(result_item.filename, result_item.mime_type)
-            if self.options.save_method == SAVE_BACKUP_OVERWRITE
-            and result_item.new_filename == result_item.filename
-            else ""
-        )
-        # Random token: a predictable name in a shared folder could be a
-        # symlink another user pre-created for the encoders to write through.
-        output_dir = os.path.dirname(result_item.new_filename)
-        result_item.tmp_filename = os.path.join(
-            output_dir, f".{os.path.basename(result_item.new_filename)}.{uuid4().hex[:8]}.tmp"
-        )
+        try:
+            result_item.new_filename = self.create_new_filename(
+                result_item.filename, result_item.mime_type
+            )
+            result_item.backup_filename = (
+                self.create_backup_filename(result_item.filename, result_item.mime_type)
+                if self.options.save_method == SAVE_BACKUP_OVERWRITE
+                and result_item.new_filename == result_item.filename
+                else ""
+            )
+            # Random token: a predictable name in a shared folder could be a
+            # symlink another user pre-created for the encoders to write through.
+            output_dir = os.path.dirname(result_item.new_filename)
+            result_item.tmp_filename = os.path.join(
+                output_dir,
+                f".{os.path.basename(result_item.new_filename)}.{uuid4().hex[:8]}.tmp",
+            )
+        except OSError as err:
+            # The timestamp directory could not be created; report it per item
+            # so the encoder never runs for an output that cannot be written.
+            logger.warning("Could not prepare the output for %s: %s", result_item.filename, err)
+            result_item.set_error(_("Can't create the output folder."), str(err))
 
     def create_new_filename(self, path: str, mime: str, *, create_dir: bool = True) -> str:
         """The output path for `path`; `create_dir` false only predicts it."""
@@ -149,13 +176,16 @@ class ResultItemManager:
         # Overwriting in place keeps the original name (only the extension can
         # change); every other destination gets the marker so nothing clashes.
         overwrite = self.options.save_method == SAVE_BACKUP_OVERWRITE
+        # A same-format re-encode must reuse the source file, .jpeg included:
+        # otherwise the original is left behind without a backup.
+        if overwrite and not is_format_change(mime, self.options.target_format):
+            extension = None
         return self._output_path(
             path,
             _OUTPUT_MARKER,
             mime,
             extension,
             create_dir=create_dir,
-            keep_stem=overwrite,
             allow_source=overwrite,
         )
 
@@ -193,8 +223,10 @@ class ResultItemManager:
             try:
                 os.makedirs(stamp_dir, exist_ok=True)
             except OSError as err:
-                # The write itself reports the failure; the batch keeps going.
+                # Let the caller report a per-item error instead of encoding a
+                # file whose destination does not exist.
                 logger.warning("Could not create %s: %s", stamp_dir, err)
+                raise
             self._timestamp_dirs.add(stamp_dir)
         return stamp_dir
 
@@ -206,7 +238,6 @@ class ResultItemManager:
         extension_override: str | None = None,
         *,
         create_dir: bool = True,
-        keep_stem: bool = False,
         allow_source: bool = False,
     ) -> str:
         basename = os.path.basename(path)
@@ -217,11 +248,14 @@ class ResultItemManager:
             else OUTPUT_EXTENSIONS.get(mime, extension)
         )
         parent = self._output_parent(path, create_dir=create_dir)
-        if keep_stem or self._uses_timestamp_dir():
+        if allow_source or self._uses_timestamp_dir():
             base = os.path.join(parent, stem)
         else:
             base = os.path.join(parent, f"{stem}.{marker}.{self._batch_timestamp}")
-        counter = 0
+        # One counter per prefix: repeated names skip straight to the next free
+        # suffix instead of probing from zero for every file.
+        key = f"{base}{extension}"
+        counter = self._next_counters.get(key, 0)
         while True:
             suffix = "" if counter == 0 else f"-{counter}"
             candidate = f"{base}{suffix}{extension}"
@@ -231,5 +265,6 @@ class ResultItemManager:
                 not os.path.exists(candidate) and candidate not in self._used_names
             ):
                 self._used_names.add(candidate)
+                self._next_counters[key] = counter + 1
                 return candidate
             counter += 1
