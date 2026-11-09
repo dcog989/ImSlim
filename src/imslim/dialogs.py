@@ -4,7 +4,7 @@ import html
 import os
 from typing import override
 
-from PySide6.QtCore import Qt, QTimer, QUrl, Signal
+from PySide6.QtCore import QEvent, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QPalette, QShowEvent
 from PySide6.QtWidgets import (
     QApplication,
@@ -247,7 +247,26 @@ class AboutView(QWidget):
         self._tool_pairs: list[tuple[str, str]] = []
         self._populated: bool = False
         self._probe_worker: VersionProbeTask | None = None
+        self._muted: list[tuple[QWidget, float, QPalette.ColorRole, QPalette.ColorRole]] = []
         self._build()
+
+    def _mute(
+        self,
+        widget: QWidget,
+        factor: float = 0.5,
+        *,
+        fg_role: QPalette.ColorRole = QPalette.ColorRole.Text,
+        bg_role: QPalette.ColorRole = QPalette.ColorRole.Base,
+    ) -> None:
+        apply_muted_palette(widget, factor, fg_role=fg_role, bg_role=bg_role)
+        self._muted.append((widget, factor, fg_role, bg_role))
+
+    @override
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.PaletteChange:
+            for widget, factor, fg_role, bg_role in self._muted:
+                apply_muted_palette(widget, factor, fg_role=fg_role, bg_role=bg_role)
+        super().changeEvent(event)
 
     def _build(self) -> None:
         layout = QVBoxLayout(self)
@@ -269,7 +288,7 @@ class AboutView(QWidget):
         layout.addWidget(title)
 
         tagline = QLabel(_("Compress common image formats, lossless or lossy."))
-        apply_muted_palette(tagline)
+        self._mute(tagline)
         tagline.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(tagline)
         layout.addSpacing(14)
@@ -325,10 +344,9 @@ class AboutView(QWidget):
         self._settings.log_level = LOG_LEVELS[index]
         configure_logging(self._settings)
 
-    @staticmethod
-    def _add_row(grid: QGridLayout, row: int, label: str, value: QWidget) -> None:
+    def _add_row(self, grid: QGridLayout, row: int, label: str, value: QWidget) -> None:
         key = QLabel(label)
-        apply_muted_palette(key)
+        self._mute(key)
         key.setFixedWidth(64)
         key.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         grid.addWidget(key, row, 0)
@@ -336,11 +354,10 @@ class AboutView(QWidget):
             value.setMaximumWidth(420)
         grid.addWidget(value, row, 1)
 
-    @staticmethod
-    def _add_separator(grid: QGridLayout, row: int) -> None:
+    def _add_separator(self, grid: QGridLayout, row: int) -> None:
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
-        apply_muted_palette(
+        self._mute(
             line,
             factor=0.6,
             fg_role=QPalette.ColorRole.WindowText,

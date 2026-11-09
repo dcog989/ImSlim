@@ -2,8 +2,9 @@
 
 import os
 import time
+from typing import override
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QGuiApplication, QImageReader
 from PySide6.QtWidgets import (
     QDialog,
@@ -53,6 +54,7 @@ class PropertiesDialog(QDialog):
     def __init__(self, item: ResultItem, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._path: str = item.filename
+        self._muted_labels: list[QLabel] = []
         self.setWindowTitle(_("Properties — {name}").format(name=os.path.basename(item.filename)))
         self.setMinimumWidth(460)
 
@@ -67,6 +69,7 @@ class PropertiesDialog(QDialog):
         for row, (label, value) in enumerate(image_details(item)):
             key = QLabel(label)
             apply_muted_palette(key)
+            self._muted_labels.append(key)
             key.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
             value_label = QLabel(value)
             value_label.setWordWrap(True)
@@ -83,6 +86,13 @@ class PropertiesDialog(QDialog):
         buttons.addButton(copy, QDialogButtonBox.ButtonRole.ActionRole)
         _res = buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
+
+    @override
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.PaletteChange:
+            for label in self._muted_labels:
+                apply_muted_palette(label)
+        super().changeEvent(event)
 
     def _copy_path(self) -> None:
         QGuiApplication.clipboard().setText(self._path)
