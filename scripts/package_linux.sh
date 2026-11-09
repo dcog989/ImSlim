@@ -44,6 +44,13 @@ run_pyinstaller \
     --workpath "$OUT_DIR/build" \
     "$ROOT/imslim.spec"
 
+# The bundled encoders must land where binary_resolver looks for them when
+# frozen; a wrong relative path silently falls back to PATH.
+if [[ ! -x "$OUT_DIR/pyinstaller/ImSlim/_internal/imslim/bin/linux-x86_64/oxipng" ]]; then
+    log "bundled tools are missing from the PyInstaller bundle"
+    exit 1
+fi
+
 # Lay out a standard AppDir around the PyInstaller bundle.
 mkdir -p "$APP_DIR/usr/bin"
 cp -a "$OUT_DIR/pyinstaller/ImSlim/." "$APP_DIR/usr/bin/"

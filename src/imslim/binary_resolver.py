@@ -3,19 +3,14 @@ import logging
 import os
 import platform
 import shutil
-import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# PyInstaller extracts the bundled bin/ tree into _MEIPASS at runtime; when
-# frozen the source-tree path (above bin/) is not on disk.
-_BIN_ROOT = (
-    Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
-    if getattr(sys, "frozen", False)
-    else Path(__file__).parent
-)
-BIN_DIR = _BIN_ROOT / "bin"
+# Frozen modules keep their package path under sys._MEIPASS (e.g.
+# _MEIPASS/imslim/binary_resolver.py), so this works for the source tree, an
+# installed wheel and a PyInstaller bundle without a frozen special case.
+BIN_DIR = Path(__file__).parent / "bin"
 
 KNOWN_TOOLS = (
     "avifdec",

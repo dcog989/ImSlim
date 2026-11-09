@@ -53,6 +53,21 @@ fi
 if [[ -f "$ROOT/assets/imslim-now.desktop" ]]; then
     sed "s|^Exec=.*|Exec=\"$TARGET\" --now %F|" "$ROOT/assets/imslim-now.desktop" \
         > "$DESKTOP_DIR/imslim-now.desktop"
+else
+    cat > "$DESKTOP_DIR/imslim-now.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=ImSlimNow
+GenericName=Image Compressor
+Comment=Compress images immediately, without opening ImSlim
+Exec="$TARGET" --now %F
+Icon=imslim
+Terminal=false
+NoDisplay=true
+Categories=Graphics;Utility;
+Keywords=image;compress;optimize;png;jpeg;webp;avif;jxl;svg;
+MimeType=inode/directory;image/png;image/jpeg;image/gif;image/webp;image/avif;image/jxl;image/svg+xml;image/bmp;image/tiff;
+EOF
 fi
 
 ICON_SOURCE="$ROOT/src/imslim/assets/imslim.svg"
