@@ -11,12 +11,17 @@ from .formats import IMAGE_EXTENSIONS
 if TYPE_CHECKING:
     from PySide6.QtGui import QImage
 
-# SVG animation comes from SMIL (<animate>/<set>) or CSS (@keyframes/animation).
-# A source scan is enough to know the rasterized output would drop it.
-_SVG_ANIMATION_PATTERN = re.compile(
-    rb"<\s*animate|<\s*set[\s>]|@keyframes|animation\s*:", re.IGNORECASE
-)
+# SVG animation comes from SMIL (<animate>/<set>) or CSS keyframes. A source
+# scan is enough to know the rasterized output would drop it.
+_SVG_ANIMATION_PATTERN = re.compile(rb"<\s*animate|<\s*set[\s>]|@keyframes", re.IGNORECASE)
+_SVG_SCAN_CHUNK = 64 * 1024
+# Keeps a tag that straddles a chunk boundary matchable without loading the
+# whole file (a large SVG is usually an embedded bitmap).
+_SVG_SCAN_OVERLAP = 1024
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+# Scaling a long, thin source's short side to the box makes the long side
+# enormous; cap the decoded size so one thumbnail cannot eat gigabytes.
+_MAX_THUMBNAIL_SIDE = 2048
 
 # Formats whose animation the app has to detect before choosing an encoder.
 ANIMATED_MIME_TYPES: frozenset[str] = frozenset(
@@ -50,6 +55,19 @@ def _png_is_animated(filename: str) -> bool:
         return False
 
 
+def _svg_is_animated(filename: str) -> bool:
+    try:
+        with open(filename, "rb") as fp:
+            tail = b""
+            while chunk := fp.read(_SVG_SCAN_CHUNK):
+                if _SVG_ANIMATION_PATTERN.search(tail + chunk):
+                    return True
+                tail = chunk[-_SVG_SCAN_OVERLAP:]
+    except OSError:
+        return False
+    return False
+
+
 def is_animated_image(filename: str, mime_type: str) -> bool:
     """True when the source carries animation (GIF/WebP/PNG frames or SVG animation).
 
@@ -66,11 +84,7 @@ def is_animated_image(filename: str, mime_type: str) -> bool:
     if mime_type == "image/png":
         return _png_is_animated(filename)
     if mime_type == "image/svg+xml":
-        try:
-            with open(filename, "rb") as fp:
-                return _SVG_ANIMATION_PATTERN.search(fp.read()) is not None
-        except OSError:
-            return False
+        return _svg_is_animated(filename)
     return False
 
 
@@ -119,6 +133,7 @@ def create_thumbnail_qimage(filename: str, max_width: int, max_height: int) -> Q
     # Scale the shortest side to the box, then crop the square afterwards so
     # rounding and EXIF rotation cannot leave a non-square result.
     ratio = max(max_width, max_height) / min(width, height)
+    ratio = min(ratio, _MAX_THUMBNAIL_SIDE / max(width, height))
     reader.setScaledSize(QSize(max(1, round(width * ratio)), max(1, round(height * ratio))))
     image = reader.read()
     if image.isNull():
