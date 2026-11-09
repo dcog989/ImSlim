@@ -128,13 +128,16 @@ def apply_muted_palette(
     fg_role: QPalette.ColorRole = QPalette.ColorRole.Text,
     bg_role: QPalette.ColorRole = QPalette.ColorRole.Base,
 ) -> None:
-    """Recolor a widget's text roles to a muted blend of its own palette.
+    """Recolor a widget's text roles to a muted blend of the application palette.
 
     Muted but readable on both light and dark themes instead of a hardcoded
     gray. Blends `fg_role` toward `bg_role` and applies the result to the
-    Text and WindowText roles.
+    Text and WindowText roles. Callers re-apply it after a palette change.
     """
-    palette = widget.palette()
+    # Read the application palette, not the widget's: the palette set here
+    # stays in place across theme changes, so a refresh would otherwise blend
+    # the old muted color into itself.
+    palette = QApplication.palette()
     muted = muted_color(palette.color(fg_role), palette.color(bg_role), factor)
     palette.setColor(QPalette.ColorRole.Text, muted)
     palette.setColor(QPalette.ColorRole.WindowText, muted)
@@ -171,13 +174,7 @@ def spinbox() -> QSpinBox:
 
 
 def form_stylesheet() -> str:
-    """Stylesheet for the options column and other inline settings forms.
-
-    Input backgrounds are derived from the live palette: some dark schemes
-    give input fields a Base darker than the surrounding window, which renders
-    as near-black holes. Those fields are lifted just above the window color
-    so text stays readable; light themes keep their Base untouched.
-    """
+    """Stylesheet for the options column and other inline settings forms."""
     input_bg = input_background_color()
     return (
         combo_stylesheet()

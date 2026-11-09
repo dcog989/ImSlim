@@ -328,8 +328,16 @@ class CompareView(QWidget):
         self._splitter.setSizes([half, half + header])
 
     def refresh_theme(self) -> None:
-        """Re-apply the splitter colors after a palette change."""
+        """Re-apply the splitter colors and muted header labels after a palette change."""
         self._splitter.setStyleSheet(splitter_stylesheet())
+        for label in (
+            self.zoom_label,
+            self.size_label,
+            self.time_label,
+            self.processed_size,
+            self.processed_savings,
+        ):
+            apply_muted_palette(label)
 
     def show_original(self, path: str, size: int = 0, mtime: float = 0.0) -> None:
         """Show `path` on top and its name, size and timestamp in the header."""

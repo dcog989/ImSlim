@@ -197,10 +197,14 @@ class QueueView(QWidget):
         header_layout.setContentsMargins(10, 8, 10, 6)
         header_layout.setSpacing(6)
 
-        self.add_files_button: QToolButton = self._make_add_button(
+        self.add_files_button: QToolButton
+        self.add_files_glyph: QLabel
+        self.add_files_button, self.add_files_glyph = self._make_add_button(
             image_icon(accent_icon_color, 22), _("Add files"), self.add_files_requested.emit
         )
-        self.add_directory_button: QToolButton = self._make_add_button(
+        self.add_directory_button: QToolButton
+        self.add_directory_glyph: QLabel
+        self.add_directory_button, self.add_directory_glyph = self._make_add_button(
             folder_tree_icon(accent_icon_color, 22),
             _("Add a directory"),
             self.add_directory_requested.emit,
@@ -302,12 +306,10 @@ class QueueView(QWidget):
         layout.setSpacing(12)
         layout.addStretch(1)
 
-        icon = QLabel()
-        bg = self.palette().color(self.palette().ColorRole.Window)
-        icon_color = muted_color(accent_color(), bg, factor=0.8)
-        icon.setPixmap(download_icon(icon_color, 220).pixmap(220))
-        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(icon)
+        self.empty_icon: QLabel = QLabel()
+        self.empty_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.empty_icon)
+        self._refresh_empty_icon()
 
         prompt = QLabel(_("Drop or paste files or directory here to compress."))
         prompt_font = prompt.font()
@@ -320,7 +322,7 @@ class QueueView(QWidget):
 
     def _make_add_button(
         self, icon: QIcon, tooltip: str, handler: Callable[[], None]
-    ) -> QToolButton:
+    ) -> tuple[QToolButton, QLabel]:
         """'Add' then the glyph: Qt's text-beside-icon paints the opposite order."""
         button = QToolButton()
         layout = QHBoxLayout(button)
@@ -339,7 +341,7 @@ class QueueView(QWidget):
         button.setFixedSize(layout.sizeHint())
         self._apply_add_button_style(button)
         _res = button.clicked.connect(handler)
-        return button
+        return button, glyph
 
     @staticmethod
     def _apply_add_button_style(button: QToolButton) -> None:
@@ -372,11 +374,29 @@ class QueueView(QWidget):
         _res = button.clicked.connect(handler)
         return button
 
+    def _refresh_painted_icons(self) -> None:
+        """Repaint the glyphs whose colors were baked into a pixmap at build time."""
+        window_text = self.palette().color(QPalette.ColorRole.WindowText)
+        highlighted_text = self.palette().color(QPalette.ColorRole.HighlightedText)
+        self.add_files_glyph.setPixmap(image_icon(highlighted_text, 22).pixmap(22))
+        self.add_directory_glyph.setPixmap(folder_tree_icon(highlighted_text, 22).pixmap(22))
+        self.remove_button.setIcon(circle_minus_icon(window_text, 18))
+        self.clear_button.setIcon(circle_x_icon(window_text, 18))
+
+    def _refresh_empty_icon(self) -> None:
+        bg = self.palette().color(QPalette.ColorRole.Window)
+        color = muted_color(accent_color(), bg, factor=0.8)
+        self.empty_icon.setPixmap(download_icon(color, 220).pixmap(220))
+
     # ------------------------------------------------------------------ view
     def refresh_theme(self) -> None:
-        """Re-apply the accent colors baked into stylesheets after a palette change."""
+        """Re-apply colors baked into palettes, pixmaps and stylesheets."""
         self._apply_background()
         self._refresh_view_button()
+        self._refresh_painted_icons()
+        self._refresh_empty_icon()
+        for label in (self.count_label, self.size_label):
+            apply_muted_palette(label)
         self._apply_add_button_style(self.add_files_button)
         self._apply_add_button_style(self.add_directory_button)
         for row in self._rows.values():
