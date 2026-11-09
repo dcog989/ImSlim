@@ -1,4 +1,5 @@
 import logging
+import os
 
 from PySide6.QtCore import QObject, QThreadPool, QTimer, Signal
 
@@ -8,7 +9,7 @@ from .command_runner import CompressionContext
 from .compression_manager import CompressionManager
 from .result_item import ResultItem, ResultState
 from .result_item_manager import ResultItemManager
-from .settings_manager import SettingsManager
+from .settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager
 from .workers import AnalyzeTask
 
 logger = logging.getLogger(__name__)
@@ -82,7 +83,6 @@ class BatchFlow(QObject):
         self._analyze_worker = worker
         _res = worker.items_ready.connect(self._on_items_ready)
         _res = worker.no_files.connect(self._on_no_files)
-        _res = worker.output_folder_error.connect(self._on_output_folder_error)
         _res = worker.analysis_failed.connect(self._on_analyze_failed)
         _res = worker.finished.connect(self._on_analyze_finished)
         self.compression_enabled.emit(False)
@@ -126,12 +126,14 @@ class BatchFlow(QObject):
         )
 
     def planned_destination(self, result_item: ResultItem) -> str:
-        """Where this file would be written now, timestamped directory included."""
+        """Folder this file will be written to; the name is fixed at batch start."""
         options = BatchOptions.from_settings(self._settings)
-        manager = ResultItemManager(options)
-        return manager.create_new_filename(
-            result_item.filename, result_item.mime_type, create_dir=False
+        folder = (
+            options.output_folder
+            if options.save_method == SAVE_OUTPUT_FOLDER and options.output_folder
+            else os.path.dirname(result_item.filename) or "."
         )
+        return folder if folder.endswith(os.sep) else folder + os.sep
 
     def preview(
         self,
@@ -219,11 +221,6 @@ class BatchFlow(QObject):
     def _on_no_files(self) -> None:
         self._active = False
         self.no_files.emit()
-        self.compression_enabled.emit(True)
-
-    def _on_output_folder_error(self) -> None:
-        self._active = False
-        self.output_folder_error.emit()
         self.compression_enabled.emit(True)
 
     def _on_analyze_failed(self) -> None:

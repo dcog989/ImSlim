@@ -74,7 +74,6 @@ class AnalyzeTask(Task):
 
     items_ready: Signal = Signal(list)
     no_files: Signal = Signal()
-    output_folder_error: Signal = Signal()
     analysis_failed: Signal = Signal(str)
 
     def __init__(self, paths: list[str], options: BatchOptions) -> None:
@@ -134,10 +133,6 @@ class AnalyzeTask(Task):
             return
 
         manager = ResultItemManager(self._options)
-        if not manager.begin_batch():
-            self.output_folder_error.emit()
-            return
-
         result_items: list[ResultItem] = []
         for path in final_files:
             if self.is_cancelled():
