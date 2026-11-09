@@ -13,10 +13,14 @@ from .system_info import tool_version_pairs, worker_count
 
 logger = logging.getLogger(__name__)
 
-# Shared pool for one-shot tasks (version probe etc.). Thumbnails keep their own
-# pool so their thread budget stays independent.
+# Shared pool for one-shot tasks (version probe, thumbnails, previews).
+# Thumbnails start at a low priority so a preview the user is waiting on does
+# not queue behind a whole grid of decodes.
 _TASK_POOL = QThreadPool()
 _TASK_POOL.setMaxThreadCount(worker_count(minimum=2))
+
+TASK_PRIORITY_NORMAL = 0
+TASK_PRIORITY_LOW = -1
 
 # Holds every started task until it finishes, so a running QRunnable is never
 # garbage-collected (and its C++ object destroyed) mid-run; _release drops it on
@@ -48,8 +52,8 @@ class Task(QObject, QRunnable):  # pyright: ignore[reportUnsafeMultipleInheritan
         self.deleteLater()
 
 
-def start_task(task: Task) -> None:
-    _TASK_POOL.start(task)
+def start_task(task: Task, priority: int = TASK_PRIORITY_NORMAL) -> None:
+    _TASK_POOL.start(task, priority)
 
 
 class VersionProbeTask(Task):

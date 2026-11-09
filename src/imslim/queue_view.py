@@ -67,7 +67,7 @@ from .result_item import ResultItem, ResultState
 from .result_item_row import ResultItemRow
 from .settings_manager import SettingsManager
 from .theme import accent_color, accent_colors, apply_muted_palette, muted_color, style_menu
-from .workers import Task, start_task
+from .workers import TASK_PRIORITY_LOW, Task, start_task
 
 # Rows are built in small timer-driven chunks so adding a huge folder does not
 # block the UI thread building thousands of widgets in one event-loop iteration.
@@ -81,6 +81,9 @@ _MAX_THUMBNAILS = 100
 _THUMBNAIL_SIZE_MIN = 32
 _THUMBNAIL_SIZE_MAX = 256
 _THUMBNAIL_STEP = 16
+# A held Ctrl+wheel arrives as many steps; rebuild once it settles instead of
+# starting a decode for every step.
+_REBUILD_DELAY_MS = 150
 _SELECTION_BORDER_WIDTH = 4
 
 _VIEW_DETAILS = "details"
@@ -150,6 +153,9 @@ class QueueView(QWidget):
         self._selected: list[ResultItem] = []
         self._anchor: int | None = None
         self._busy: bool = False
+        # Set while this view updates the grid itself, so the grid's selection
+        # signals do not overwrite the selection being applied.
+        self._syncing_selection: bool = False
         self._apply_background()
         self._build()
         self._build_empty_page()
@@ -158,6 +164,11 @@ class QueueView(QWidget):
         self._row_timer.setSingleShot(True)
         self._row_timer.setInterval(0)
         _res = self._row_timer.timeout.connect(self._flush_rows)
+
+        self._rebuild_timer: QTimer = QTimer(self)
+        self._rebuild_timer.setSingleShot(True)
+        self._rebuild_timer.setInterval(_REBUILD_DELAY_MS)
+        _res = self._rebuild_timer.timeout.connect(self._rebuild_view)
 
         delete = QShortcut(QKeySequence.StandardKey.Delete, self)
         _res = delete.activated.connect(self.remove_selected)
@@ -366,8 +377,6 @@ class QueueView(QWidget):
         return list(self._selected)
 
     def _has_selection(self) -> bool:
-        if self._view_mode() == _VIEW_THUMBNAILS:
-            return bool(self.grid.selectedItems())
         return bool(self._selected)
 
     def _view_mode(self) -> str:
@@ -407,7 +416,10 @@ class QueueView(QWidget):
         if size == current:
             return
         self.settings.thumbnail_size = size
-        self._rebuild_view()
+        # Resize the tiles now; re-decode once the wheel settles so a burst of
+        # steps does not start a decode for every step.
+        self._apply_grid_metrics()
+        self._rebuild_timer.start()
 
     @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -522,11 +534,20 @@ class QueueView(QWidget):
 
     def _rebuild_view(self) -> None:
         """Recreate the active view after a view or thumbnail-size change."""
+        self._rebuild_timer.stop()
+        selected = self.selected_items()
         self._pending_rows.clear()
         self._row_timer.stop()
         self._clear_rows()
-        self.grid.clear()
+        # grid.clear() emits itemSelectionChanged; without the guard it would
+        # overwrite the selection this rebuild is about to restore.
+        self._syncing_selection = True
+        try:
+            self.grid.clear()
+        finally:
+            self._syncing_selection = False
         self._grid_entries.clear()
+        self._selected = [item for item in selected if item in self._items]
         self.limit_label.hide()
         if self._view_mode() == _VIEW_THUMBNAILS:
             self._apply_grid_metrics()
@@ -566,7 +587,7 @@ class QueueView(QWidget):
         if len(self._grid_entries) <= _MAX_THUMBNAILS:
             task = _GridThumbnail(item.filename, size)
             _res = task.loaded.connect(partial(self._set_grid_icon, item))
-            start_task(task)
+            start_task(task, TASK_PRIORITY_LOW)
 
     def _set_grid_icon(self, item: ResultItem, image: object) -> None:
         entry = self._grid_entries.get(item)
@@ -604,6 +625,8 @@ class QueueView(QWidget):
                 return sizeof_fmt(item.size)
 
     def _on_grid_selection(self) -> None:
+        if self._syncing_selection:
+            return
         selected = [self._grid_item(entry) for entry in self.grid.selectedItems()]
         self._selected = [item for item in selected if item is not None]
         current: QListWidgetItem | None = self.grid.currentItem()
@@ -623,15 +646,28 @@ class QueueView(QWidget):
         item = cast(object, entry.data(Qt.ItemDataRole.UserRole))
         return item if isinstance(item, ResultItem) else None
 
+    def _sync_grid_selection(self) -> None:
+        """Apply `_selected` to the grid without its signals overwriting it."""
+        self._syncing_selection = True
+        try:
+            self.grid.clearSelection()
+            for item in self._selected:
+                entry = self._grid_entries.get(item)
+                if entry is not None:
+                    entry.setSelected(True)
+            current_item = self.selected_item()
+            current = self._grid_entries.get(current_item) if current_item is not None else None
+            if current is not None:
+                self.grid.setCurrentItem(current)
+        finally:
+            self._syncing_selection = False
+
     def _restore_selection(self) -> None:
         current = self.selected_item()
         if current is None:
             return
         if self._view_mode() == _VIEW_THUMBNAILS:
-            entry = self._grid_entries.get(current)
-            if entry is not None:
-                self.grid.setCurrentItem(entry)
-                entry.setSelected(True)
+            self._sync_grid_selection()
         else:
             row = self._rows.get(current)
             if row is not None:
@@ -679,14 +715,9 @@ class QueueView(QWidget):
 
     # ------------------------------------------------------------- selection
     def select(self, item: ResultItem) -> None:
-        if self._view_mode() == _VIEW_THUMBNAILS:
-            entry = self._grid_entries.get(item)
-            if entry is not None:
-                self.grid.setCurrentItem(entry)
-                self.grid.clearSelection()
-                entry.setSelected(True)
-            return
         self._set_selection([item], anchor=item)
+        if self._view_mode() == _VIEW_THUMBNAILS:
+            self._sync_grid_selection()
 
     def _on_row_clicked(self, item: ResultItem) -> None:
         modifiers = QApplication.keyboardModifiers()
@@ -743,14 +774,20 @@ class QueueView(QWidget):
             return
         self._items = [item for item in self._items if item not in remove]
         self._total_size -= sum(item.size for item in remove)
-        for item in remove:
-            self._seen.discard(os.path.normcase(os.path.realpath(item.filename)))
-            row = self._rows.pop(item, None)
-            if row is not None:
-                row.deleteLater()
-            entry = self._grid_entries.pop(item, None)
-            if entry is not None:
-                _res = self.grid.takeItem(self.grid.row(entry))
+        # takeItem() emits itemSelectionChanged; without the guard it would
+        # clear _selected before the fallback below can pick a neighbour.
+        self._syncing_selection = True
+        try:
+            for item in remove:
+                self._seen.discard(os.path.normcase(os.path.realpath(item.filename)))
+                row = self._rows.pop(item, None)
+                if row is not None:
+                    row.deleteLater()
+                entry = self._grid_entries.pop(item, None)
+                if entry is not None:
+                    _res = self.grid.takeItem(self.grid.row(entry))
+        finally:
+            self._syncing_selection = False
         if remove.intersection(self._selected):
             self._selected = [entry for entry in self._selected if entry not in remove]
             if self._selected:
@@ -770,8 +807,13 @@ class QueueView(QWidget):
         self._seen.clear()
         self._pending_rows.clear()
         self._row_timer.stop()
+        self._rebuild_timer.stop()
         self._clear_rows()
-        self.grid.clear()
+        self._syncing_selection = True
+        try:
+            self.grid.clear()
+        finally:
+            self._syncing_selection = False
         self._grid_entries.clear()
         self.limit_label.hide()
         self._selected = []
