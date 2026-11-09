@@ -176,7 +176,9 @@ class QueueView(QWidget):
     # ------------------------------------------------------------------ build
     def _apply_background(self) -> None:
         """Give the queue a shade distinct from the options column."""
-        palette = self.palette()
+        # Read the application palette, not our own: a previously applied tint
+        # would otherwise be blended into itself on every theme refresh.
+        palette = QPalette(QApplication.palette())
         window = palette.color(QPalette.ColorRole.Window)
         base = palette.color(QPalette.ColorRole.Base)
         palette.setColor(QPalette.ColorRole.Window, muted_color(window, base, 0.8))
