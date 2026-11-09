@@ -2,6 +2,7 @@
 *.pyc
 .assets/
 .build/
+build/
 .docs/
 .ruff_cache/
 .venv/

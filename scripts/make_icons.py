@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Render the ImSlim SVG logo into a raster PNG for the Linux AppImage.
+"""Render the ImSlim SVG logo into raster PNGs for the Linux AppImage.
 
 Output (under build/icon/):
-  imslim.png  - 512x512 PNG
+  imslim-<size>.png - 16, 32, 64, 128, 256 and 512 square PNGs
 
 Run from the repository root:
   python3 scripts/make_icons.py
@@ -17,6 +17,7 @@ from PySide6.QtSvg import QSvgRenderer
 ROOT = Path(__file__).resolve().parent.parent
 SVG_PATH = ROOT / "src" / "imslim" / "assets" / "imslim.svg"
 OUT_DIR = ROOT / "build" / "icon"
+SIZES = (16, 32, 64, 128, 256, 512)
 
 
 def render_png(size: int = 512) -> QImage:
@@ -39,7 +40,8 @@ def main() -> int:
         print(f"SVG not found: {SVG_PATH}", file=sys.stderr)
         return 1
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    write_png(render_png(), OUT_DIR / "imslim.png")
+    for size in SIZES:
+        write_png(render_png(size), OUT_DIR / f"imslim-{size}.png")
     print(f"icons written to {OUT_DIR}")
     return 0
 

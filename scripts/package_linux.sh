@@ -64,14 +64,7 @@ cp "$ROOT/assets/imslim.desktop" "$APP_DIR/imslim.desktop"
 for size in 16 32 64 128 256 512; do
     dir="$APP_DIR/usr/share/icons/hicolor/${size}x${size}/apps"
     mkdir -p "$dir"
-    QT_QPA_PLATFORM=offscreen run_py - "$ROOT/build/icon/imslim.png" "$dir/imslim.png" "$size" <<'PY'
-import sys
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QImage
-src, dst, size = sys.argv[1], sys.argv[2], int(sys.argv[3])
-img = QImage(src)
-img.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation).save(dst)
-PY
+    cp "$ROOT/build/icon/imslim-$size.png" "$dir/imslim.png"
 done
 ln -sf "usr/share/icons/hicolor/512x512/apps/imslim.png" "$APP_DIR/imslim.png"
 
