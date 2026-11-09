@@ -38,12 +38,12 @@ from .format import sizeof_fmt
 from .formats import ALLOWED_MIME_TYPES
 from .icons import (
     circle_minus_icon,
+    circle_x_icon,
     download_icon,
     folder_tree_icon,
     image_icon,
     layout_grid_icon,
     list_collapse_icon,
-    trash_icon,
 )
 from .image_utils import create_thumbnail_qimage
 from .item_menu import build_item_menu
@@ -158,7 +158,7 @@ class QueueView(QWidget):
             self.remove_selected,
         )
         self.clear_button: QToolButton = self._make_button(
-            trash_icon(icon_color, 18),
+            circle_x_icon(icon_color, 18),
             _("Clear the queue"),
             self.clear,
         )

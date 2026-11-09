@@ -273,24 +273,14 @@ def circle_minus_icon(color: QColor, size: int = 20) -> QIcon:
     return _painted_icon(size, draw)
 
 
-def trash_icon(color: QColor, size: int = 20) -> QIcon:
-    """A bin (Lucide 'trash-2'), for clearing the queue."""
+def circle_x_icon(color: QColor, size: int = 20) -> QIcon:
+    """A circle with an X (Lucide 'circle-x'), for clearing the queue."""
 
     def draw(painter: QPainter, s: float) -> None:
-        _res = _apply_icon_stroke(painter, color, s)
-        painter.drawLine(QPointF(s * 0.09, s * 0.22), QPointF(s * 0.91, s * 0.22))
-        painter.drawLine(QPointF(s * 0.34, s * 0.22), QPointF(s * 0.34, s * 0.1))
-        painter.drawLine(QPointF(s * 0.34, s * 0.1), QPointF(s * 0.66, s * 0.1))
-        painter.drawLine(QPointF(s * 0.66, s * 0.1), QPointF(s * 0.66, s * 0.22))
-        can = QPainterPath()
-        can.moveTo(s * 0.22, s * 0.22)
-        can.lineTo(s * 0.27, s * 0.88)
-        can.quadTo(s * 0.28, s * 0.95, s * 0.36, s * 0.95)
-        can.lineTo(s * 0.64, s * 0.95)
-        can.quadTo(s * 0.72, s * 0.95, s * 0.73, s * 0.88)
-        can.lineTo(s * 0.78, s * 0.22)
-        painter.drawPath(can)
-        painter.drawLine(QPointF(s * 0.42, s * 0.38), QPointF(s * 0.44, s * 0.78))
-        painter.drawLine(QPointF(s * 0.58, s * 0.38), QPointF(s * 0.56, s * 0.78))
+        pen = _apply_icon_stroke(painter, color, s)
+        rect = QRectF(pen, pen, s - 2 * pen, s - 2 * pen)
+        painter.drawEllipse(rect)
+        painter.drawLine(QPointF(s * 0.37, s * 0.37), QPointF(s * 0.63, s * 0.63))
+        painter.drawLine(QPointF(s * 0.63, s * 0.37), QPointF(s * 0.37, s * 0.63))
 
     return _painted_icon(size, draw)
