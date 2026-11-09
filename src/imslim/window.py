@@ -103,8 +103,6 @@ class ImSlimWindow(QWidget):
         self._preview_timer.setInterval(_PREVIEW_DELAY_MS)
         _res = self._preview_timer.timeout.connect(self._start_preview)
 
-        _res = self.app.aboutToQuit.connect(self.flow.shutdown)
-        _res = self.app.aboutToQuit.connect(self._save_state)
         self._ui_ready = True
 
     # ------------------------------------------------------------------ UI
@@ -176,7 +174,7 @@ class ImSlimWindow(QWidget):
         zoom_out = QShortcut(QKeySequence("Ctrl+-"), self)
         _res = zoom_out.activated.connect(self._zoom_out)
         zoom_fit = QShortcut(QKeySequence("Ctrl+0"), self)
-        _res = zoom_fit.activated.connect(self.compare.fit)
+        _res = zoom_fit.activated.connect(self._zoom_fit)
 
     # One shortcut per key: two widgets owning Ctrl++ makes Qt treat it as
     # ambiguous and neither fires. Keyboard zoom is for the comparison pane,
@@ -188,6 +186,10 @@ class ImSlimWindow(QWidget):
     def _zoom_out(self) -> None:
         if self._compare_has_focus():
             self.compare.zoom_out()
+
+    def _zoom_fit(self) -> None:
+        if self._compare_has_focus():
+            self.compare.fit()
 
     def _compare_has_focus(self) -> bool:
         focus = QApplication.focusWidget()
@@ -386,6 +388,7 @@ class ImSlimWindow(QWidget):
         if not self.flow.active:
             return
         dialog = ProgressDialog(_("Processing"), self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         _res = dialog.cancel_requested.connect(self.stop_compression)
         self._progress = dialog
         dialog.show()
@@ -573,11 +576,7 @@ class ImSlimWindow(QWidget):
 
     # --------------------------------------------------------------- lifecycle
     def _save_state(self) -> None:
-        """Persist the window state and drop the preview temp directory.
-
-        Runs on close and on aboutToQuit: Ctrl+Q leaves the event loop without a
-        closeEvent, so cleanup cannot live in closeEvent alone.
-        """
+        """Persist the window state and drop the preview temp directory."""
         if self.about_dialog is not None:
             self.about_dialog.tab.cancel_probe()
         self._cancel_preview()
