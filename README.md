@@ -43,7 +43,7 @@ imslim --help            # usage
 imslim --version         # version
 ```
 
-Paths are handed to an already running ImSlim; without arguments the main window opens. ImSlimNow takes no single-instance lock, so it runs alongside the GUI and exits with `0` on success, `1` when some files failed and `2` on a usage or environment error.
+Paths are handed to an already running ImSlim; without arguments the main window opens. Unknown options are rejected; put `--` before a filename that starts with `-`. ImSlimNow takes no single-instance lock, so it runs alongside the GUI and exits with `0` on success, `1` when some files failed and `2` on a usage or environment error.
 
 ---
 

@@ -132,6 +132,9 @@ class NowRunner(QObject):
         dialog.show()
 
     def _cancel(self) -> None:
+        # Cancelling before a batch starts leaves no summary to read, so the
+        # failure has to be recorded here or _on_busy would exit 0.
+        self._code = EXIT_FAILED
         self._flow.cancel()
         self._close_progress()
 

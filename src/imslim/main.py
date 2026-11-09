@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import sys
 import sysconfig
 import time
@@ -122,6 +123,11 @@ _PRIMARY_POLL_SECONDS = 0.05
 # Never block on the primary lock: a held lock means another launch owns the app.
 _LOCK_TIMEOUT_MS = 0
 
+# A literal scheme is the reliable test for a URL: QUrl.fromUserInput guesses
+# "http" for a plain missing name, so the argument itself is what we check.
+_URI_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
+_APP_FLAGS = frozenset(("--now", "-h", "--help", "-V", "--version", "--decode-png"))
+
 _USAGE = _(
     """Usage: imslim [FILES...]
        imslim --now FILES...
@@ -132,6 +138,21 @@ Compress image files and folders. Without any files the main window opens.
   -h, --help     Show this help and exit.
   -V, --version  Show the version and exit."""
 )
+
+
+def _options(argv: list[str]) -> list[str]:
+    """Arguments before an optional "--" terminator."""
+    if "--" in argv:
+        return argv[: argv.index("--")]
+    return argv
+
+
+def _unknown_option(argv: list[str]) -> str | None:
+    """First option this app does not know, or None."""
+    for arg in argv:
+        if arg.startswith("-") and arg not in _APP_FLAGS:
+            return arg
+    return None
 
 
 def _info_request(argv: list[str]) -> str | None:
@@ -146,19 +167,28 @@ def _info_request(argv: list[str]) -> str | None:
 def _local_paths(argv: list[str]) -> list[str]:
     """Absolute local paths from the command line, ignoring options."""
     paths: list[str] = []
+    options_ended = False
     for arg in argv:
-        # Options are not paths: passing "-x" on would report "This file doesn't
-        # exist." for a file named "-x".
-        if arg.startswith("-"):
-            continue
+        if not options_ended:
+            if arg == "--":
+                options_ended = True
+                continue
+            # Options are not paths: passing "-x" on would report "This file
+            # doesn't exist." for a file named "-x".
+            if arg.startswith("-"):
+                continue
         # Prefer the argument itself when it names a file: QUrl drops bytes that
         # are not valid UTF-8, turning such a name into a different path.
         expanded = os.path.expanduser(arg)
         if os.path.lexists(expanded):
             path = expanded
         else:
-            url = QUrl.fromUserInput(arg)
-            path = url.toLocalFile() or arg
+            path = QUrl.fromUserInput(arg).toLocalFile()
+            if not path:
+                # A missing local name is kept so the queue can report it.
+                if _URI_SCHEME.match(arg):
+                    raise ValueError(arg)
+                path = arg
         if path:
             # A forwarded launch resolves paths in the primary's cwd, so they
             # must be absolute (and "~" expanded) before leaving this process.
@@ -166,15 +196,25 @@ def _local_paths(argv: list[str]) -> list[str]:
     return paths
 
 
+def _paths_or_error(argv: list[str]) -> tuple[list[str], str | None]:
+    """Paths plus a message for an unusable command line, or None when usable."""
+    unknown = _unknown_option(_options(argv))
+    if unknown is not None:
+        return [], _("Unknown option: {option}").format(option=unknown)
+    try:
+        return _local_paths(argv), None
+    except ValueError as err:
+        return [], _("Not a local file: {arg}").format(arg=err)
+
+
 def _socket_name(name: str) -> str:
     """Resolve the single-instance socket to a per-user private location.
 
-    Prefer $XDG_RUNTIME_DIR (mode 0700) over a predictable file in shared /tmp.
-    When it is unavailable, fall back to the temp dir with the uid in the name
-    so different users cannot collide. Windows named pipes keep the plain name.
+    Prefer $XDG_RUNTIME_DIR (mode 0700) over a predictable file in shared /tmp;
+    Qt falls back to /tmp/runtime-<user> when that variable is unset. When no
+    runtime path exists, fall back to the temp dir with the uid in the name so
+    different users cannot collide.
     """
-    if sys.platform == "win32":
-        return name
     runtime = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.RuntimeLocation)
     if runtime:
         return os.path.join(runtime, name)
@@ -184,10 +224,6 @@ def _socket_name(name: str) -> str:
 
 def _lock_path(name: str) -> str:
     """Path of the lock file that serializes the primary decision."""
-    if sys.platform == "win32":
-        # The socket is a named pipe, not a path, so anchor the lock in temp.
-        temp = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.TempLocation)
-        return os.path.join(temp, f"{name}.lock")
     return f"{_socket_name(name)}.lock"
 
 
@@ -265,8 +301,14 @@ class SingleInstance(QObject):
         socket.connectToServer(self._socket)
         if not socket.waitForConnected(_CONNECT_TIMEOUT_MS):
             return False
-        _res = socket.write(os.fsencode("\0".join(paths)))
-        _res = socket.waitForBytesWritten(_WRITE_TIMEOUT_MS)
+        payload = os.fsencode("\0".join(paths))
+        # An empty payload only means "focus the window"; there is nothing to
+        # write. A real payload must arrive whole or the sender reports failure.
+        if payload:
+            if socket.write(payload) != len(payload):
+                return False
+            if not socket.waitForBytesWritten(_WRITE_TIMEOUT_MS):
+                return False
         socket.disconnectFromServer()
         return True
 
@@ -339,7 +381,11 @@ class ImSlimApp(QApplication):
         self.win: ImSlimWindow | None = None
 
     def run(self) -> int:
-        paths = _local_paths(self.arguments()[1:])
+        paths, error = _paths_or_error(self.arguments()[1:])
+        if error is not None:
+            print(error, file=sys.stderr)
+            print(_USAGE, file=sys.stderr)
+            return EXIT_USAGE
         single = SingleInstance(SOCKET_NAME, self._on_foreign_paths)
         if not single.become_primary(paths):
             return 0
@@ -380,13 +426,15 @@ class ImSlimApp(QApplication):
 
 def _has_display() -> bool:
     """Whether a graphical session exists for ImSlimNow's dialogs."""
-    if sys.platform == "win32":
-        return True
     return bool(os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY"))
 
 
 def _run_now(argv: list[str]) -> None:
-    paths = _local_paths(argv)
+    paths, error = _paths_or_error(argv)
+    if error is not None:
+        print(error, file=sys.stderr)
+        print(_USAGE, file=sys.stderr)
+        sys.exit(EXIT_USAGE)
     if not paths:
         print(_USAGE, file=sys.stderr)
         sys.exit(EXIT_USAGE)
@@ -408,7 +456,10 @@ def _decode_png(argv: list[str]) -> int:
     # No window is opened by this helper; the offscreen plugin avoids needing
     # a display when the caller has one but the helper does not need it.
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    _app = QApplication(["imslim-decode"])
+    # QtGui is all the decode needs: skip the heavier Widgets application.
+    from PySide6.QtGui import QGuiApplication
+
+    _app = QGuiApplication(["imslim-decode"])
     from .image_convert import to_png
 
     try:
@@ -420,16 +471,18 @@ def _decode_png(argv: list[str]) -> int:
 
 
 def main() -> None:
-    info = _info_request(sys.argv[1:])
+    argv = sys.argv[1:]
+    options = _options(argv)
+    info = _info_request(options)
     if info is not None:
         # Answer before building QApplication: these must work where no window
         # could open at all (ssh, cron, a missing display).
         print(info)
         sys.exit(0)
-    if "--decode-png" in sys.argv[1:]:
-        sys.exit(_decode_png(sys.argv[1:]))
-    if "--now" in sys.argv[1:]:
-        _run_now(sys.argv[1:])
+    if "--decode-png" in options:
+        sys.exit(_decode_png(argv))
+    if "--now" in options:
+        _run_now(argv)
     app = ImSlimApp(sys.argv)
     sys.exit(app.run())
 

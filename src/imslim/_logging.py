@@ -9,6 +9,9 @@ from typing import override
 
 from .settings_manager import LOG_FILE_NAME, SettingsManager, log_file_path
 
+# shortcut: two --now runs share and rotate this one file, so a rollover racing
+# another run can lose a log line; give each PID its own file if --now ever runs
+# in parallel by design.
 NOW_LOG_FILE_NAME = "imslim-now.log"
 
 _LOG_LEVEL_VALUES: dict[str, int] = {
@@ -19,6 +22,8 @@ _LOG_LEVEL_VALUES: dict[str, int] = {
 }
 LOG_LEVELS: tuple[str, ...] = ("NONE", *_LOG_LEVEL_VALUES)
 _LOG_FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
+
+logger = logging.getLogger(__name__)
 
 _listener: logging.handlers.QueueListener | None = None
 
@@ -87,36 +92,45 @@ def configure_logging(
     for handler in root.handlers[:]:
         root.removeHandler(handler)
         handler.close()
-    root.setLevel(logging.WARNING)
 
     if settings.log_level == "NONE":
+        # A handler keeps logging.lastResort from printing WARNING+ to stderr.
+        root.addHandler(logging.NullHandler())
+        root.setLevel(logging.CRITICAL + 1)
         return
     level = _LOG_LEVEL_VALUES.get(settings.log_level, logging.INFO)
 
-    log_path = log_file_path(log_name)
-    Path(log_path).parent.mkdir(parents=True, exist_ok=True)
-
     formatter = logging.Formatter(_LOG_FORMAT)
-
-    file_handler = _DailyRotatingFileHandler(
-        log_path,
-        max_bytes=settings.log_max_size * 1024 * 1024,
-        backup_count=settings.log_backups,
-    )
-    file_handler.setLevel(level)
-    file_handler.setFormatter(formatter)
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
+    handlers: list[logging.Handler] = [console_handler]
+
+    file_error: OSError | None = None
+    try:
+        log_path = log_file_path(log_name)
+        Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+        file_handler = _DailyRotatingFileHandler(
+            log_path,
+            max_bytes=settings.log_max_size * 1024 * 1024,
+            backup_count=settings.log_backups,
+        )
+    except OSError as err:
+        # Logging must never stop the app from starting: keep the console only.
+        file_error = err
+    else:
+        file_handler.setLevel(level)
+        file_handler.setFormatter(formatter)
+        handlers.insert(0, file_handler)
 
     records: queue.SimpleQueue[logging.LogRecord] = queue.SimpleQueue()
     queue_handler = logging.handlers.QueueHandler(records)
     queue_handler.setLevel(level)
-    _listener = logging.handlers.QueueListener(
-        records, file_handler, console_handler, respect_handler_level=True
-    )
+    _listener = logging.handlers.QueueListener(records, *handlers, respect_handler_level=True)
     _listener.start()
 
     root.setLevel(level)
     root.addHandler(queue_handler)
+    if file_error is not None:
+        logger.warning("Log file unavailable, logging to the console only: %s", file_error)
