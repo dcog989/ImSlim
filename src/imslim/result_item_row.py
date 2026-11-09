@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QProgressBar,
-    QSizePolicy,
     QToolButton,
     QWidget,
 )
@@ -28,7 +27,7 @@ from .icons import circle_off_icon, shield_alert_icon, triangle_alert_icon
 from .item_menu import build_item_menu
 from .result_item import ResultItem, ResultState
 from .theme import accent_color, muted_color
-from .widgets import ElidedLabel
+from .widgets import ElidedLabel, plain_tooltip
 
 # Every row paints the same three 16px info icons; rendering them per row is
 # pure waste, so memoize by window-text color (rgba) for the current theme.
@@ -61,6 +60,23 @@ def _savings_text(item: ResultItem) -> str:
     return f"{percent}%"
 
 
+def item_summary(item: ResultItem) -> str:
+    """Short state text shared by the list row and the thumbnail grid."""
+    match item.state:
+        case ResultState.RUNNING:
+            return _("Compressing…")
+        case ResultState.CANCELLED:
+            return _("Cancelled")
+        case ResultState.ERROR:
+            return item.error_message or _("Failed")
+        case ResultState.DONE:
+            return sizeof_fmt(item.size) + " → " + sizeof_fmt(item.new_size)
+        case ResultState.SKIPPED:
+            return _("Already optimal")
+        case _:
+            return sizeof_fmt(item.size)
+
+
 class ResultItemRow(QWidget):
     clicked: Signal = Signal()
 
@@ -71,18 +87,12 @@ class ResultItemRow(QWidget):
         self._selected: bool = False
 
         self.title_label: ElidedLabel = ElidedLabel(os.path.basename(result_item.filename))
-        self.title_label.setToolTip(result_item.filename)
+        self.title_label.setToolTip(plain_tooltip(result_item.filename))
         # The name keeps priority; the size/timestamp summary gives way first.
         self.title_label.setMinimumWidth(60)
-        self.title_label.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
         self.subtitle_label: ElidedLabel = ElidedLabel()
-        self.subtitle_label.setObjectName("rowSubtitle")
-        self.subtitle_label.setSizePolicy(
-            QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
-        )
 
         self.savings_label: QLabel = QLabel()
-        self.savings_label.setObjectName("rowSavings")
 
         self.spinner: QProgressBar = QProgressBar()
         self.spinner.setRange(0, 0)
@@ -112,6 +122,7 @@ class ResultItemRow(QWidget):
         layout.addWidget(self.error_button)
 
         self.refresh()
+        self._apply_background()
 
     @staticmethod
     def _make_info_button(handler: Callable[..., None], icon: QIcon) -> QToolButton:
@@ -128,19 +139,9 @@ class ResultItemRow(QWidget):
         running = item.state is ResultState.RUNNING
         self.spinner.setVisible(running)
 
-        match item.state:
-            case ResultState.CANCELLED:
-                subtitle = _("Cancelled")
-            case ResultState.ERROR:
-                subtitle = item.error_message
-            case ResultState.DONE:
-                subtitle = sizeof_fmt(item.size) + " → " + sizeof_fmt(item.new_size)
-            case ResultState.SKIPPED:
-                subtitle = _("Already optimal")
-            case _:
-                subtitle = sizeof_fmt(item.size)
-                if item.mtime > 0:
-                    subtitle += " · " + time.strftime("%Y-%m-%d %H:%M", time.localtime(item.mtime))
+        subtitle = item_summary(item)
+        if item.state is ResultState.IDLE and item.mtime > 0:
+            subtitle += " · " + time.strftime("%Y-%m-%d %H:%M", time.localtime(item.mtime))
         self.subtitle_label.setText(subtitle)
         self.savings_label.setText(_savings_text(item))
         self.savings_label.setVisible(item.state is not ResultState.IDLE and not running)

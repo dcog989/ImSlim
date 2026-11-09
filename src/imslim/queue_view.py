@@ -63,10 +63,11 @@ from .icons import (
 )
 from .image_utils import create_thumbnail_qimage
 from .item_menu import build_item_menu
-from .result_item import ResultItem, ResultState
-from .result_item_row import ResultItemRow
+from .result_item import ResultItem
+from .result_item_row import ResultItemRow, item_summary
 from .settings_manager import SettingsManager
 from .theme import accent_color, accent_colors, apply_muted_palette, muted_color, style_menu
+from .widgets import plain_tooltip
 from .workers import TASK_PRIORITY_LOW, Task, start_task
 
 # Rows are built in small timer-driven chunks so adding a huge folder does not
@@ -616,7 +617,7 @@ class QueueView(QWidget):
         size = self._thumbnail_size()
         entry.setSizeHint(QSize(size + 16, size + 16))
         entry.setData(Qt.ItemDataRole.UserRole, item)
-        entry.setToolTip(item.filename)
+        entry.setToolTip(plain_tooltip(item.filename))
         self.grid.addItem(entry)
         self._grid_entries[item] = entry
         self._refresh_grid_entry(item)
@@ -641,24 +642,7 @@ class QueueView(QWidget):
         entry = self._grid_entries.get(item)
         if entry is None:
             return
-        summary = self._grid_summary(item)
-        entry.setToolTip(f"{item.filename}\n{summary}")
-
-    @staticmethod
-    def _grid_summary(item: ResultItem) -> str:
-        match item.state:
-            case ResultState.RUNNING:
-                return _("Compressing…")
-            case ResultState.CANCELLED:
-                return _("Cancelled")
-            case ResultState.ERROR:
-                return item.error_message or _("Failed")
-            case ResultState.DONE:
-                return f"{sizeof_fmt(item.size)} → {sizeof_fmt(item.new_size)}"
-            case ResultState.SKIPPED:
-                return _("Already optimal")
-            case _:
-                return sizeof_fmt(item.size)
+        entry.setToolTip(plain_tooltip(f"{item.filename}\n{item_summary(item)}"))
 
     def _on_grid_selection(self) -> None:
         if self._syncing_selection:
@@ -782,6 +766,11 @@ class QueueView(QWidget):
         emit: ResultItem | None = None,
     ) -> None:
         self._selected = selection
+        # The clicked item is the one the comparison pane shows, so make it the
+        # last entry even when a backwards Shift-click built the range ascending.
+        if emit is not None and emit in self._selected:
+            self._selected.remove(emit)
+            self._selected.append(emit)
         if anchor is not None and anchor in self._items:
             self._anchor = self._items.index(anchor)
         for entry, row in self._rows.items():
@@ -833,6 +822,10 @@ class QueueView(QWidget):
                     self._set_selection(self._selected, anchor=self.selected_item())
             else:
                 self._select_fallback()
+        # Removing a row shifts every later index; restripe the survivors so the
+        # shading stays alternating instead of repeating a shade.
+        for index, row in enumerate(self._rows.values()):
+            row.set_alternate(index % 2 == 1)
         self._update_chrome()
 
     def clear(self) -> None:

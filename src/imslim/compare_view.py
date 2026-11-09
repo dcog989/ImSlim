@@ -21,7 +21,7 @@ from ._i18n import _
 from .format import sizeof_fmt
 from .preview import load_preview
 from .theme import apply_muted_palette, muted_color, splitter_stylesheet
-from .widgets import ElidedLabel
+from .widgets import ElidedLabel, plain_tooltip
 from .workers import Task, start_task
 
 _MIN_ZOOM = 1.0
@@ -342,7 +342,7 @@ class CompareView(QWidget):
     def show_original(self, path: str, size: int = 0, mtime: float = 0.0) -> None:
         """Show `path` on top and its name, size and timestamp in the header."""
         self.path_label.setText(path)
-        self.path_label.setToolTip(path)
+        self.path_label.setToolTip(plain_tooltip(path))
         self.size_label.setText(sizeof_fmt(size) if size else "")
         self.time_label.setText(
             time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime)) if mtime else ""
@@ -365,7 +365,7 @@ class CompareView(QWidget):
             return
         shown = destination or path
         self.processed_path.setText(shown)
-        self.processed_path.setToolTip(shown)
+        self.processed_path.setToolTip(plain_tooltip(shown))
         self.processed_size.setText(sizeof_fmt(size) if size else "")
         self.processed_savings.setText(
             _("{percent}% saved").format(percent=savings) if size else ""

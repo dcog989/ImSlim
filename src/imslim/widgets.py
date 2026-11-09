@@ -1,10 +1,16 @@
 """Small widgets shared by more than one column."""
 
+import html
 from typing import override
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QResizeEvent
 from PySide6.QtWidgets import QLabel, QWidget
+
+
+def plain_tooltip(text: str) -> str:
+    """Tooltip text shown literally; Qt would otherwise read a path as HTML."""
+    return "<qt>" + html.escape(text).replace("\n", "<br>") + "</qt>"
 
 
 class ElidedLabel(QLabel):
@@ -13,9 +19,9 @@ class ElidedLabel(QLabel):
     def __init__(self, text: str = "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._full_text: str = text
-        # Without an explicit minimum a QLabel refuses to shrink below its full
-        # text width, starving the labels next to it.
-        self.setMinimumWidth(0)
+        # Filenames are data, not markup: a name like <b>x.png</b> must not be
+        # parsed as rich text.
+        self.setTextFormat(Qt.TextFormat.PlainText)
         super().setText(text)
 
     @override
@@ -31,6 +37,12 @@ class ElidedLabel(QLabel):
         hint = super().sizeHint()
         width = self.fontMetrics().horizontalAdvance(self._full_text)
         return QSize(max(hint.width(), width), hint.height())
+
+    @override
+    def minimumSizeHint(self) -> QSize:
+        # QLabel reports the full text width as its minimum, so a row would never
+        # shrink below the longest error message. Only the height matters.
+        return QSize(0, super().minimumSizeHint().height())
 
     def _apply_elide(self) -> None:
         width = self.width()

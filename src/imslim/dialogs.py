@@ -5,7 +5,7 @@ import os
 from typing import override
 
 from PySide6.QtCore import QEvent, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QColor, QDesktopServices, QPalette, QShowEvent
+from PySide6.QtGui import QColor, QDesktopServices, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -31,9 +31,9 @@ from .format import savings_percent, sizeof_fmt
 from .icons import imslim_icon, shield_alert_icon
 from .result_item import ResultItem, ResultState
 from .settings_manager import SettingsManager, config_file_path, log_file_path
-from .spinner import Spinner
 from .system_info import static_about_pairs, system_info_pairs
 from .theme import apply_muted_palette
+from .widgets import plain_tooltip
 from .workers import VersionProbeTask, start_task
 
 _GITHUB_URL = "https://github.com/dcog989/ImSlim"
@@ -66,8 +66,6 @@ class ProgressDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
         layout.setSpacing(12)
-        self.spinner: Spinner = Spinner(64)
-        layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
         self.label: QLabel = QLabel(_("Processing…"))
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.label)
@@ -78,16 +76,6 @@ class ProgressDialog(QDialog):
         cancel = QPushButton(_("Cancel"))
         _res = cancel.clicked.connect(self.cancel_requested.emit)
         layout.addWidget(cancel, alignment=Qt.AlignmentFlag.AlignCenter)
-
-    @override
-    def showEvent(self, event: QShowEvent) -> None:
-        super().showEvent(event)
-        self.spinner.start()
-
-    @override
-    def done(self, result: int) -> None:
-        self.spinner.stop()
-        super().done(result)
 
     def set_progress(self, done: int, total: int) -> None:
         if total <= 0:
@@ -190,7 +178,7 @@ class CompletionDialog(QDialog):
         shown += others[: max(0, _MAX_LISTED - len(shown))]
         for item in shown:
             entry = QListWidgetItem(self._row_text(item))
-            entry.setToolTip(item.error_details_message or item.error_message)
+            entry.setToolTip(plain_tooltip(item.error_details_message or item.error_message))
             if item.state is ResultState.ERROR:
                 entry.setForeground(QColor(Qt.GlobalColor.red))
                 entry.setIcon(shield_alert_icon(QColor(Qt.GlobalColor.red), 16))
