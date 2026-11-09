@@ -464,9 +464,11 @@ class QueueView(QWidget):
             isinstance(event, QWheelEvent)
             and event.modifiers() & Qt.KeyboardModifier.ControlModifier
         ):
-            steps = event.angleDelta().y() // 120
-            if steps:
-                self._zoom(steps * _THUMBNAIL_STEP)
+            # Touchpads and smooth scrolling report less than one wheel notch.
+            delta = event.angleDelta().y() or event.pixelDelta().y()
+            if delta:
+                steps = abs(delta) // 120 or 1
+                self._zoom((steps if delta > 0 else -steps) * _THUMBNAIL_STEP)
                 return True
         return super().eventFilter(watched, event)
 
@@ -593,13 +595,9 @@ class QueueView(QWidget):
             if len(self._items) > _MAX_ROWS:
                 self._show_row_limit()
         else:
-            for index, item in enumerate(self._items):
-                if index >= _MAX_ROWS:
-                    self._show_row_limit()
-                    break
-                row = self._build_row(item, index)
-                self.rows_layout.insertWidget(self.rows_layout.count() - 1, row)
-                self._rows[item] = row
+            # Reuse the chunked path: a synchronous rebuild of 500 rows freezes the UI.
+            for item in self._items:
+                self._queue_row(item)
         self._restore_selection()
 
     def _apply_grid_metrics(self) -> None:
@@ -623,12 +621,12 @@ class QueueView(QWidget):
         self._refresh_grid_entry(item)
         if len(self._grid_entries) <= _MAX_THUMBNAILS:
             task = _GridThumbnail(item.filename, size)
-            _res = task.loaded.connect(partial(self._set_grid_icon, item))
+            _res = task.loaded.connect(partial(self._set_grid_icon, item, size))
             start_task(task, TASK_PRIORITY_LOW)
 
-    def _set_grid_icon(self, item: ResultItem, image: object) -> None:
+    def _set_grid_icon(self, item: ResultItem, size: int, image: object) -> None:
         entry = self._grid_entries.get(item)
-        if entry is None:
+        if entry is None or size != self._thumbnail_size():
             return
         if isinstance(image, QImage):
             entry.setIcon(QIcon(QPixmap.fromImage(image)))
@@ -651,6 +649,8 @@ class QueueView(QWidget):
         self._selected = [item for item in selected if item is not None]
         current: QListWidgetItem | None = self.grid.currentItem()
         current_item = self._grid_item(current)
+        if current_item is not None and current_item in self._items:
+            self._anchor = self._items.index(current_item)
         if current_item is not None and current_item in self._selected:
             self.selection_changed.emit(current_item)
         elif self._selected:
@@ -709,8 +709,6 @@ class QueueView(QWidget):
         if row is not None:
             row.refresh()
         self._refresh_grid_entry(item)
-        if item is self.selected_item():
-            self.selection_changed.emit(item)
 
     def _update_chrome(self) -> None:
         count = len(self._items)
@@ -814,10 +812,13 @@ class QueueView(QWidget):
         finally:
             self._syncing_selection = False
         if remove.intersection(self._selected):
+            previous = self.selected_item()
             self._selected = [entry for entry in self._selected if entry not in remove]
             if self._selected:
                 if self._view_mode() == _VIEW_THUMBNAILS:
                     self._restore_selection()
+                    if self.selected_item() is not previous:
+                        self.selection_changed.emit(self.selected_item())
                 else:
                     self._set_selection(self._selected, anchor=self.selected_item())
             else:
@@ -826,6 +827,21 @@ class QueueView(QWidget):
         # shading stays alternating instead of repeating a shade.
         for index, row in enumerate(self._rows.values()):
             row.set_alternate(index % 2 == 1)
+        # Rows hidden by the cap become visible again when a removal frees space.
+        if len(self._items) <= _MAX_ROWS:
+            self.limit_label.hide()
+        if self._view_mode() == _VIEW_THUMBNAILS:
+            for item in self._items:
+                if len(self._grid_entries) >= _MAX_ROWS:
+                    break
+                if item not in self._grid_entries:
+                    self._add_grid_entry(item)
+        else:
+            for item in self._items:
+                if len(self._rows) + len(self._pending_rows) >= _MAX_ROWS:
+                    break
+                if item not in self._rows and item not in self._pending_rows:
+                    self._queue_row(item)
         self._update_chrome()
 
     def clear(self) -> None:

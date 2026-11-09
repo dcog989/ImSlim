@@ -1,4 +1,18 @@
+import os
+
 import pytest
+from PySide6.QtWidgets import QApplication
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _qt_app() -> QApplication:
+    """One application for the whole run: widget tests need QApplication, not QGuiApplication."""
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+    assert isinstance(app, QApplication)
+    return app
 
 
 @pytest.fixture(autouse=True)

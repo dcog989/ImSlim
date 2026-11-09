@@ -5,7 +5,6 @@ ignores metadata or orientation, so these tests execute the real commands.
 They skip when the bundled tools were not built.
 """
 
-import os
 import platform
 import shutil
 import struct
@@ -15,7 +14,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from PySide6.QtGui import QGuiApplication, QImage
+from PySide6.QtGui import QImage
 
 from imslim import binary_resolver
 from imslim.batch_options import BatchOptions
@@ -31,13 +30,6 @@ from imslim.result_item import ResultItem
 
 _BIN = binary_resolver.BIN_DIR / f"{platform.system().lower()}-{platform.machine().lower()}"
 _EXIF_HEADER = b"Exif\x00\x00"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _qt_app() -> Iterator[QGuiApplication]:
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    app = QGuiApplication.instance() or QGuiApplication([])
-    yield app
 
 
 @pytest.fixture(autouse=True)

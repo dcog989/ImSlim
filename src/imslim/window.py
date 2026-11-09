@@ -261,6 +261,7 @@ class ImSlimWindow(QWidget):
         else:
             self._preview_item = None
             self.compare.clear()
+        self._update_process_enabled()
 
     def _refresh_compare(self, result_item: ResultItem) -> None:
         # Show the real output when it exists. For a queued file, leave the pane

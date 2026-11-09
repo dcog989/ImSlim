@@ -1,10 +1,5 @@
 """The batch state machine: what reaches the counter and what reaches the encoder."""
 
-import os
-
-import pytest
-from PySide6.QtGui import QGuiApplication
-
 from imslim.batch_flow import BatchFlow
 from imslim.batch_options import BatchOptions
 from imslim.formats import FORMAT_DEFAULT_KNOBS, Format
@@ -54,12 +49,6 @@ class _Manager:
 
     def preview(self, *_args: object) -> None:
         raise AssertionError("preview is not part of a batch")
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _qt_app() -> QGuiApplication:
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    return QGuiApplication.instance() or QGuiApplication([])
 
 
 def _flow(manager: _Manager) -> BatchFlow:
