@@ -46,11 +46,6 @@ class Task(QObject, QRunnable):  # pyright: ignore[reportUnsafeMultipleInheritan
         _ACTIVE_TASKS.discard(self)
         self.deleteLater()
 
-    def abandon(self) -> None:
-        """Drop a task that never ran (still queued) and schedule deletion."""
-        _ACTIVE_TASKS.discard(self)
-        self.deleteLater()
-
 
 def start_task(task: Task, priority: int = TASK_PRIORITY_NORMAL) -> None:
     _TASK_POOL.start(task, priority)

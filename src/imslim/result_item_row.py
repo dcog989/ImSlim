@@ -12,6 +12,7 @@ from PySide6.QtGui import (
     QPalette,
 )
 from PySide6.QtWidgets import (
+    QApplication,
     QHBoxLayout,
     QLabel,
     QMessageBox,
@@ -68,9 +69,6 @@ class ResultItemRow(QWidget):
         self.result_item: ResultItem = result_item
         self._alternate: bool = False
         self._selected: bool = False
-        # Captured before any background override so a repaint does not blend
-        # an already-blended color into itself.
-        self._base_palette: QPalette = self.palette()
 
         self.title_label: ElidedLabel = ElidedLabel(os.path.basename(result_item.filename))
         self.title_label.setToolTip(result_item.filename)
@@ -165,8 +163,20 @@ class ResultItemRow(QWidget):
         self._alternate = alternate
         self._apply_background()
 
+    def refresh_theme(self) -> None:
+        """Re-read the application palette after a light/dark switch."""
+        skipped, error, warning = _info_icons(
+            QApplication.palette().color(QPalette.ColorRole.WindowText)
+        )
+        self.skipped_button.setIcon(skipped)
+        self.error_button.setIcon(error)
+        self.warning_button.setIcon(warning)
+        self._apply_background()
+
     def _apply_background(self) -> None:
-        palette = QPalette(self._base_palette)
+        # The live application palette: a captured copy would keep the old
+        # theme, and blending a stored copy would compound on every repaint.
+        palette = QPalette(QApplication.palette())
         window = palette.color(QPalette.ColorRole.Window)
         base = palette.color(QPalette.ColorRole.Base)
         if self._selected:

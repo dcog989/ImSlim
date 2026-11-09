@@ -165,8 +165,8 @@ class ResultItemManager:
             logger.warning("Could not prepare the output for %s: %s", result_item.filename, err)
             result_item.set_error(_("Can't create the output folder."), str(err))
 
-    def create_new_filename(self, path: str, mime: str, *, create_dir: bool = True) -> str:
-        """The output path for `path`; `create_dir` false only predicts it."""
+    def create_new_filename(self, path: str, mime: str) -> str:
+        """The output path for `path`."""
         # None keeps the source extension; only re-encoded formats swap it.
         extension = (
             TARGET_EXTENSIONS[self.options.target_format]
@@ -185,7 +185,6 @@ class ResultItemManager:
             _OUTPUT_MARKER,
             mime,
             extension,
-            create_dir=create_dir,
             allow_source=overwrite,
         )
 
@@ -210,7 +209,7 @@ class ResultItemManager:
         # Overwriting in place has no destination folder to put a directory in.
         return self.options.timestamp_dir and self.options.save_method != SAVE_BACKUP_OVERWRITE
 
-    def _output_parent(self, path: str, *, create_dir: bool = True) -> str:
+    def _output_parent(self, path: str) -> str:
         parent = (
             self.options.output_folder
             if self.options.save_method == SAVE_OUTPUT_FOLDER and self.options.output_folder
@@ -219,7 +218,7 @@ class ResultItemManager:
         if not self._uses_timestamp_dir():
             return parent
         stamp_dir = os.path.join(parent, f"{_OUTPUT_MARKER}-{self._batch_timestamp}")
-        if create_dir and stamp_dir not in self._timestamp_dirs:
+        if stamp_dir not in self._timestamp_dirs:
             try:
                 os.makedirs(stamp_dir, exist_ok=True)
             except OSError as err:
@@ -237,7 +236,6 @@ class ResultItemManager:
         mime: str,
         extension_override: str | None = None,
         *,
-        create_dir: bool = True,
         allow_source: bool = False,
     ) -> str:
         basename = os.path.basename(path)
@@ -247,7 +245,7 @@ class ResultItemManager:
             if extension_override is not None
             else OUTPUT_EXTENSIONS.get(mime, extension)
         )
-        parent = self._output_parent(path, create_dir=create_dir)
+        parent = self._output_parent(path)
         if allow_source or self._uses_timestamp_dir():
             base = os.path.join(parent, stem)
         else:

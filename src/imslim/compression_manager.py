@@ -41,10 +41,6 @@ class CompressionManager:
         self._context: CompressionContext | None = None
         self._thread: threading.Thread | None = None
 
-    def mime_type_to_compressor_type(self, mime_type: str) -> CompressorType | None:
-        spec = MIME_TO_FORMAT.get(mime_type)
-        return None if spec is None else spec.compressor_key
-
     def register_compressor(self, ConcreteCompressor: type[Compressor]) -> None:
         file_type = ConcreteCompressor.get_file_type()
         if file_type not in CONFIGURED_COMPRESSOR_TYPES:
@@ -65,10 +61,10 @@ class CompressionManager:
         if is_converting(options.target_format):
             target_spec = FORMAT_BY_KEY[options.target_format]
             return self.compressors.get(target_spec.compressor_key)
-        compressor_type = self.mime_type_to_compressor_type(result_item.mime_type)
-        if compressor_type is None:
+        spec = MIME_TO_FORMAT.get(result_item.mime_type)
+        if spec is None:
             return None
-        return self.compressors.get(compressor_type)
+        return self.compressors.get(spec.compressor_key)
 
     def compress(
         self,

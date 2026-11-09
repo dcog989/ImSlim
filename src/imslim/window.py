@@ -4,7 +4,7 @@ import tempfile
 import time
 from typing import override
 
-from PySide6.QtCore import QDir, QStandardPaths, Qt, QTimer
+from PySide6.QtCore import QDir, QEvent, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import (
     QAction,
     QCloseEvent,
@@ -79,6 +79,8 @@ class ImSlimWindow(QWidget):
         self._preview_task: CompressPreviewTask | None = None
         self._preview_item: ResultItem | None = None
         self._preview_dir: str = ""
+        self._refreshing_theme: bool = False
+        self._ui_ready: bool = False
         self.clipboard: ClipboardIntake = ClipboardIntake(self.app.clipboard(), self)
         self.setWindowTitle("ImSlim")
         self.setWindowIcon(imslim_icon())
@@ -103,6 +105,7 @@ class ImSlimWindow(QWidget):
 
         _res = self.app.aboutToQuit.connect(self.flow.shutdown)
         _res = self.app.aboutToQuit.connect(self._save_state)
+        self._ui_ready = True
 
     # ------------------------------------------------------------------ UI
     def build_ui(self) -> None:
@@ -131,12 +134,7 @@ class ImSlimWindow(QWidget):
         self.drop_indicator: QWidget = QWidget(self)
         self.drop_indicator.setObjectName("dropIndicator")
         self.drop_indicator.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.drop_indicator.setStyleSheet(
-            "QWidget#dropIndicator {"
-            + f" border: 3px dashed {accent_color().name()};"
-            + " background-color: transparent;"
-            + " }"
-        )
+        self._apply_drop_indicator_style()
         self.drop_indicator.hide()
 
         _res = self.queue.add_files_requested.connect(self.on_select)
@@ -478,6 +476,34 @@ class ImSlimWindow(QWidget):
         self.drop_indicator.setGeometry(self.rect())
         self.drop_indicator.raise_()
         self.drop_indicator.show()
+
+    def _apply_drop_indicator_style(self) -> None:
+        self.drop_indicator.setStyleSheet(
+            "QWidget#dropIndicator {"
+            + f" border: 3px dashed {accent_color().name()};"
+            + " background-color: transparent;"
+            + " }"
+        )
+
+    def _refresh_theme(self) -> None:
+        """Re-apply the colors baked into inline stylesheets on a palette change."""
+        if self._refreshing_theme or not self._ui_ready:
+            return
+        self._refreshing_theme = True
+        try:
+            self.splitter.setStyleSheet(splitter_stylesheet())
+            self._apply_drop_indicator_style()
+            self.queue.refresh_theme()
+            self.options.refresh_theme()
+            self.compare.refresh_theme()
+        finally:
+            self._refreshing_theme = False
+
+    @override
+    def changeEvent(self, event: QEvent) -> None:
+        if event.type() == QEvent.Type.PaletteChange:
+            self._refresh_theme()
+        super().changeEvent(event)
 
     @override
     def resizeEvent(self, event: QResizeEvent) -> None:

@@ -316,8 +316,9 @@ class QueueView(QWidget):
         layout.addWidget(prompt)
         layout.addStretch(1)
 
-    @staticmethod
-    def _make_add_button(icon: QIcon, tooltip: str, handler: Callable[[], None]) -> QToolButton:
+    def _make_add_button(
+        self, icon: QIcon, tooltip: str, handler: Callable[[], None]
+    ) -> QToolButton:
         """'Add' then the glyph: Qt's text-beside-icon paints the opposite order."""
         button = QToolButton()
         layout = QHBoxLayout(button)
@@ -334,6 +335,12 @@ class QueueView(QWidget):
         button.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         # QToolButton sizes itself from its text/icon, not from a child layout.
         button.setFixedSize(layout.sizeHint())
+        self._apply_add_button_style(button)
+        _res = button.clicked.connect(handler)
+        return button
+
+    @staticmethod
+    def _apply_add_button_style(button: QToolButton) -> None:
         accent, accent_hover, accent_pressed = accent_colors()
         button.setStyleSheet(
             "QToolButton {"
@@ -345,8 +352,6 @@ class QueueView(QWidget):
             + f"QToolButton:pressed {{ background-color: {accent_pressed.name()}; }}"
             + "QLabel { color: palette(highlighted-text); background: transparent; }"
         )
-        _res = button.clicked.connect(handler)
-        return button
 
     @staticmethod
     def _make_button(
@@ -366,6 +371,15 @@ class QueueView(QWidget):
         return button
 
     # ------------------------------------------------------------------ view
+    def refresh_theme(self) -> None:
+        """Re-apply the accent colors baked into stylesheets after a palette change."""
+        self._apply_background()
+        self._refresh_view_button()
+        self._apply_add_button_style(self.add_files_button)
+        self._apply_add_button_style(self.add_directory_button)
+        for row in self._rows.values():
+            row.refresh_theme()
+
     @property
     def items(self) -> list[ResultItem]:
         return list(self._items)

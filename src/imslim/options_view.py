@@ -4,8 +4,8 @@ import html
 from collections.abc import Callable
 from functools import partial
 
-from PySide6.QtCore import QSize, Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices, QStandardItemModel
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -285,8 +285,21 @@ class OptionsView(QWidget):
         self.process_button: QPushButton = QPushButton(_("Process"))
         self.process_button.setMinimumHeight(48)
         self.process_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.process_button.setStyleSheet(self._process_button_stylesheet())
+        _res = self.process_button.clicked.connect(self.process_requested.emit)
+        bottom = QHBoxLayout()
+        bottom.setContentsMargins(12, 8, 12, 12)
+        bottom.setSpacing(8)
+        bottom.addWidget(self.process_button, 1)
+        bottom.addWidget(self.about_button)
+        root.addLayout(bottom)
+        self.set_process_enabled(False)
+
+    # ----------------------------------------------------------------- widgets
+    @staticmethod
+    def _process_button_stylesheet() -> str:
         accent, accent_hover, accent_pressed = accent_colors()
-        self.process_button.setStyleSheet(
+        return (
             "QPushButton {"
             + "  border-radius: 24px;"
             + f"  background-color: {accent.name()};"
@@ -306,16 +319,14 @@ class OptionsView(QWidget):
             + "  color: palette(light);"
             + "}"
         )
-        _res = self.process_button.clicked.connect(self.process_requested.emit)
-        bottom = QHBoxLayout()
-        bottom.setContentsMargins(12, 8, 12, 12)
-        bottom.setSpacing(8)
-        bottom.addWidget(self.process_button, 1)
-        bottom.addWidget(self.about_button)
-        root.addLayout(bottom)
-        self.set_process_enabled(False)
 
-    # ----------------------------------------------------------------- widgets
+    def refresh_theme(self) -> None:
+        """Re-apply the colors baked into stylesheets after a palette change."""
+        self.setStyleSheet(form_stylesheet())
+        for combo in self.findChildren(QComboBox):
+            combo.setStyleSheet(combo_stylesheet())
+        self.process_button.setStyleSheet(self._process_button_stylesheet())
+
     @staticmethod
     def _combo(items: tuple[str, ...], tooltip: str) -> QComboBox:
         combo = QComboBox()
@@ -649,7 +660,3 @@ class OptionsView(QWidget):
         if not busy:
             self._update_destination_state()
             self._update_knob_state()
-
-    def open_output_folder(self, folder: str) -> None:
-        if folder:
-            _res = QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
