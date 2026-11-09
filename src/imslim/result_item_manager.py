@@ -25,12 +25,12 @@ _TIMESTAMP_FORMAT = "%Y%m%d%H%M%S"
 # Files this app wrote: <stem>.<marker>.<timestamp>[-<n>].<ext>. They keep the
 # source image extension, so a rescan of a folder would pick them up as inputs.
 _GENERATED_OUTPUT_PATTERN = re.compile(
-    rf"\.(?:{_OUTPUT_MARKER}|{_BACKUP_MARKER})\.\d{{14}}(?:-\d+)?\.[^.]+$",
+    rf"\.(?:{_OUTPUT_MARKER}|{_BACKUP_MARKER})\.\d{{14}}(?:-\d+)*\.[^.]+$",
     re.IGNORECASE,
 )
 # With the timestamp directory enabled, outputs keep plain names inside a
 # directory named after the batch; the directory is what marks them as generated.
-_GENERATED_DIR_PATTERN = re.compile(rf"^{_OUTPUT_MARKER}-\d{{14}}$", re.IGNORECASE)
+_GENERATED_DIR_PATTERN = re.compile(rf"^{_OUTPUT_MARKER}-\d{{14}}(?:-\d+)?$", re.IGNORECASE)
 
 
 def is_generated_output(path: str) -> bool:
@@ -45,18 +45,26 @@ class ResultItemManager:
         self.options: BatchOptions = options
         self._used_names: set[str] = set()
         self._timestamp_dirs: set[str] = set()
-        self._batch_timestamp: str = time.strftime(_TIMESTAMP_FORMAT)
+        self._batch_timestamp: str = self._new_timestamp()
+
+    @staticmethod
+    def _new_timestamp() -> str:
+        # The PID keeps two --now batches started in the same second from
+        # choosing the same output and backup names.
+        return f"{time.strftime(_TIMESTAMP_FORMAT)}-{os.getpid()}"
 
     def begin_batch(self) -> bool:
         """Start a new batch: reset name reservations and prepare the output folder.
 
-        Returns False if the output folder cannot be created and the batch
-        should be aborted.
+        Returns False if the output folder is missing or cannot be created and
+        the batch should be aborted.
         """
         self._used_names.clear()
         self._timestamp_dirs.clear()
-        self._batch_timestamp = time.strftime(_TIMESTAMP_FORMAT)
-        if self.options.save_method == SAVE_OUTPUT_FOLDER and self.options.output_folder:
+        self._batch_timestamp = self._new_timestamp()
+        if self.options.save_method == SAVE_OUTPUT_FOLDER:
+            if not self.options.output_folder:
+                return False
             try:
                 os.makedirs(self.options.output_folder, exist_ok=True)
             except OSError:

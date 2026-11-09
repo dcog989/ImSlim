@@ -75,19 +75,21 @@ def test_output_path_counter_keeps_names_unique(tmp_path, frozen_timestamp: None
     first = manager._output_path(str(source), "imslim", "image/png")
     second = manager._output_path(str(source), "imslim", "image/png")
 
-    assert first == str(tmp_path / f"photo.imslim.{_TIMESTAMP}.png")
-    assert second == str(tmp_path / f"photo.imslim.{_TIMESTAMP}-1.png")
+    stamp = manager._batch_timestamp
+    assert first == str(tmp_path / f"photo.imslim.{stamp}.png")
+    assert second == str(tmp_path / f"photo.imslim.{stamp}-1.png")
 
 
 def test_output_path_skips_existing_files(tmp_path, frozen_timestamp: None) -> None:
     source = tmp_path / "photo.png"
     source.write_bytes(b"x")
-    (tmp_path / f"photo.imslim.{_TIMESTAMP}.png").write_bytes(b"existing")
     manager = ResultItemManager(_options())
     manager.begin_batch()
+    stamp = manager._batch_timestamp
+    (tmp_path / f"photo.imslim.{stamp}.png").write_bytes(b"existing")
 
     assert manager._output_path(str(source), "imslim", "image/png") == str(
-        tmp_path / f"photo.imslim.{_TIMESTAMP}-1.png"
+        tmp_path / f"photo.imslim.{stamp}-1.png"
     )
 
 
@@ -109,13 +111,19 @@ def test_output_path_uses_custom_output_folder(tmp_path, frozen_timestamp: None)
 
     path = manager._output_path(str(source), "imslim", "image/png")
 
-    assert path == str(output_folder / f"photo.imslim.{_TIMESTAMP}.png")
+    assert path == str(output_folder / f"photo.imslim.{manager._batch_timestamp}.png")
 
 
 def test_begin_batch_reports_unwritable_output_folder(tmp_path) -> None:
     blocker = tmp_path / "blocker"
     blocker.write_bytes(b"x")
     manager = ResultItemManager(_options(SAVE_OUTPUT_FOLDER, str(blocker / "nested")))
+
+    assert manager.begin_batch() is False
+
+
+def test_begin_batch_reports_a_missing_output_folder(tmp_path) -> None:
+    manager = ResultItemManager(_options(SAVE_OUTPUT_FOLDER, ""))
 
     assert manager.begin_batch() is False
 
@@ -129,7 +137,7 @@ def test_timestamp_dir_holds_plain_output_names(tmp_path, frozen_timestamp: None
     item = manager.build(str(source))
     manager.prepare(item)
 
-    stamp_dir = tmp_path / f"imslim-{_TIMESTAMP}"
+    stamp_dir = tmp_path / f"imslim-{manager._batch_timestamp}"
     assert item.new_filename == str(stamp_dir / "photo.png")
     assert stamp_dir.is_dir()
     assert is_generated_output(item.new_filename)
