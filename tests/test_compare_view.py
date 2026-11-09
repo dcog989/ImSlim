@@ -1,5 +1,8 @@
 """The comparison pane's zoom, pan and decode-queue rules."""
 
+import os
+from pathlib import Path
+
 import pytest
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QImage
@@ -86,3 +89,25 @@ def test_the_source_is_not_decoded_twice_for_the_processed_pane(
 
     assert len(started) == 1
     assert view._processed.has_image()
+
+
+def test_a_rewritten_output_is_decoded_again(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    started: list[_PreviewTask] = []
+    monkeypatch.setattr("imslim.compare_view.start_task", started.append)
+    view = CompareView()
+    output = tmp_path / "photo.png"
+    output.write_bytes(b"first")
+
+    view.show_processed(str(output))
+    view._on_loaded(started[-1]._token, _image())
+    view.show_processed(str(output))
+    assert len(started) == 1
+
+    # An in-place overwrite keeps the path but replaces the pixels.
+    output.write_bytes(b"second")
+    os.utime(output, (1_600_000_000, 1_600_000_000))
+    view.show_processed(str(output))
+
+    assert len(started) == 2

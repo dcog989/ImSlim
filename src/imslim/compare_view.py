@@ -2,6 +2,7 @@
 
 import logging
 import math
+import os
 import time
 from typing import override
 
@@ -241,6 +242,15 @@ class ImagePane(QWidget):
         super().resizeEvent(event)
 
 
+def _file_version(path: str) -> tuple[str, int, int]:
+    """Identity of the file behind a path, so a rewritten file is decoded again."""
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return (path, -1, -1)
+    return (path, stat.st_mtime_ns, stat.st_size)
+
+
 def _savings_text(size: int, savings: int) -> str:
     if not size:
         return ""
@@ -266,7 +276,9 @@ class CompareView(QWidget):
         # The source currently shown; repeated item updates must not decode it
         # again (that also resets the zoom and pan the user set).
         self._shown_original: str = ""
+        self._original_version: tuple[str, int, int] | None = None
         self._shown_processed: str = ""
+        self._processed_version: tuple[str, int, int] | None = None
         self._original: ImagePane = ImagePane(_("Select a file to preview it."))
         self._processed: ImagePane = ImagePane(_("The processed image appears here."))
 
@@ -380,6 +392,7 @@ class CompareView(QWidget):
         )
         if path != self._shown_original:
             self._shown_original = path
+            self._original_version = _file_version(path)
             self._load(self._original, path, _("Loading…"))
 
     def show_processed(
@@ -399,10 +412,16 @@ class CompareView(QWidget):
         self.processed_path.setToolTip(plain_tooltip(shown))
         self.processed_size.setText(sizeof_fmt(size) if size else "")
         self.processed_savings.setText(_savings_text(size, savings))
-        if path == self._shown_processed:
+        version = _file_version(path)
+        if path == self._shown_processed and version == self._processed_version:
             return
         self._shown_processed = path
-        if path == self._shown_original and self._original.has_image():
+        self._processed_version = version
+        if (
+            path == self._shown_original
+            and self._original.has_image()
+            and version == self._original_version
+        ):
             # Mid-batch the source is shown here; reuse the top pane's decode.
             self._tokens[self._processed] = -1
             _res = self._queued.pop(self._processed, None)
@@ -414,6 +433,7 @@ class CompareView(QWidget):
         self._tokens[self._processed] = -1
         _res = self._queued.pop(self._processed, None)
         self._shown_processed = ""
+        self._processed_version = None
         self.processed_path.setText("")
         self.processed_size.setText("")
         self.processed_savings.setText("")
@@ -423,6 +443,7 @@ class CompareView(QWidget):
         self._tokens[self._original] = -1
         _res = self._queued.pop(self._original, None)
         self._shown_original = ""
+        self._original_version = None
         self.path_label.setText("")
         self.size_label.setText("")
         self.time_label.setText("")
