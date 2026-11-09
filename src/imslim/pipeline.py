@@ -62,7 +62,7 @@ def report_command_error(result_item: ResultItem, err: Exception, options: Batch
 def log_outcome(result_item: ResultItem) -> None:
     if result_item.state is ResultState.SKIPPED:
         logger.info("Skipped %s: output not smaller than input", result_item.filename)
-    elif result_item.state is ResultState.DONE and result_item.size > 0:
+    elif result_item.state is ResultState.DONE:
         savings = savings_percent(result_item.size, result_item.new_size)
         logger.info(
             "Compressed %s: %d -> %d bytes (%d%% saved)",
@@ -108,7 +108,10 @@ class CompressionPipeline:
             last_argv: list[str] | None = None
             try:
                 commands = compressor.commands(result_item, options)
-                last_argv = self._execute_commands(commands, result_item, context, options)
+                for command in commands:
+                    argv = self._run_command(command, result_item, context, options)
+                    if argv is not None:
+                        last_argv = argv
             except CancelledError:
                 result_item.state = ResultState.CANCELLED
             except Exception as err:
@@ -131,74 +134,53 @@ class CompressionPipeline:
             cleanup_temp_files(commands)
             c_update_result_item(result_item)
 
-    def _execute_commands(
+    def _run_command(
         self,
-        commands: list[Command],
+        command: Command,
         result_item: ResultItem,
         context: CompressionContext,
         options: BatchOptions,
     ) -> list[str] | None:
-        """Run every command in the pipeline, returning the last argv run.
+        """Run one command, returning its adapted argv.
 
         Per-command failures clean up their sidecar output; commands marked
         ignore_errors are skipped instead of aborting the pipeline.
         """
-        last_argv: list[str] | None = None
-        for command in commands:
-            argv = self._run_one(command, result_item, context, options)
-            if argv is not None:
-                last_argv = argv
-        return last_argv
-
-    def _run_one(
-        self,
-        command: Command,
-        result_item: ResultItem,
-        context: CompressionContext,
-        options: BatchOptions,
-    ) -> list[str] | None:
         with command.limit if command.limit is not None else nullcontext():
-            return self._run_unlimited(command, result_item, context, options)
+            if command.action is not None:
+                logger.debug("Running in-process command for %s", result_item.filename)
+                try:
+                    command.action()
+                except Exception:
+                    if command.ignore_errors:
+                        logger.warning("Optional in-process command failed, ignoring")
+                        return None
+                    raise
+                return None
 
-    def _run_unlimited(
-        self,
-        command: Command,
-        result_item: ResultItem,
-        context: CompressionContext,
-        options: BatchOptions,
-    ) -> list[str] | None:
-        if command.action is not None:
-            logger.debug("Running in-process command for %s", result_item.filename)
+            argv = command.argv or []
+            if command.adapt is not None:
+                argv = command.adapt(argv)
+            logger.debug("Running %s for %s", argv, result_item.filename)
             try:
-                command.action()
-            except Exception:
-                if command.ignore_errors:
-                    logger.warning("Optional in-process command failed, ignoring")
-                    return None
+                if command.stdout_path is not None:
+                    # Stream stdout straight to the sidecar file instead of
+                    # buffering the whole payload in memory first.
+                    with open(command.stdout_path, "wb") as fp:
+                        self._runner.run(
+                            argv, context, stdout=fp, timeout=options.compression_timeout
+                        )
+                else:
+                    self._runner.run(
+                        argv, context, stdout=subprocess.PIPE, timeout=options.compression_timeout
+                    )
+            except CancelledError:
                 raise
-            return None
-
-        argv = command.argv or []
-        if command.adapt is not None:
-            argv = command.adapt(argv)
-        logger.debug("Running %s for %s", argv, result_item.filename)
-        try:
-            if command.stdout_path is not None:
-                # Stream stdout straight to the sidecar file instead of
-                # buffering the whole payload in memory first.
-                with open(command.stdout_path, "wb") as fp:
-                    self._runner.run(argv, context, stdout=fp, timeout=options.compression_timeout)
-            else:
-                self._runner.run(
-                    argv, context, stdout=subprocess.PIPE, timeout=options.compression_timeout
-                )
-        except CancelledError:
-            raise
-        except Exception:
-            if command.stdout_path is not None:
-                remove_quietly(command.stdout_path)
-            if command.ignore_errors:
-                logger.warning("Optional command failed, ignoring: %s", argv)
-                return argv
-            raise
-        return argv
+            except Exception:
+                if command.stdout_path is not None:
+                    remove_quietly(command.stdout_path)
+                if command.ignore_errors:
+                    logger.warning("Optional command failed, ignoring: %s", argv)
+                    return argv
+                raise
+            return argv

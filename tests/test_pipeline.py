@@ -105,6 +105,16 @@ def test_failure_marks_the_item_and_cleans_temp_files(tmp_path: Path) -> None:
     assert not Path(sidecar).exists()
 
 
+def test_missing_output_marks_an_error(tmp_path: Path) -> None:
+    item = _item(tmp_path)
+
+    _run([Command(action=lambda: None)], item, CompressionContext())
+
+    assert item.state is ResultState.ERROR
+    assert item.error_message
+    assert Path(item.filename).read_bytes() == b"x" * 100
+
+
 def test_optional_command_failure_is_ignored(tmp_path: Path) -> None:
     item = _item(tmp_path)
     sidecar = str(tmp_path / ".sidecar")
