@@ -345,12 +345,11 @@ class ImSlimWindow(QWidget):
             return
         self._preview_task = None
         item = self._preview_item
-        if (
-            item is None
-            or item.state is ResultState.DONE
-            or not isinstance(result, ResultItem)
-            or result.state is not ResultState.DONE
-        ):
+        if item is None or item.state is ResultState.DONE:
+            return
+        if not isinstance(result, ResultItem) or result.state is not ResultState.DONE:
+            # A failed preview must not leave the pane on a loading placeholder.
+            self.compare.clear_processed(_("Preview unavailable."))
             return
         self.compare.show_processed(
             result.new_filename,
