@@ -363,6 +363,11 @@ class QueueView(QWidget):
     def selected_items(self) -> list[ResultItem]:
         return list(self._selected)
 
+    def _has_selection(self) -> bool:
+        if self._view_mode() == _VIEW_THUMBNAILS:
+            return bool(self.grid.selectedItems())
+        return bool(self._selected)
+
     def _view_mode(self) -> str:
         return _VIEW_THUMBNAILS if self.settings.view_mode == _VIEW_THUMBNAILS else _VIEW_DETAILS
 
@@ -432,7 +437,7 @@ class QueueView(QWidget):
         if self._items:
             _res = menu.addSeparator()
             remove = QAction(_("Remove from Queue"), menu)
-            remove.setEnabled(not self._busy and bool(self._selected))
+            remove.setEnabled(not self._busy and self._has_selection())
             _res = remove.triggered.connect(self.remove_selected)
             clear = QAction(_("Clear Queue"), menu)
             clear.setEnabled(not self._busy)
@@ -660,7 +665,7 @@ class QueueView(QWidget):
         has_items = bool(self._items)
         self.add_files_button.setEnabled(not self._busy)
         self.add_directory_button.setEnabled(not self._busy)
-        self.remove_button.setEnabled(has_items and not self._busy and bool(self._selected))
+        self.remove_button.setEnabled(has_items and not self._busy and self._has_selection())
         self.clear_button.setEnabled(has_items and not self._busy)
 
     # ------------------------------------------------------------- selection

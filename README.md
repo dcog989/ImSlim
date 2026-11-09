@@ -55,27 +55,27 @@ Paths are handed to an already running ImSlim; without arguments the main window
 
 ImSlim is built with Python / PySide6. The compression libraries are built from source and statically linked:
 
-- [libjxl](https://github.com/libjxl/libjxl) (`cjxl`/`djxl`)
+- [gifsicle](https://www.lcdf.org/gifsicle/)
 - [Jpegli](https://github.com/google/jpegli) (`cjpegli`/`djpegli`)
+- [libavif](https://github.com/AOMediaCodec/libavif) (`avifenc`/`avifdec`)
+- [libjxl](https://github.com/libjxl/libjxl) (`cjxl`/`djxl`)
+- [libwebp](https://developers.google.com/speed/webp) (`cwebp`)
 - [mozjpeg](https://github.com/mozilla/mozjpeg) (`jpegtran`)
 - [oxipng](https://github.com/shssoichiro/oxipng)
 - [pngquant](https://pngquant.org)
-- [libwebp](https://developers.google.com/speed/webp) (`cwebp`)
-- [libavif](https://github.com/AOMediaCodec/libavif) (`avifenc`/`avifdec`)
-- [gifsicle](https://www.lcdf.org/gifsicle/)
 - [svgo](https://github.com/svg/svgo)
 
 The AppImage and wheel carry these binaries, so no system tools are needed at runtime. Logs are written to `~/.local/state/ImSlim/imslim.log` (rotating).
 
 ### Development
 
-Requires Python 3.14+, [`uv`](https://docs.astral.sh/uv/), and — for the bundled tools — a C/C++ toolchain (CMake, Ninja, pkg-config, curl, git); `scripts/build_tools.sh` installs what the distro package manager (apt/pacman) provides and downloads a pinned Node for svgo. Translations need GNU gettext.
+Requires Python 3.14+, [`uv`](https://docs.astral.sh/uv/); C/C++ toolchain (CMake, Ninja, pkg-config, curl, git) for the bundled tools; `scripts/build_tools.sh` installs what the distro package manager (apt/pacman) provides and downloads a pinned Node for `svgo`. Translations need GNU gettext.
 
 ```sh
 git clone https://github.com/dcog989/ImSlim
 cd ImSlim
-make init     # uv sync
-make tools    # build src/imslim/bin/linux-x86_64/
+make init           # uv sync
+make tools          # build src/imslim/bin/linux-x86_64/
 make run
 ```
 

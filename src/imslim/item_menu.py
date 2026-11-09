@@ -30,14 +30,14 @@ def build_item_menu(item: ResultItem, parent: QWidget) -> QMenu:
         menu.addAction(show_in_folder)
         _res = menu.addSeparator()
 
+    copy_path = QAction(_("Copy File Path"), menu)
+    copy_path.setEnabled(bool(item.filename))
+    _res = copy_path.triggered.connect(lambda: QGuiApplication.clipboard().setText(item.filename))
+    menu.addAction(copy_path)
+
     if original:
-        copy_path = QAction(_("Copy Path"), menu)
-        _res = copy_path.triggered.connect(
-            lambda: QGuiApplication.clipboard().setText(item.filename)
-        )
         properties = QAction(_("Properties…"), menu)
         _res = properties.triggered.connect(lambda: _show_properties(item, parent))
-        menu.addAction(copy_path)
         menu.addAction(properties)
         _res = menu.addSeparator()
         show_original = QAction(_("Show Original in Folder"), menu)

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: imslim 0.11.4\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 13:00+0000\n"
+"POT-Creation-Date: 2026-11-09 13:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -132,7 +132,7 @@ msgstr ""
 msgid "Skipped"
 msgstr ""
 
-#: src/imslim/dialogs.py:154 src/imslim/queue_view.py:578
+#: src/imslim/dialogs.py:154 src/imslim/queue_view.py:583
 msgid "Failed"
 msgstr ""
 
@@ -300,11 +300,11 @@ msgstr ""
 msgid "Show in Folder"
 msgstr ""
 
-#: src/imslim/item_menu.py:34 src/imslim/properties.py:81
-msgid "Copy Path"
+#: src/imslim/item_menu.py:33
+msgid "Copy File Path"
 msgstr ""
 
-#: src/imslim/item_menu.py:38
+#: src/imslim/item_menu.py:39
 msgid "Properties…"
 msgstr ""
 
@@ -547,6 +547,10 @@ msgstr ""
 msgid "Properties — {name}"
 msgstr ""
 
+#: src/imslim/properties.py:81
+msgid "Copy Path"
+msgstr ""
+
 #: src/imslim/queue_view.py:187
 msgid "Add files"
 msgstr ""
@@ -571,52 +575,52 @@ msgstr ""
 msgid "Add"
 msgstr ""
 
-#: src/imslim/queue_view.py:371
+#: src/imslim/queue_view.py:376
 msgid "List view; click for thumbnails"
 msgstr ""
 
-#: src/imslim/queue_view.py:372
+#: src/imslim/queue_view.py:377
 msgid "Thumbnail view; click for a list"
 msgstr ""
 
-#: src/imslim/queue_view.py:426
+#: src/imslim/queue_view.py:431
 msgid "Add Files…"
 msgstr ""
 
-#: src/imslim/queue_view.py:428
+#: src/imslim/queue_view.py:433
 msgid "Add Directory…"
 msgstr ""
 
-#: src/imslim/queue_view.py:434
+#: src/imslim/queue_view.py:439
 msgid "Remove from Queue"
 msgstr ""
 
-#: src/imslim/queue_view.py:437
+#: src/imslim/queue_view.py:442
 msgid "Clear Queue"
 msgstr ""
 
-#: src/imslim/queue_view.py:475
+#: src/imslim/queue_view.py:480
 #, python-format
 msgid "Showing only the first %d files; all of them are still processed."
 msgstr ""
 
-#: src/imslim/queue_view.py:574
+#: src/imslim/queue_view.py:579
 msgid "Compressing…"
 msgstr ""
 
-#: src/imslim/queue_view.py:576 src/imslim/result_item_row.py:226
+#: src/imslim/queue_view.py:581 src/imslim/result_item_row.py:226
 msgid "Cancelled"
 msgstr ""
 
-#: src/imslim/queue_view.py:582 src/imslim/result_item_row.py:232
+#: src/imslim/queue_view.py:587 src/imslim/result_item_row.py:232
 msgid "Already optimal"
 msgstr ""
 
-#: src/imslim/queue_view.py:648
+#: src/imslim/queue_view.py:653
 msgid "1 file"
 msgstr ""
 
-#: src/imslim/queue_view.py:648
+#: src/imslim/queue_view.py:653
 #, python-brace-format
 msgid "{count} files"
 msgstr ""
