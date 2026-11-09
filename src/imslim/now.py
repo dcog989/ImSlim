@@ -2,7 +2,7 @@
 
 import time
 
-from PySide6.QtCore import QEventLoop, QObject, Qt, QTimer
+from PySide6.QtCore import QEventLoop, QObject, QTimer
 from PySide6.QtWidgets import QMessageBox
 
 from ._i18n import _
@@ -119,7 +119,6 @@ class NowRunner(QObject):
         if self._finished or self._progress is not None:
             return
         dialog = ProgressDialog(_("Processing"))
-        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         _res = dialog.cancel_requested.connect(self._cancel)
         self._progress = dialog
         dialog.show()

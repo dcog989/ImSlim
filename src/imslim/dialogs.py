@@ -5,7 +5,7 @@ import os
 from typing import override
 
 from PySide6.QtCore import QEvent, Qt, QTimer, QUrl, Signal
-from PySide6.QtGui import QColor, QDesktopServices, QPalette
+from PySide6.QtGui import QColor, QDesktopServices, QKeyEvent, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -87,6 +87,14 @@ class ProgressDialog(QDialog):
         # when the done count gains a digit.
         done_text = str(done).rjust(len(str(total)), "\u2007")
         self.label.setText(_("{done} of {total} images").format(done=done_text, total=total))
+
+    @override
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        # Escape must not hide a batch that is still running; Cancel is the way out.
+        if event.key() == Qt.Key.Key_Escape:
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
 
 def batch_size_totals(result_items: list[ResultItem]) -> tuple[int, int]:

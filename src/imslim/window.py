@@ -367,7 +367,6 @@ class ImSlimWindow(QWidget):
         if not self.flow.active:
             return
         dialog = ProgressDialog(_("Processing"), self)
-        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         _res = dialog.cancel_requested.connect(self.stop_compression)
         self._progress = dialog
         dialog.show()

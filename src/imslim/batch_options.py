@@ -34,7 +34,9 @@ class BatchOptions:
             target_format=settings.target_format,
             output_folder=settings.output_folder,
             recursive=settings.recursive,
-            lossy=settings.lossy,
+            # JPEG has no lossless encoder; force the lossy path without
+            # changing the saved choice for the other formats.
+            lossy=settings.lossy or settings.target_format is Format.JPEG,
             metadata=settings.metadata,
             file_attributes=settings.file_attributes,
             compression_timeout=settings.compression_timeout,

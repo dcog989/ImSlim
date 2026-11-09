@@ -533,8 +533,9 @@ class OptionsView(QWidget):
 
     def _update_knob_state(self) -> None:
         # Lossless skips the quantizer, so its quality knob has no effect. The
-        # flag lives on the key the format table already defines.
-        lossless = not self.settings.lossy
+        # flag lives on the key the format table already defines. A JPEG target
+        # is always lossy, even when the saved choice for other formats is not.
+        lossless = not self.settings.lossy and self.settings.target_format is not Format.JPEG
         for widget, knob in self._knob_widgets:
             widget.setEnabled(not (lossless and knob.key.endswith("-lossy-level")))
 

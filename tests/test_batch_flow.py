@@ -77,6 +77,22 @@ def test_a_terminal_update_is_counted_once() -> None:
     assert flow.summary.compressed == 1
 
 
+def test_a_jpeg_target_forces_the_lossy_encoder() -> None:
+    settings = _Settings()
+    settings.lossy = False
+    settings.target_format = Format.JPEG
+
+    assert BatchOptions.from_settings(settings).lossy is True  # type: ignore[arg-type]
+
+
+def test_a_non_jpeg_target_keeps_the_saved_lossless_choice() -> None:
+    settings = _Settings()
+    settings.lossy = False
+    settings.target_format = Format.PNG
+
+    assert BatchOptions.from_settings(settings).lossy is False  # type: ignore[arg-type]
+
+
 def test_an_analysis_failure_is_counted_without_reaching_the_encoder() -> None:
     manager = _Manager()
     flow = _flow(manager)

@@ -20,6 +20,7 @@ _ICC = _segment(0xE2, b"ICC_PROFILE\x00\x01\x01")
 _EXIF = _segment(0xE1, b"Exif\x00\x00II*\x00\x08\x00\x00\x00exif-payload")
 _XMP = _segment(0xE1, b"http://ns.adobe.com/xap/1.0/\x00<xmp/>")
 _COMMENT = _segment(0xFE, b"a comment")
+_JUMBF = _segment(0xEB, b"\x00\x00\x00\x08jumb")
 _APP5 = _segment(0xE5, b"not metadata")
 
 
@@ -50,6 +51,19 @@ def test_copies_exif_xmp_and_comments(tmp_path: Path) -> None:
     # Metadata sits after the encoder's own segments, before the image data.
     assert result.index(_ICC) < result.index(_EXIF) < result.index(_SCAN)
     assert len(result) == len(original_target) + len(_EXIF) + len(_XMP) + len(_COMMENT)
+
+
+def test_copies_and_strips_jumbf(tmp_path: Path) -> None:
+    source = _write(tmp_path, "source.jpg", _JFIF, _JUMBF)
+    target = _write(tmp_path, "target.jpg", _JFIF)
+
+    transfer_metadata(source, target)
+
+    assert _JUMBF in Path(target).read_bytes()
+
+    strip_metadata(target)
+
+    assert _JUMBF not in Path(target).read_bytes()
 
 
 def test_ignores_non_metadata_segments(tmp_path: Path) -> None:

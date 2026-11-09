@@ -13,6 +13,7 @@ from .file_rewrite import rewrite_file
 
 _SOI = b"\xff\xd8"
 _APP1 = 0xE1
+_APP11 = 0xEB
 _APP13 = 0xED
 _COM = 0xFE
 _SOS = 0xDA
@@ -20,8 +21,8 @@ _EXIF = b"Exif\x00\x00"
 _XMP = b"http://ns.adobe.com/xap/1.0/\x00"
 
 # Segments carrying user metadata rather than image structure: EXIF, XMP and
-# Photoshop's IPTC block live in APP1/APP13, plain text in COM.
-_METADATA_MARKERS = (_APP1, _APP13, _COM)
+# Photoshop's IPTC block live in APP1/APP13, JUMBF in APP11, plain text in COM.
+_METADATA_MARKERS = (_APP1, _APP11, _APP13, _COM)
 
 
 def _is_metadata(marker: int, segment: bytes) -> bool:
