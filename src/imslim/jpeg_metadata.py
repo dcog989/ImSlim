@@ -5,11 +5,12 @@ the original. djpegli's PNG output carries no EXIF/XMP, so those segments are
 moved across from the original file once the encode is done.
 """
 
+import shutil
 from pathlib import Path
+from typing import IO
 
-# JPEG metadata sits before the start of scan; a huge source must not be read
-# in full just to copy a few APP segments.
-_HEAD_BYTES = 1024 * 1024
+from .file_rewrite import rewrite_file
+
 _SOI = b"\xff\xd8"
 _APP1 = 0xE1
 _APP13 = 0xED
@@ -33,46 +34,85 @@ def _is_metadata(marker: int, segment: bytes) -> bool:
     return True
 
 
-def _split_leading(data: bytes) -> tuple[bytes, bytes, int]:
-    """Split a JPEG's leading marker segments.
+def _parse_leading(handle: IO[bytes]) -> tuple[bytes, bytes, int]:
+    """Read the marker segments in front of the image data.
 
-    Returns the segments to keep verbatim, the metadata segments, and the offset
-    where the image data (start of scan) begins. Parsing stops at the scan, so
-    entropy-coded bytes are never mistaken for markers.
+    Returns the segments to keep verbatim, the metadata segments, and the
+    offset where the image data (start of scan) begins. Reading stops at the
+    scan, so entropy-coded bytes are never mistaken for markers.
 
-    Raises ValueError when `data` is not a well-formed JPEG.
+    Raises ValueError when the stream is not a well-formed JPEG.
     """
-    if not data.startswith(_SOI):
+    if handle.read(2) != _SOI:
         raise ValueError("not a JPEG")
     kept = bytearray(_SOI)
     metadata = bytearray()
     offset = 2
-    while offset + 4 <= len(data):
-        if data[offset] != 0xFF:
+    while True:
+        header = handle.read(2)
+        if len(header) < 2:
+            raise ValueError("no start-of-scan marker")
+        if header[0] != 0xFF:
             raise ValueError(f"expected a marker at offset {offset}")
-        marker = data[offset + 1]
+        marker = header[1]
         if marker == _SOS:
             return bytes(kept), bytes(metadata), offset
         if marker == 0x01 or 0xD0 <= marker <= 0xD7:
             # Standalone markers carry no length field.
-            kept += data[offset : offset + 2]
+            kept += header
             offset += 2
             continue
-        length = int.from_bytes(data[offset + 2 : offset + 4], "big")
-        if length < 2 or offset + 2 + length > len(data):
+        length_bytes = handle.read(2)
+        if len(length_bytes) < 2:
+            raise ValueError(f"truncated segment at offset {offset}")
+        length = int.from_bytes(length_bytes, "big")
+        if length < 2:
             raise ValueError(f"bad segment length at offset {offset}")
-        segment = data[offset : offset + 2 + length]
+        payload = handle.read(length - 2)
+        if len(payload) != length - 2:
+            raise ValueError(f"bad segment length at offset {offset}")
+        segment = header + length_bytes + payload
         if _is_metadata(marker, segment):
             metadata += segment
         else:
             kept += segment
         offset += 2 + length
-    raise ValueError("no start-of-scan marker")
 
 
-def _read_head(path: str) -> bytes:
-    with open(path, "rb") as handle:
-        return handle.read(_HEAD_BYTES)
+def _metadata_segments(source: str) -> bytes:
+    with open(source, "rb") as handle:
+        _, metadata, _ = _parse_leading(handle)
+    return metadata
+
+
+def _first_payload(segments: bytes, prefix: bytes) -> bytes | None:
+    offset = 0
+    while offset + 4 <= len(segments):
+        length = int.from_bytes(segments[offset + 2 : offset + 4], "big")
+        payload = segments[offset + 4 : offset + 2 + length]
+        if segments[offset + 1] == _APP1 and payload.startswith(prefix):
+            return payload[len(prefix) :]
+        offset += 2 + length
+    return None
+
+
+def jpeg_exif_payload(source: str) -> bytes | None:
+    """Return the raw EXIF payload of a JPEG, or None when it has none."""
+    try:
+        metadata = _metadata_segments(source)
+    except OSError, ValueError:
+        return None
+    return _first_payload(metadata, _EXIF)
+
+
+def _write_kept(
+    output: IO[bytes], target: str, kept: bytes, extra: bytes, scan_offset: int
+) -> None:
+    _res = output.write(kept)
+    _res = output.write(extra)
+    with open(target, "rb") as source:
+        _res = source.seek(scan_offset)
+        shutil.copyfileobj(source, output)
 
 
 def transfer_metadata(source: str, target: str) -> None:
@@ -83,16 +123,18 @@ def transfer_metadata(source: str, target: str) -> None:
     `target` is replaced rather than duplicated.
     """
     try:
-        source_data = _read_head(source)
-        target_data = Path(target).read_bytes()
-        _, source_metadata, _ = _split_leading(source_data)
-        target_kept, _, scan_offset = _split_leading(target_data)
+        source_metadata = _metadata_segments(source)
+        with open(target, "rb") as handle:
+            target_kept, _, scan_offset = _parse_leading(handle)
     except OSError, ValueError:
         return
     if not source_metadata:
         return
     try:
-        _res = Path(target).write_bytes(target_kept + source_metadata + target_data[scan_offset:])
+        rewrite_file(
+            target,
+            lambda output: _write_kept(output, target, target_kept, source_metadata, scan_offset),
+        )
     except OSError:
         return
 
@@ -100,14 +142,14 @@ def transfer_metadata(source: str, target: str) -> None:
 def strip_metadata(target: str) -> None:
     """Drop EXIF/XMP/comment segments, keeping ICC and color structure."""
     try:
-        data = Path(target).read_bytes()
-        kept, metadata, scan_offset = _split_leading(data)
+        with open(target, "rb") as handle:
+            kept, metadata, scan_offset = _parse_leading(handle)
     except OSError, ValueError:
         return
     if not metadata:
         return
     try:
-        _res = Path(target).write_bytes(kept + data[scan_offset:])
+        rewrite_file(target, lambda output: _write_kept(output, target, kept, b"", scan_offset))
     except OSError:
         return
 
@@ -125,19 +167,13 @@ def extract_metadata(source: str, destination: str, kind: str) -> None:
     """
     prefix = _SIDECAR_PREFIXES[kind]
     try:
-        _, segments, _ = _split_leading(_read_head(source))
+        metadata = _metadata_segments(source)
     except OSError, ValueError:
         return
-
-    offset = 0
-    while offset + 4 <= len(segments):
-        marker = segments[offset + 1]
-        length = int.from_bytes(segments[offset + 2 : offset + 4], "big")
-        payload = segments[offset + 4 : offset + 2 + length]
-        if marker == _APP1 and payload.startswith(prefix):
-            try:
-                _res = Path(destination).write_bytes(payload[len(prefix) :])
-            except OSError:
-                Path(destination).unlink(missing_ok=True)
-            return
-        offset += 2 + length
+    payload = _first_payload(metadata, prefix)
+    if payload is None:
+        return
+    try:
+        _res = Path(destination).write_bytes(payload)
+    except OSError:
+        Path(destination).unlink(missing_ok=True)

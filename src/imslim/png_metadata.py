@@ -10,28 +10,13 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import IO
 
+from .file_rewrite import rewrite_file
+
 _PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 _IEND = b"IEND"
 _EXIF = b"eXIf"
 _EXIF_HEADER = b"Exif\x00\x00"
 _METADATA_CHUNKS = frozenset({_EXIF, b"iTXt", b"tEXt", b"zTXt"})
-
-
-def _chunks(data: bytes) -> Iterator[tuple[bytes, bytes]]:
-    if not data.startswith(_PNG_SIGNATURE):
-        raise ValueError("not a PNG")
-    offset = len(_PNG_SIGNATURE)
-    while offset + 12 <= len(data):
-        length = int.from_bytes(data[offset : offset + 4], "big")
-        chunk_type = data[offset + 4 : offset + 8]
-        end = offset + 12 + length
-        if end > len(data):
-            raise ValueError("bad chunk length")
-        yield chunk_type, data[offset:end]
-        if chunk_type == _IEND:
-            return
-        offset = end
-    raise ValueError("no IEND")
 
 
 def _source_metadata_chunks(path: str) -> Iterator[bytes]:
@@ -57,43 +42,15 @@ def _source_metadata_chunks(path: str) -> Iterator[bytes]:
                 return
 
 
-def transfer_png_metadata(source: str, target: str) -> None:
-    """Copy `source`'s metadata chunks onto `target`, replacing existing copies.
-
-    A malformed or unreadable file is ignored: the encoded image must survive a
-    failed metadata copy.
-    """
+def png_exif_payload(path: str) -> bytes | None:
+    """Return the payload of a PNG's eXIf chunk, or None when it has none."""
     try:
-        metadata = list(_source_metadata_chunks(source))
-        target_data = Path(target).read_bytes()
-        kept = [raw for kind, raw in _chunks(target_data) if kind not in _METADATA_CHUNKS]
+        for chunk in _source_metadata_chunks(path):
+            if chunk[4:8] == _EXIF:
+                return chunk[8:-4]
     except OSError, ValueError:
-        return
-    if not metadata or not kept or kept[-1][4:8] != _IEND:
-        return
-    try:
-        _res = Path(target).write_bytes(
-            _PNG_SIGNATURE + b"".join(kept[:-1]) + b"".join(metadata) + kept[-1]
-        )
-    except OSError:
-        return
-
-
-def _has_prefixed_exif(path: str) -> bool:
-    with open(path, "rb") as handle:
-        if handle.read(len(_PNG_SIGNATURE)) != _PNG_SIGNATURE:
-            raise ValueError("not a PNG")
-        while True:
-            header = handle.read(8)
-            if len(header) < 8:
-                raise ValueError("no IEND")
-            length = int.from_bytes(header[:4], "big")
-            chunk_type = header[4:8]
-            if chunk_type == _EXIF:
-                return handle.read(length).startswith(_EXIF_HEADER)
-            _res = handle.seek(4 + length, 1)
-            if chunk_type == _IEND:
-                return False
+        return None
+    return None
 
 
 def _copy_bytes(source: IO[bytes], target: IO[bytes], count: int) -> None:
@@ -103,6 +60,56 @@ def _copy_bytes(source: IO[bytes], target: IO[bytes], count: int) -> None:
             raise ValueError("truncated")
         _res = target.write(chunk)
         count -= len(chunk)
+
+
+def _copy_with_metadata(target: str, output: IO[bytes], metadata: list[bytes]) -> None:
+    """Copy `target` into `output`, replacing its metadata chunks in one pass."""
+    with open(target, "rb") as handle:
+        if handle.read(len(_PNG_SIGNATURE)) != _PNG_SIGNATURE:
+            raise ValueError("not a PNG")
+        _res = output.write(_PNG_SIGNATURE)
+        inserted = False
+        while True:
+            header = handle.read(8)
+            if len(header) < 8:
+                raise ValueError("no IEND")
+            length = int.from_bytes(header[:4], "big")
+            chunk_type = header[4:8]
+            if chunk_type == _IEND:
+                if not inserted:
+                    for chunk in metadata:
+                        _res = output.write(chunk)
+                _res = output.write(header)
+                _copy_bytes(handle, output, 4)
+                return
+            if chunk_type in _METADATA_CHUNKS:
+                _res = handle.seek(4 + length, 1)
+                continue
+            _res = output.write(header)
+            _copy_bytes(handle, output, 4 + length)
+
+
+def transfer_png_metadata(source: str, target: str) -> None:
+    """Copy `source`'s metadata chunks onto `target`, replacing existing copies.
+
+    A malformed or unreadable file is ignored: the encoded image must survive a
+    failed metadata copy.
+    """
+    try:
+        metadata = list(_source_metadata_chunks(source))
+    except OSError, ValueError:
+        return
+    if not metadata:
+        return
+    try:
+        rewrite_file(target, lambda output: _copy_with_metadata(target, output, metadata))
+    except OSError, ValueError:
+        return
+
+
+def _has_prefixed_exif(path: str) -> bool:
+    payload = png_exif_payload(path)
+    return payload is not None and payload.startswith(_EXIF_HEADER)
 
 
 def normalize_png_exif(path: str, temp: str) -> None:

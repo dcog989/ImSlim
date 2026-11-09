@@ -157,32 +157,45 @@ def test_strip_metadata_does_nothing_without_metadata(tmp_path: Path) -> None:
     assert Path(target).read_bytes() == expected
 
 
-def test_metadata_copy_survives_a_failed_write(
+def test_metadata_copy_survives_a_failed_replace(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     source = _write(tmp_path, "source.jpg", _JFIF, _EXIF)
     target = _write(tmp_path, "target.jpg", _JFIF)
     expected = Path(target).read_bytes()
 
-    def fail_write(self: Path, _data: bytes) -> int:
+    def fail_replace(*_args) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(Path, "write_bytes", fail_write)
+    monkeypatch.setattr("imslim.file_rewrite.os.replace", fail_replace)
     transfer_metadata(source, target)
 
     assert Path(target).read_bytes() == expected
+    assert not Path(target + ".rewrite").exists()
 
 
-def test_metadata_strip_survives_a_failed_write(
+def test_metadata_strip_survives_a_failed_replace(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     target = _write(tmp_path, "target.jpg", _JFIF, _EXIF)
     expected = Path(target).read_bytes()
 
-    def fail_write(self: Path, _data: bytes) -> int:
+    def fail_replace(*_args) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(Path, "write_bytes", fail_write)
+    monkeypatch.setattr("imslim.file_rewrite.os.replace", fail_replace)
     strip_metadata(target)
 
     assert Path(target).read_bytes() == expected
+    assert not Path(target + ".rewrite").exists()
+
+
+def test_copies_metadata_past_a_megabyte_of_segments(tmp_path: Path) -> None:
+    # The old head-limited parser failed once the leading segments passed 1 MiB.
+    filler = _segment(0xE5, b"x" * 60000) * 18
+    source = _write(tmp_path, "source.jpg", filler, _EXIF)
+    target = _write(tmp_path, "target.jpg", _JFIF)
+
+    transfer_metadata(source, target)
+
+    assert _EXIF in Path(target).read_bytes()

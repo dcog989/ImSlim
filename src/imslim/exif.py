@@ -7,13 +7,10 @@ head of the file, so opening Properties never reads a huge image in full.
 from typing import Literal
 
 from ._i18n import _
+from .jpeg_metadata import jpeg_exif_payload
+from .png_metadata import png_exif_payload
 
 _HEAD_BYTES = 1024 * 1024
-_JPEG_SOI = b"\xff\xd8"
-_JPEG_APP1 = 0xE1
-_JPEG_SOS = 0xDA
-_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
-_EXIF_HEADER = b"Exif\x00\x00"
 
 # Tag -> (label, formatter) in display order.
 _TAGS: dict[int, tuple[str, str]] = {
@@ -45,12 +42,7 @@ _EXIF_IFD_TAG = 0x8769
 
 def jpeg_orientation(path: str) -> int:
     """EXIF Orientation of a JPEG, or 1 (normal) when absent or unreadable."""
-    try:
-        with open(path, "rb") as handle:
-            data = handle.read(_HEAD_BYTES)
-    except OSError:
-        return 1
-    block = _jpeg_exif_block(data)
+    block = jpeg_exif_payload(path)
     if block is None:
         return 1
     value = _parse_tiff(block).get(0x0112)
@@ -59,12 +51,14 @@ def jpeg_orientation(path: str) -> int:
 
 def read_exif(path: str) -> list[tuple[str, str]]:
     """Return the EXIF fields the UI shows, in a stable order."""
-    try:
-        with open(path, "rb") as handle:
-            data = handle.read(_HEAD_BYTES)
-    except OSError:
-        return []
-    block = _jpeg_exif_block(data) or _tiff_block(data) or _png_exif_block(data)
+    block = jpeg_exif_payload(path) or png_exif_payload(path)
+    if block is None:
+        try:
+            with open(path, "rb") as handle:
+                # TIFF can point anywhere in the file, so only a head read is safe.
+                block = _tiff_block(handle.read(_HEAD_BYTES))
+        except OSError:
+            return []
     if block is None:
         return []
     values = _parse_tiff(block)
@@ -79,47 +73,9 @@ def read_exif(path: str) -> list[tuple[str, str]]:
     return rows
 
 
-def _jpeg_exif_block(data: bytes) -> bytes | None:
-    if not data.startswith(_JPEG_SOI):
-        return None
-    offset = 2
-    while offset + 4 <= len(data):
-        if data[offset] != 0xFF:
-            return None
-        marker = data[offset + 1]
-        if marker == _JPEG_SOS:
-            return None
-        length = int.from_bytes(data[offset + 2 : offset + 4], "big")
-        if length < 2 or offset + 2 + length > len(data):
-            return None
-        if marker == _JPEG_APP1:
-            payload = data[offset + 4 : offset + 2 + length]
-            if payload.startswith(_EXIF_HEADER):
-                return payload[len(_EXIF_HEADER) :]
-        offset += 2 + length
-    return None
-
-
 def _tiff_block(data: bytes) -> bytes | None:
     if data.startswith((b"II*\x00", b"MM\x00*")):
         return data
-    return None
-
-
-def _png_exif_block(data: bytes) -> bytes | None:
-    if not data.startswith(_PNG_SIGNATURE):
-        return None
-    offset = len(_PNG_SIGNATURE)
-    while offset + 8 <= len(data):
-        length = int.from_bytes(data[offset : offset + 4], "big")
-        chunk_type = data[offset + 4 : offset + 8]
-        start = offset + 8
-        end = start + length
-        if end > len(data):
-            return None
-        if chunk_type == b"eXIf":
-            return data[start:end]
-        offset = end + 4  # chunk CRC
     return None
 
 

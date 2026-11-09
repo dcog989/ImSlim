@@ -2,6 +2,7 @@ import struct
 import zlib
 from pathlib import Path
 
+import pytest
 from PySide6.QtGui import QImage
 
 from imslim.png_metadata import normalize_png_exif, transfer_png_metadata
@@ -65,6 +66,26 @@ def test_does_nothing_without_source_metadata(tmp_path: Path) -> None:
     transfer_png_metadata(str(source), str(target))
 
     assert target.read_bytes() == expected
+
+
+def test_metadata_copy_survives_a_failed_replace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "source.png"
+    _png(source)
+    _add_chunk(source, b"eXIf", b"EXIFDATA")
+    target = tmp_path / "target.png"
+    _png(target)
+    expected = target.read_bytes()
+
+    def fail_replace(*_args) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr("imslim.file_rewrite.os.replace", fail_replace)
+    transfer_png_metadata(str(source), str(target))
+
+    assert target.read_bytes() == expected
+    assert not Path(str(target) + ".rewrite").exists()
 
 
 def test_normalizes_a_prefixed_exif_chunk(tmp_path: Path) -> None:

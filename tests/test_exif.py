@@ -57,6 +57,16 @@ def test_jpeg_orientation_reads_the_app1_block(tmp_path) -> None:
     assert jpeg_orientation(str(path)) == 6
 
 
+def test_jpeg_orientation_reads_past_a_megabyte_of_segments(tmp_path) -> None:
+    payload = b"Exif\x00\x00" + _tiff_block()
+    app1 = b"\xff\xe1" + (len(payload) + 2).to_bytes(2, "big") + payload
+    filler = (b"\xff\xe5" + (60000).to_bytes(2, "big") + b"x" * 59998) * 18
+    path = tmp_path / "photo.jpg"
+    path.write_bytes(b"\xff\xd8" + filler + app1 + b"\xff\xda")
+
+    assert jpeg_orientation(str(path)) == 6
+
+
 def test_jpeg_orientation_defaults_to_normal(tmp_path) -> None:
     path = tmp_path / "photo.jpg"
     path.write_bytes(b"not an image")
