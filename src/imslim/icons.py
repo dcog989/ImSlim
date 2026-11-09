@@ -1,4 +1,3 @@
-import math
 import os
 from collections.abc import Callable
 
@@ -10,7 +9,6 @@ from PySide6.QtGui import (
     QPainterPath,
     QPen,
     QPixmap,
-    QPolygonF,
 )
 
 IMSLIM_ICON_PATH = os.path.join(os.path.dirname(__file__), "assets", "imslim.svg")
@@ -82,18 +80,6 @@ def download_icon(color: QColor, size: int = 20) -> QIcon:
     return _painted_icon(size, draw)
 
 
-def chevron_left_icon(color: QColor, size: int = 20) -> QIcon:
-    """A left-pointing chevron (Lucide 'chevron-left'), matching the other icons' stroke."""
-
-    def draw(painter: QPainter, s: float) -> None:
-        _res = _apply_icon_stroke(painter, color, s)
-        # M15 18l-6-6 6-6
-        painter.drawLine(QPointF(s * 0.625, s * 0.75), QPointF(s * 0.375, s * 0.5))
-        painter.drawLine(QPointF(s * 0.375, s * 0.5), QPointF(s * 0.625, s * 0.25))
-
-    return _painted_icon(size, draw)
-
-
 def circle_off_icon(color: QColor, size: int = 20) -> QIcon:
     """A circle with a diagonal slash, matching the other icons' stroke weight."""
 
@@ -145,52 +131,6 @@ def triangle_alert_icon(color: QColor, size: int = 20) -> QIcon:
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(color)
         painter.drawEllipse(QPointF(s * 0.5, s * 0.73), pen * 0.8, pen * 0.8)
-
-    return _painted_icon(size, draw)
-
-
-def folder_icon(color: QColor, size: int = 20) -> QIcon:
-    """An outlined folder (Lucide 'folder'), matching the other icons' stroke."""
-
-    def draw(painter: QPainter, s: float) -> None:
-        _res = _apply_icon_stroke(painter, color, s)
-        folder = QPainterPath()
-        folder.moveTo(s * 0.8333, s * 0.8333)
-        folder.quadTo(s * 0.9167, s * 0.8333, s * 0.9167, s * 0.75)
-        folder.lineTo(s * 0.9167, s * 0.3333)
-        folder.quadTo(s * 0.9167, s * 0.25, s * 0.8333, s * 0.25)
-        folder.lineTo(s * 0.5, s * 0.25)
-        folder.quadTo(s * 0.45, s * 0.25, s * 0.43, s * 0.21)
-        folder.lineTo(s * 0.4, s * 0.1625)
-        folder.quadTo(s * 0.37, s * 0.125, s * 0.33, s * 0.125)
-        folder.lineTo(s * 0.1667, s * 0.125)
-        folder.quadTo(s * 0.0833, s * 0.125, s * 0.0833, s * 0.2083)
-        folder.lineTo(s * 0.0833, s * 0.75)
-        folder.quadTo(s * 0.0833, s * 0.8333, s * 0.1667, s * 0.8333)
-        folder.closeSubpath()
-        painter.drawPath(folder)
-
-    return _painted_icon(size, draw)
-
-
-def gear_icon(color: QColor, size: int = 20) -> QIcon:
-    """A simple gear: an outlined ring with eight teeth, matching the other
-    icons' stroke weight so the header icons look consistent."""
-
-    def draw(painter: QPainter, s: float) -> None:
-        cx, cy = s / 2, s / 2
-        tip_r = s * 0.47
-        root_r = s * 0.36
-        hub_r = s * 0.15
-        teeth = 8
-        points: list[QPointF] = []
-        for i in range(2 * teeth):
-            angle = math.pi * i / teeth
-            radius = tip_r if i % 2 == 0 else root_r
-            points.append(QPointF(cx + radius * math.cos(angle), cy + radius * math.sin(angle)))
-        _res = _apply_icon_stroke(painter, color, s)
-        painter.drawPolygon(QPolygonF(points))
-        painter.drawEllipse(QPointF(cx, cy), hub_r, hub_r)
 
     return _painted_icon(size, draw)
 

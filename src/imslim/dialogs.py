@@ -37,6 +37,9 @@ from .theme import apply_muted_palette
 from .workers import VersionProbeTask, start_task
 
 _GITHUB_URL = "https://github.com/dcog989/ImSlim"
+# The completion list is for failures and a sample; a huge batch must not
+# build one widget per file on the UI thread.
+_MAX_LISTED = 200
 
 # Log level labels match the values in _logging.LOG_LEVELS, in that order.
 _LOG_LEVEL_LABELS: dict[str, str] = {
@@ -181,13 +184,22 @@ class CompletionDialog(QDialog):
         return value_label
 
     def _populate_list(self) -> None:
-        for item in self._rows:
+        failures = [item for item in self._rows if item.state is ResultState.ERROR]
+        others = [item for item in self._rows if item.state is not ResultState.ERROR]
+        shown = failures[:_MAX_LISTED]
+        shown += others[: max(0, _MAX_LISTED - len(shown))]
+        for item in shown:
             entry = QListWidgetItem(self._row_text(item))
             entry.setToolTip(item.error_details_message or item.error_message)
             if item.state is ResultState.ERROR:
                 entry.setForeground(QColor(Qt.GlobalColor.red))
                 entry.setIcon(shield_alert_icon(QColor(Qt.GlobalColor.red), 16))
             self.list.addItem(entry)
+        remaining = len(self._rows) - len(shown)
+        if remaining:
+            self.list.addItem(
+                QListWidgetItem(_("… and {count} more files").format(count=remaining))
+            )
         if not self._rows:
             self.list.hide()
 

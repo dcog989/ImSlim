@@ -141,6 +141,7 @@ class QueueView(QWidget):
         super().__init__(parent)
         self.settings: SettingsManager = settings
         self._items: list[ResultItem] = []
+        self._total_size: int = 0
         self._seen: set[str] = set()
         self._rows: dict[ResultItem, ResultItemRow] = {}
         self._grid_entries: dict[ResultItem, QListWidgetItem] = {}
@@ -242,7 +243,6 @@ class QueueView(QWidget):
         self.limit_label.setWordWrap(True)
         self.limit_label.setContentsMargins(12, 0, 12, 8)
         self.limit_label.hide()
-        list_layout.addWidget(self.limit_label)
 
         self.grid: QListWidget = QListWidget()
         self.grid.setViewMode(QListWidget.ViewMode.IconMode)
@@ -264,6 +264,8 @@ class QueueView(QWidget):
         _res = self.stack.addWidget(self.list_page)
         _res = self.stack.addWidget(self.grid)
         layout.addWidget(self.stack, 1)
+        # Outside the pages so the row cap is visible in both list and grid.
+        layout.addWidget(self.limit_label)
 
         status = QWidget()
         status_layout = QHBoxLayout(status)
@@ -466,6 +468,7 @@ class QueueView(QWidget):
                 continue
             self._seen.add(key)
             self._items.append(item)
+            self._total_size += item.size
             if self._view_mode() == _VIEW_THUMBNAILS:
                 self._add_grid_entry(item)
             else:
@@ -476,14 +479,20 @@ class QueueView(QWidget):
 
     def _queue_row(self, item: ResultItem) -> None:
         if len(self._rows) + len(self._pending_rows) >= _MAX_ROWS:
-            self.limit_label.setText(
-                _("Showing only the first %d files; all of them are still processed.") % _MAX_ROWS
-            )
-            self.limit_label.show()
+            self._show_row_limit()
             return
         self._pending_rows.append(item)
         if not self._row_timer.isActive():
             self._row_timer.start()
+
+    def _show_row_limit(self) -> None:
+        # Adding thousands of files calls this per item; only touch the label once.
+        if not self.limit_label.isHidden():
+            return
+        self.limit_label.setText(
+            _("Showing only the first %d files; all of them are still processed.") % _MAX_ROWS
+        )
+        self.limit_label.show()
 
     def _flush_rows(self) -> None:
         if not self._pending_rows:
@@ -502,13 +511,7 @@ class QueueView(QWidget):
             self._row_timer.start()
 
     def _build_row(self, item: ResultItem, index: int) -> ResultItemRow:
-        thumbnails = self._view_mode() == _VIEW_THUMBNAILS
-        row = ResultItemRow(
-            item,
-            with_thumbnail=thumbnails and index < _MAX_THUMBNAILS,
-            thumbnail_size=self.settings.thumbnail_size,
-            show_date=not thumbnails,
-        )
+        row = ResultItemRow(item)
         row.set_alternate(index % 2 == 1)
         row.set_selected(item in self._selected)
         _res = row.clicked.connect(partial(self._on_row_clicked, item))
@@ -521,12 +524,18 @@ class QueueView(QWidget):
         self._clear_rows()
         self.grid.clear()
         self._grid_entries.clear()
+        self.limit_label.hide()
         if self._view_mode() == _VIEW_THUMBNAILS:
             self._apply_grid_metrics()
-            for item in self._items:
+            for item in self._items[:_MAX_ROWS]:
                 self._add_grid_entry(item)
+            if len(self._items) > _MAX_ROWS:
+                self._show_row_limit()
         else:
             for index, item in enumerate(self._items):
+                if index >= _MAX_ROWS:
+                    self._show_row_limit()
+                    break
                 row = self._build_row(item, index)
                 self.rows_layout.insertWidget(self.rows_layout.count() - 1, row)
                 self._rows[item] = row
@@ -540,6 +549,9 @@ class QueueView(QWidget):
             entry.setSizeHint(QSize(size + 16, size + 16))
 
     def _add_grid_entry(self, item: ResultItem) -> None:
+        if len(self._grid_entries) >= _MAX_ROWS:
+            self._show_row_limit()
+            return
         entry = QListWidgetItem()
         size = self.settings.thumbnail_size
         entry.setSizeHint(QSize(size + 16, size + 16))
@@ -630,8 +642,6 @@ class QueueView(QWidget):
             widget = layout_item.widget()
             if widget is None:
                 continue
-            if isinstance(widget, ResultItemRow):
-                widget.stop_thumbnail_loader()
             widget.deleteLater()
         self._rows.clear()
 
@@ -643,16 +653,12 @@ class QueueView(QWidget):
         if item is self.selected_item():
             self.selection_changed.emit(item)
 
-    def refresh_all(self) -> None:
-        for row in self._rows.values():
-            row.refresh()
-
     def _update_chrome(self) -> None:
         count = len(self._items)
         self.count_label.setText(
             _("1 file") if count == 1 else _("{count} files").format(count=count)
         )
-        self.size_label.setText(sizeof_fmt(sum(item.size for item in self._items)))
+        self.size_label.setText(sizeof_fmt(self._total_size))
         if not self._items:
             self.stack.setCurrentWidget(self.empty_page)
         elif self._view_mode() == _VIEW_THUMBNAILS:
@@ -733,11 +739,11 @@ class QueueView(QWidget):
         if not remove:
             return
         self._items = [item for item in self._items if item not in remove]
+        self._total_size -= sum(item.size for item in remove)
         for item in remove:
             self._seen.discard(os.path.normcase(os.path.realpath(item.filename)))
             row = self._rows.pop(item, None)
             if row is not None:
-                row.stop_thumbnail_loader()
                 row.deleteLater()
             entry = self._grid_entries.pop(item, None)
             if entry is not None:
@@ -757,6 +763,7 @@ class QueueView(QWidget):
         if self._busy:
             return
         self._items = []
+        self._total_size = 0
         self._seen.clear()
         self._pending_rows.clear()
         self._row_timer.stop()

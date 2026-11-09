@@ -229,14 +229,6 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
 
 FORMAT_BY_KEY: dict[Format, FormatSpec] = {spec.key: spec for spec in FORMAT_SPECS}
 
-# Canonical spec for an encoder backend, used to describe re-encoded formats
-# (e.g. BMP/TIFF -> WebP) with the target's display name and extension.
-FORMAT_BY_COMPRESSOR: dict[CompressorType, FormatSpec] = {
-    spec.compressor_key: spec
-    for spec in FORMAT_SPECS
-    if spec.compressor_key.value == spec.key.value
-}
-
 MIME_TO_FORMAT: dict[str, FormatSpec] = {
     mime: spec for spec in FORMAT_SPECS for mime in spec.source_mimes
 }
