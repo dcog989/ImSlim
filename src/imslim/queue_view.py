@@ -5,14 +5,27 @@ from collections.abc import Callable
 from functools import partial
 from typing import cast, override
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, QTimer, Signal
+from PySide6.QtCore import (
+    QEvent,
+    QModelIndex,
+    QObject,
+    QPersistentModelIndex,
+    QPoint,
+    QRect,
+    QSize,
+    Qt,
+    QTimer,
+    Signal,
+)
 from PySide6.QtGui import (
     QAction,
     QContextMenuEvent,
     QIcon,
     QImage,
     QKeySequence,
+    QPainter,
     QPalette,
+    QPen,
     QPixmap,
     QShortcut,
     QWheelEvent,
@@ -28,6 +41,9 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QStackedWidget,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QToolButton,
     QVBoxLayout,
     QWidget,
@@ -65,6 +81,7 @@ _MAX_THUMBNAILS = 100
 _THUMBNAIL_SIZE_MIN = 32
 _THUMBNAIL_SIZE_MAX = 256
 _THUMBNAIL_STEP = 16
+_SELECTION_BORDER_WIDTH = 4
 
 _VIEW_DETAILS = "details"
 _VIEW_THUMBNAILS = "thumbnails"
@@ -86,6 +103,31 @@ class _GridThumbnail(Task):
             self.loaded.emit(create_thumbnail_qimage(self._filename, self._size, self._size))
         finally:
             self.finished.emit()
+
+
+class _ThumbnailDelegate(QStyledItemDelegate):
+    """Mark a selected thumbnail with a border instead of the native style's
+    underline below the icon."""
+
+    @override
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionViewItem,
+        index: QModelIndex | QPersistentModelIndex,
+    ) -> None:
+        icon = cast(object, index.data(Qt.ItemDataRole.DecorationRole))
+        if not isinstance(icon, QIcon):
+            super().paint(painter, option, index)
+            return
+        size = option.decorationSize
+        rect = QRect(option.rect.center() - QPoint(size.width() // 2, size.height() // 2), size)
+        icon.paint(painter, rect, Qt.AlignmentFlag.AlignCenter)
+        if option.state & QStyle.StateFlag.State_Selected:
+            half = _SELECTION_BORDER_WIDTH // 2
+            painter.setPen(QPen(accent_color(), _SELECTION_BORDER_WIDTH))
+            # Inset by half the pen so the border sits outside the image.
+            painter.drawRect(rect.adjusted(-half, -half, half, half))
 
 
 class QueueView(QWidget):
@@ -154,12 +196,12 @@ class QueueView(QWidget):
         )
         self.remove_button: QToolButton = self._make_button(
             circle_minus_icon(icon_color, 18),
-            _("Remove the selected files from the queue"),
+            _("Remove selected files from queue"),
             self.remove_selected,
         )
         self.clear_button: QToolButton = self._make_button(
             circle_x_icon(icon_color, 18),
-            _("Clear the queue"),
+            _("Clear entire queue"),
             self.clear,
         )
         header_layout.addWidget(self.add_files_button)
@@ -211,6 +253,7 @@ class QueueView(QWidget):
         self.grid.setTextElideMode(Qt.TextElideMode.ElideMiddle)
         self.grid.setFrameShape(QFrame.Shape.NoFrame)
         self.grid.setStyleSheet("QListWidget { background-color: transparent; }")
+        self.grid.setItemDelegate(_ThumbnailDelegate(self.grid))
         self.grid.viewport().setAutoFillBackground(False)
         self.grid.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.grid.viewport().installEventFilter(self)
