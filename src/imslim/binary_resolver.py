@@ -1,4 +1,3 @@
-import functools
 import logging
 import os
 import platform
@@ -37,22 +36,27 @@ def _platform_dir() -> str:
     return f"{platform.system().lower()}-{platform.machine().lower()}"
 
 
-def _tool_file(directory: str, name: str) -> str | None:
-    candidate = os.path.join(directory, name)
-    if os.path.isfile(candidate):
-        return candidate
-    return None
+# Successful lookups live for the process; misses do not, so a tool built or
+# installed after startup resolves on the next attempt.
+_RESOLVED: dict[str, str] = {}
 
 
-@functools.cache
 def _resolve(name: str) -> str | None:
     """Return the cached path to a tool, or None if it could not be found."""
-    candidate = _tool_file(str(BIN_DIR / _platform_dir()), name)
-    if candidate is not None:
-        _make_executable(candidate)
-        return candidate
+    cached = _RESOLVED.get(name)
+    if cached is not None:
+        return cached
 
-    return shutil.which(name)
+    candidate = str(BIN_DIR / _platform_dir() / name)
+    if os.path.isfile(candidate):
+        _make_executable(candidate)
+    else:
+        candidate = shutil.which(name)
+        if candidate is None:
+            return None
+
+    _RESOLVED[name] = candidate
+    return candidate
 
 
 def resolve_tool(name: str) -> str:
