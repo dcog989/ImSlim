@@ -1,6 +1,8 @@
 import os
 import sys
 
+_MAX_DECODE_ALLOCATION_MB = 2048
+
 
 def to_png(filename: str, output: str) -> None:
     """Decode any QImage-readable image to a PNG file.
@@ -13,9 +15,10 @@ def to_png(filename: str, output: str) -> None:
     # lint environment may lack, and importing this module must not require them.
     from PySide6.QtGui import QImageReader
 
-    # The default 256 MB limit rejects large scans; the caller's decode slots
-    # bound how many full-size images may be in memory at once.
-    QImageReader.setAllocationLimit(0)
+    # The default 256 MB limit rejects large scans, but the decode must not be
+    # unbounded: a decompression bomb would otherwise be left to the OOM killer
+    # instead of failing this item. 2 GiB covers large scans; two may run at once.
+    QImageReader.setAllocationLimit(_MAX_DECODE_ALLOCATION_MB)
     reader = QImageReader(filename)
     reader.setAutoTransform(True)  # apply EXIF orientation, unlike QImage(path)
     image = reader.read()

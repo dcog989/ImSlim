@@ -151,8 +151,14 @@ def _local_paths(argv: list[str]) -> list[str]:
         # exist." for a file named "-x".
         if arg.startswith("-"):
             continue
-        url = QUrl.fromUserInput(arg)
-        path = url.toLocalFile() or arg
+        # Prefer the argument itself when it names a file: QUrl drops bytes that
+        # are not valid UTF-8, turning such a name into a different path.
+        expanded = os.path.expanduser(arg)
+        if os.path.lexists(expanded):
+            path = expanded
+        else:
+            url = QUrl.fromUserInput(arg)
+            path = url.toLocalFile() or arg
         if path:
             # A forwarded launch resolves paths in the primary's cwd, so they
             # must be absolute (and "~" expanded) before leaving this process.
@@ -259,7 +265,7 @@ class SingleInstance(QObject):
         socket.connectToServer(self._socket)
         if not socket.waitForConnected(_CONNECT_TIMEOUT_MS):
             return False
-        _res = socket.write("\0".join(paths).encode("utf-8"))
+        _res = socket.write(os.fsencode("\0".join(paths)))
         _res = socket.waitForBytesWritten(_WRITE_TIMEOUT_MS)
         socket.disconnectFromServer()
         return True
@@ -305,7 +311,8 @@ class SingleInstance(QObject):
         buffer.extend(conn.readAll().data())
         self._drop_connection(conn)
         data = bytes(buffer)
-        paths = data.decode("utf-8").split("\0") if data else []
+        # fsdecode keeps names that are not valid UTF-8 instead of raising.
+        paths = os.fsdecode(data).split("\0") if data else []
         self._on_paths(paths)
 
     def _sweep_stale_connections(self) -> None:
