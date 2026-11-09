@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ._i18n import _
 from .batch_options import BatchOptions
-from .formats import is_converting
+from .formats import is_format_change
 from .result_item import ResultItem, ResultState
 from .settings_manager import SAVE_BACKUP_OVERWRITE
 
@@ -28,10 +28,10 @@ class OutputWriter:
         if (
             options.skip_if_larger
             and result_item.new_size >= result_item.size
-            and not is_converting(options.target_format)
+            and not is_format_change(result_item.mime_type, options.target_format)
         ):
             # Output is larger (or equal) than input; keep the original.
-            # Conversion always keeps its output, even when it grows.
+            # A switch to another format always keeps its output, even when it grows.
             result_item.state = ResultState.SKIPPED
             return
 

@@ -288,6 +288,17 @@ def is_converting(target: Format) -> bool:
     return target in TARGET_FORMATS
 
 
+def is_format_change(mime: str, target: Format) -> bool:
+    """True when the run writes a different format than the source's."""
+    spec = MIME_TO_FORMAT.get(mime)
+    if spec is None:
+        return False
+    if is_converting(target):
+        return target is not spec.key
+    # BMP and TIFF take no target: they are always re-encoded to WebP.
+    return spec.compressor_key.value != spec.key.value
+
+
 def native_inputs(target: Format) -> frozenset[str]:
     """Source MIME types the target encoder can consume without a pre-decode."""
     return NATIVE_INPUTS.get(target, frozenset())

@@ -4,6 +4,8 @@ from imslim.formats import (
     CONFIGURED_COMPRESSOR_TYPES,
     DECODER_TOOLS,
     FORMAT_SPECS,
+    Format,
+    is_format_change,
 )
 
 
@@ -23,3 +25,10 @@ def test_every_configured_compressor_is_registered() -> None:
     assert {compressor.get_file_type() for compressor in ALL_COMPRESSORS} == set(
         CONFIGURED_COMPRESSOR_TYPES
     )
+
+
+def test_format_change_uses_the_written_format() -> None:
+    assert not is_format_change("image/jpeg", Format.JPEG)
+    assert not is_format_change("image/png", Format.KEEP)
+    assert is_format_change("image/jpeg", Format.PNG)
+    assert is_format_change("image/bmp", Format.KEEP)

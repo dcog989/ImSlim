@@ -39,12 +39,13 @@ def _options(
     )
 
 
-def _item(source, tmp_file, *, new_filename=None, backup=None) -> ResultItem:
+def _item(source, tmp_file, *, new_filename=None, backup=None, mime="") -> ResultItem:
     return ResultItem(
         filename=str(source),
         new_filename=str(new_filename if new_filename is not None else source),
         backup_filename="" if backup is None else str(backup),
         tmp_filename=str(tmp_file),
+        mime_type=mime,
         size=source.stat().st_size,
     )
 
@@ -87,6 +88,33 @@ def test_finalize_restores_the_original_when_the_replace_fails(tmp_path, monkeyp
     assert item.state is ResultState.ERROR
     assert source.read_bytes() == _ORIGINAL
     assert not backup.exists()
+
+
+def test_finalize_keeps_the_backup_when_the_restore_fails(tmp_path, monkeypatch) -> None:
+    source = tmp_path / "photo.png"
+    source.write_bytes(_ORIGINAL)
+    tmp_file = _tmp_file(tmp_path)
+    backup = tmp_path / "photo.BAK.20240102030405.png"
+    item = _item(source, tmp_file, backup=backup)
+
+    def fail_move(_self, _target) -> None:
+        raise OSError("disk full")
+
+    real_replace = os.replace
+
+    def fail_restore(source_path, target_path) -> None:
+        if str(source_path) == str(backup):
+            raise OSError("disk full")
+        real_replace(source_path, target_path)
+
+    monkeypatch.setattr("pathlib.Path.move", fail_move)
+    monkeypatch.setattr("imslim.output_writer.os.replace", fail_restore)
+
+    OutputWriter().finalize(item, _options(SAVE_BACKUP_OVERWRITE))
+
+    assert item.state is ResultState.ERROR
+    assert not source.exists()
+    assert backup.read_bytes() == _ORIGINAL
 
 
 def test_finalize_skips_output_that_is_not_smaller(tmp_path) -> None:
@@ -140,12 +168,38 @@ def test_finalize_keeps_larger_output_when_converting(tmp_path) -> None:
     source.write_bytes(_COMPRESSED)
     tmp_file = _tmp_file(tmp_path, b"converted output that grew")
     new_file = tmp_path / "photo.imslim.20240102030405.webp"
-    item = _item(source, tmp_file, new_filename=new_file)
+    item = _item(source, tmp_file, new_filename=new_file, mime="image/png")
 
     OutputWriter().finalize(item, _options(SAVE_NEXT_TO_ORIGINAL, target_format=Format.WEBP))
 
     assert item.state is not ResultState.SKIPPED
     assert source.read_bytes() == _COMPRESSED
+    assert new_file.read_bytes() == b"converted output that grew"
+
+
+def test_finalize_skips_a_larger_output_for_the_same_format(tmp_path) -> None:
+    source = tmp_path / "photo.jpg"
+    source.write_bytes(_COMPRESSED)
+    tmp_file = _tmp_file(tmp_path, b"a much larger compressed result")
+    new_file = tmp_path / "photo.imslim.20240102030405.jpg"
+    item = _item(source, tmp_file, new_filename=new_file, mime="image/jpeg")
+
+    OutputWriter().finalize(item, _options(SAVE_NEXT_TO_ORIGINAL, target_format=Format.JPEG))
+
+    assert item.state is ResultState.SKIPPED
+    assert not new_file.exists()
+
+
+def test_finalize_keeps_a_larger_reencoded_output(tmp_path) -> None:
+    source = tmp_path / "photo.bmp"
+    source.write_bytes(_COMPRESSED)
+    tmp_file = _tmp_file(tmp_path, b"converted output that grew")
+    new_file = tmp_path / "photo.imslim.20240102030405.webp"
+    item = _item(source, tmp_file, new_filename=new_file, mime="image/bmp")
+
+    OutputWriter().finalize(item, _options(SAVE_NEXT_TO_ORIGINAL))
+
+    assert item.state is not ResultState.SKIPPED
     assert new_file.read_bytes() == b"converted output that grew"
 
 
