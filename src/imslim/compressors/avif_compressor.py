@@ -12,6 +12,9 @@ from ..result_item import ResultItem
 _ENCODE_BIT_DEPTH = 10
 # avifenc --speed range is 0-10 (slowest/best to fastest/worst).
 _MAX_SPEED = 10
+# The compression pool runs one job per two CPU threads, and avifenc defaults
+# to '-j all'; two threads per job keeps the total near the core count.
+_THREADS_PER_JOB = 2
 # Source formats avifenc reads itself, derived from the AVIF target's native
 # inputs minus AVIF itself, which avifenc cannot read.
 _ENCODER_INPUTS = native_inputs(Format.AVIF) - {"image/avif"}
@@ -64,6 +67,7 @@ class AVIFCompressor(Compressor):
 
         # higher effort -> slower but better compression (speed 0-10, default 6)
         avifenc += tokens(t"--speed {_MAX_SPEED - options.level('avif-effort')}")
+        avifenc += tokens(t"-j {_THREADS_PER_JOB}")
         avifenc += [encode_input, result_item.tmp_filename]
 
         commands.append(Command(avifenc, temp_files=(result_item.tmp_filename,)))

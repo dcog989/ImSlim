@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from imslim.jpeg_metadata import transfer_metadata
+from imslim.jpeg_metadata import extract_metadata, transfer_metadata
 
 _SOI = b"\xff\xd8"
 # Marker bytes only: everything from the start-of-scan marker on is copied
@@ -110,3 +110,25 @@ def test_does_nothing_when_the_target_is_not_a_jpeg(tmp_path: Path) -> None:
     transfer_metadata(source, target)
 
     assert target.read_bytes() == expected
+
+
+def test_extracts_raw_exif_and_xmp_payloads(tmp_path: Path) -> None:
+    source = _write(tmp_path, "source.jpg", _JFIF, _EXIF, _XMP)
+    exif = tmp_path / "out.exif"
+    xmp = tmp_path / "out.xmp"
+
+    extract_metadata(source, str(exif), "exif")
+    extract_metadata(source, str(xmp), "xmp")
+
+    assert exif.read_bytes() == b"II*\x00\x08\x00\x00\x00exif-payload"
+    assert xmp.read_bytes() == b"<xmp/>"
+
+
+@pytest.mark.parametrize("kind", ["exif", "xmp"])
+def test_extract_leaves_no_file_without_metadata(tmp_path: Path, kind: str) -> None:
+    source = _write(tmp_path, "source.jpg", _JFIF)
+    destination = tmp_path / f"out.{kind}"
+
+    extract_metadata(source, str(destination), kind)
+
+    assert not destination.exists()

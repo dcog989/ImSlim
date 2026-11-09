@@ -1,4 +1,5 @@
 import os
+from functools import partial
 from typing import override
 
 from ..batch_options import BatchOptions
@@ -7,9 +8,12 @@ from ..commands import Command, tokens
 from ..compressor import Compressor
 from ..conversion import decode_commands
 from ..formats import CompressorType
+from ..jpeg_metadata import extract_metadata
 from ..result_item import ResultItem
 
 _JXL_METADATA = ("exif", "xmp", "jumbf")
+# JPEG carries no JUMBF here; the other two are parsed out of its APP1 segments.
+_JPEG_METADATA = ("exif", "xmp")
 # cjxl v0.12: -q 100 is lossless (the -q 100/--lossless flag was removed).
 _LOSSLESS_QUALITY = "100"
 
@@ -29,34 +33,26 @@ class JXLCompressor(Compressor):
     ) -> list[Command]:
         commands: list[Command] = []
         encode_input = input_path
-        extracting_metadata = False
+        png_input = self._input_is_png(result_item, input_path)
 
         # cjxl can't read JXL input, so decode to a temporary PNG first.
-        # PNG input (native PNG or a conversion intermediate) feeds cjxl directly;
-        # cross-format metadata sidecars can't be extracted, so they are skipped.
-        if not self._input_is_png(result_item, input_path):
+        # PNG input (native PNG or a conversion intermediate) feeds cjxl directly.
+        if not png_input:
             intermediate = self._intermediate_path(result_item)
             commands += decode_commands(result_item.mime_type, input_path, intermediate)
             encode_input = intermediate
-            extracting_metadata = options.metadata
 
+        # The decoders drop EXIF/XMP, so carry them over as sidecars cjxl
+        # re-injects with -x. JXL sources use djxl; a JPEG is parsed directly.
+        # Other cross-format sources cannot provide metadata.
+        extracting_metadata = options.metadata and (
+            result_item.mime_type == "image/jpeg" or not png_input
+        )
         if extracting_metadata:
-            # djxl won't embed EXIF/XMP into the PNG, so extract sidecars and
-            # re-inject them via cjxl -x. These are non-fatal: if extraction
-            # fails (e.g. metadata absent), the sidecar stays missing and the
-            # matching -x argument is pruned in _prune_metadata_hints().
-            for kind in _JXL_METADATA:
-                sidecar = self._sidecar_path(result_item, kind)
-                commands.append(
-                    Command(
-                        tokens(
-                            t"{resolve_tool('djxl')} {input_path} - " + t"--output_format {kind}"
-                        ),
-                        stdout_path=sidecar,
-                        ignore_errors=True,
-                        temp_files=(sidecar,),
-                    )
-                )
+            if result_item.mime_type == "image/jpeg":
+                commands += self._jpeg_sidecar_commands(result_item)
+            else:
+                commands += self._djxl_sidecar_commands(result_item, input_path)
 
         cjxl = [resolve_tool("cjxl")]
 
@@ -81,6 +77,32 @@ class JXLCompressor(Compressor):
             )
         )
 
+        return commands
+
+    def _djxl_sidecar_commands(self, result_item: ResultItem, source: str) -> list[Command]:
+        commands: list[Command] = []
+        for kind in _JXL_METADATA:
+            sidecar = self._sidecar_path(result_item, kind)
+            commands.append(
+                Command(
+                    tokens(t"{resolve_tool('djxl')} {source} - " + t"--output_format {kind}"),
+                    stdout_path=sidecar,
+                    ignore_errors=True,
+                    temp_files=(sidecar,),
+                )
+            )
+        return commands
+
+    def _jpeg_sidecar_commands(self, result_item: ResultItem) -> list[Command]:
+        commands: list[Command] = []
+        for kind in _JPEG_METADATA:
+            sidecar = self._sidecar_path(result_item, kind)
+            commands.append(
+                Command(
+                    action=partial(extract_metadata, result_item.filename, sidecar, kind),
+                    temp_files=(sidecar,),
+                )
+            )
         return commands
 
     def _prune_metadata_hints(self, argv: list[str]) -> list[str]:

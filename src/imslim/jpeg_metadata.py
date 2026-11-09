@@ -84,3 +84,34 @@ def transfer_metadata(source: str, target: str) -> None:
     if not source_metadata:
         return
     _res = Path(target).write_bytes(target_kept + source_metadata + target_data[scan_offset:])
+
+
+# cjxl's `-x exif=/xmp=` sidecars contain the raw payload, without the APP1
+# marker or the Exif/XMP header that JPEG uses to label it.
+_SIDECAR_PREFIXES = {"exif": _EXIF, "xmp": _XMP}
+
+
+def extract_metadata(source: str, destination: str, kind: str) -> None:
+    """Write the source JPEG's EXIF or XMP payload to `destination`.
+
+    A missing or malformed source leaves no file behind, so the caller can
+    prune the matching encoder hint and still produce the image.
+    """
+    prefix = _SIDECAR_PREFIXES[kind]
+    try:
+        _, segments, _ = _split_leading(Path(source).read_bytes())
+    except OSError, ValueError:
+        return
+
+    offset = 0
+    while offset + 4 <= len(segments):
+        marker = segments[offset + 1]
+        length = int.from_bytes(segments[offset + 2 : offset + 4], "big")
+        payload = segments[offset + 4 : offset + 2 + length]
+        if marker == _APP1 and payload.startswith(prefix):
+            try:
+                _res = Path(destination).write_bytes(payload[len(prefix) :])
+            except OSError:
+                Path(destination).unlink(missing_ok=True)
+            return
+        offset += 2 + length

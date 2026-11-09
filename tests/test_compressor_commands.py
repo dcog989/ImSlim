@@ -72,12 +72,14 @@ _CWEBP_LL = _cmd(f"cwebp -metadata all -lossless -mt -m 3 -q 100 -o {_TMP} {_SOU
 _CWEBP_LL_ICC = _cmd(f"cwebp -metadata icc -lossless -mt -m 3 -q 100 -o {_TMP} {_SOURCE}")
 _CWEBP_BMP = _cmd(f"cwebp -metadata all -mt -m 3 -q 42 -o {_TMP} {_WEBP_INTERMEDIATE}")
 
-_AVIF_LOSSY = _cmd(f"avifenc -q 42 -a tune=iq -d 10 --speed 6 {_SOURCE} {_TMP}")
+_AVIF_LOSSY = _cmd(f"avifenc -q 42 -a tune=iq -d 10 --speed 6 -j 2 {_SOURCE} {_TMP}")
 _AVIF_LOSSY_STRIP = _cmd(
-    f"avifenc --ignore-exif --ignore-xmp -q 42 -a tune=iq -d 10 --speed 6 {_SOURCE} {_TMP}"
+    f"avifenc --ignore-exif --ignore-xmp -q 42 -a tune=iq -d 10 --speed 6 -j 2 {_SOURCE} {_TMP}"
 )
-_AVIF_LL = _cmd(f"avifenc --lossless --speed 6 {_SOURCE} {_TMP}")
-_AVIF_LL_STRIP = _cmd(f"avifenc --ignore-exif --ignore-xmp --lossless --speed 6 {_SOURCE} {_TMP}")
+_AVIF_LL = _cmd(f"avifenc --lossless --speed 6 -j 2 {_SOURCE} {_TMP}")
+_AVIF_LL_STRIP = _cmd(
+    f"avifenc --ignore-exif --ignore-xmp --lossless --speed 6 -j 2 {_SOURCE} {_TMP}"
+)
 
 _CJXL_LOSSY = _cmd(f"cjxl -q 42 -e 3 {_SOURCE} {_TMP}")
 _CJXL_LOSSLESS = _cmd(f"cjxl -q 100 -e 3 {_SOURCE} {_TMP}")
@@ -92,6 +94,12 @@ _CJXL_SIDECARS = _cmd(
 )
 _JXL_WITH_SIDECARS = [_DJXL_DECODE, _DJXL_EXIF, _DJXL_XMP, _DJXL_JUMBF, _CJXL_SIDECARS]
 _JXL_SIDECAR_PATHS = [None, "photo.tmp.exif", "photo.tmp.xmp", "photo.tmp.jumbf", None]
+_DJPEGLI_CONVERT = _cmd(f"djpegli {_SOURCE} photo.tmp.convert.png")
+_CJXL_JPEG_SIDECARS = _cmd(
+    "cjxl -q 42 -e 3 "
+    "-x exif=photo.tmp.exif -x xmp=photo.tmp.xmp -x jumbf=photo.tmp.jumbf "
+    "photo.tmp.convert.png photo.tmp"
+)
 
 _GIF_LOSSY = _cmd(f"gifsicle --optimize=3 --lossy=42 -o {_TMP} {_SOURCE}")
 _GIF_LOSSY_STRIP = _cmd(
@@ -275,6 +283,21 @@ def test_jxl_extracts_metadata_sidecars_for_non_png_source() -> None:
 
     assert _argv(commands) == _JXL_WITH_SIDECARS
     assert [command.stdout_path for command in commands] == _JXL_SIDECAR_PATHS
+
+
+def test_jxl_extracts_metadata_from_jpeg_source() -> None:
+    # The conversion decodes the JPEG with djpegli, which drops EXIF/XMP; read
+    # them from the original file so cjxl can re-inject them.
+    options = _options(Format.JXL, lossy=True)
+    commands = JXLCompressor().commands(_item("image/jpeg"), options)
+
+    assert _argv(commands)[0] == _DJPEGLI_CONVERT
+    assert [command.action is not None for command in commands[1:3]] == [True, True]
+    assert _argv(commands)[3] == _CJXL_JPEG_SIDECARS
+    assert [command.temp_files for command in commands[1:3]] == [
+        ("photo.tmp.exif",),
+        ("photo.tmp.xmp",),
+    ]
 
 
 def test_jxl_prunes_sidecar_hints_that_were_not_produced(tmp_path) -> None:
