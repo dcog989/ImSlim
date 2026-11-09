@@ -21,6 +21,15 @@ def _item(tmp_path: Path, name: str) -> ResultItem:
     return ResultItem(filename=str(path), size=1)
 
 
+def test_clearing_the_queue_clears_the_size_label(tmp_path: Path) -> None:
+    view = QueueView(_Settings())  # type: ignore[arg-type]
+    view.add_items([_item(tmp_path, "a.png")])
+
+    view.clear()
+
+    assert view.size_label.text() == ""
+
+
 def test_removing_the_current_thumbnail_emits_the_new_selection(tmp_path: Path) -> None:
     view = QueueView(_Settings())  # type: ignore[arg-type]
     first = _item(tmp_path, "a.png")

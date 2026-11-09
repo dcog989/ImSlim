@@ -4,13 +4,19 @@ Only the handful of fields the dialog shows are decoded, and only from the
 head of the file, so opening Properties never reads a huge image in full.
 """
 
+import os
+import subprocess
+import tempfile
 from typing import Literal
 
 from ._i18n import _
+from .binary_resolver import resolve_tool
+from .conversion import decode_commands
 from .jpeg_metadata import jpeg_exif_payload
 from .png_metadata import png_exif_payload
 
 _HEAD_BYTES = 1024 * 1024
+_EXIF_TOOL_TIMEOUT_SECONDS = 10
 
 # Tag -> (label, formatter) in display order.
 _TAGS: dict[int, tuple[str, str]] = {
@@ -49,10 +55,41 @@ def jpeg_orientation(path: str) -> int:
     return value if isinstance(value, int) and value in _ORIENTATIONS else 1
 
 
-def read_exif(path: str) -> list[tuple[str, str]]:
+def _decoder_exif_payload(path: str, mime_type: str) -> bytes | None:
+    """Extract EXIF through the bundled decoder for formats Qt cannot read."""
+    try:
+        if mime_type == "image/jxl":
+            completed = subprocess.run(
+                [resolve_tool("djxl"), path, "-", "--output_format", "exif"],
+                check=False,
+                capture_output=True,
+                timeout=_EXIF_TOOL_TIMEOUT_SECONDS,
+            )
+            return completed.stdout or None
+        with tempfile.TemporaryDirectory(prefix="imslim-exif-") as directory:
+            destination = os.path.join(directory, "exif.png")
+            for command in decode_commands(mime_type, path, destination):
+                if command.argv is not None:
+                    _res = subprocess.run(
+                        command.argv,
+                        check=True,
+                        capture_output=True,
+                        timeout=_EXIF_TOOL_TIMEOUT_SECONDS,
+                    )
+                elif command.action is not None:
+                    command.action()
+            return png_exif_payload(destination)
+    except OSError, subprocess.SubprocessError, ValueError:
+        return None
+
+
+def read_exif(path: str, mime_type: str = "") -> list[tuple[str, str]]:
     """Return the EXIF fields the UI shows, in a stable order."""
-    block = jpeg_exif_payload(path) or png_exif_payload(path)
-    if block is None:
+    if mime_type in ("image/avif", "image/jxl"):
+        block = _decoder_exif_payload(path, mime_type)
+    else:
+        block = jpeg_exif_payload(path) or png_exif_payload(path)
+    if block is None and mime_type not in ("image/avif", "image/jxl"):
         try:
             with open(path, "rb") as handle:
                 # TIFF can point anywhere in the file, so only a head read is safe.

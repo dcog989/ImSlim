@@ -39,6 +39,8 @@ def static_about_pairs() -> list[tuple[str, str]]:
 # cjpegli/djpegli ship as part of libjxl and expose no version flag; their
 # version matches the sibling cjxl/djxl build, so derive it from there.
 _JPEGLI_SIBLING = {"cjpegli": "cjxl", "djpegli": "djxl"}
+# jxlinfo is a diagnostic tool with no version flag of its own.
+_NO_VERSION_TOOLS = frozenset({"jxlinfo"})
 
 
 @functools.cache
@@ -54,7 +56,7 @@ def tool_version_pairs() -> list[tuple[str, str]]:
     pairs: list[tuple[str, str]] = []
     for tool in KNOWN_TOOLS:
         path = resolved[tool]
-        if path is None:
+        if path is None or tool in _NO_VERSION_TOOLS:
             pairs.append((tool, _("Version not available")))
             continue
         sibling = _JPEGLI_SIBLING.get(tool)

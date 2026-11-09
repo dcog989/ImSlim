@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from imslim.batch_options import BatchOptions
@@ -64,6 +66,14 @@ def test_is_generated_output_accepts_app_outputs(path: str) -> None:
 )
 def test_is_generated_output_rejects_other_files(path: str) -> None:
     assert not is_generated_output(path)
+
+
+def test_a_generated_directory_can_be_scanned_from_its_own_root() -> None:
+    root = "/images/imslim-20240102030405-1234"
+
+    assert is_generated_output(f"{root}/photo.png")
+    assert not is_generated_output(f"{root}/photo.png", root=root)
+    assert is_generated_output(f"{root}/imslim-20250101000000-1/photo.png", root=root)
 
 
 def test_output_path_counter_keeps_names_unique(tmp_path, frozen_timestamp: None) -> None:
@@ -141,6 +151,17 @@ def test_timestamp_dir_holds_plain_output_names(tmp_path, frozen_timestamp: None
     assert item.new_filename == str(stamp_dir / "photo.png")
     assert stamp_dir.is_dir()
     assert is_generated_output(item.new_filename)
+
+
+def test_destination_folder_includes_the_timestamp_dir_without_creating_it(tmp_path) -> None:
+    manager = ResultItemManager(_options(timestamp_dir=True))
+
+    folder = manager.destination_folder(str(tmp_path / "photo.png"))
+
+    assert folder == str(tmp_path / f"imslim-{manager._batch_timestamp}")
+    assert not Path(folder).exists()
+    assert manager.destination_folder(str(tmp_path / "photo.png"), timestamp=False) == str(tmp_path)
+    assert manager.destination_hint(str(tmp_path / "photo.png")) == str(tmp_path / "imslim-…")
 
 
 def test_timestamp_dir_is_ignored_when_overwriting_in_place(tmp_path) -> None:

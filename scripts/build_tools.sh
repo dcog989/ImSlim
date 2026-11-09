@@ -492,7 +492,8 @@ build_libjxl() {
 
     cp "$WORK/install-libjxl/bin/cjxl" "$OUT/cjxl"
     cp "$WORK/install-libjxl/bin/djxl" "$OUT/djxl"
-    chmod +x "$OUT/cjxl" "$OUT/djxl"
+    cp "$WORK/install-libjxl/bin/jxlinfo" "$OUT/jxlinfo"
+    chmod +x "$OUT/cjxl" "$OUT/djxl" "$OUT/jxlinfo"
     cp LICENSE "$OUT/LICENSE-libjxl"
     record_version libjxl "$tag"
 }

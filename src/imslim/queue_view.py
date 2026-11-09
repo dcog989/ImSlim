@@ -715,7 +715,7 @@ class QueueView(QWidget):
         self.count_label.setText(
             _("1 file") if count == 1 else _("{count} files").format(count=count)
         )
-        self.size_label.setText(sizeof_fmt(self._total_size))
+        self.size_label.setText(sizeof_fmt(self._total_size) if self._total_size else "")
         if not self._items:
             self.stack.setCurrentWidget(self.empty_page)
         elif self._view_mode() == _VIEW_THUMBNAILS:

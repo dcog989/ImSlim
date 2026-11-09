@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 from ._i18n import _
 from .exif import read_exif
 from .format import sizeof_fmt
+from .preview import load_preview
 from .result_item import ResultItem
 from .theme import apply_muted_palette
 
@@ -42,9 +43,14 @@ def image_details(item: ResultItem) -> list[tuple[str, str]]:
         if frames > 1:
             rows.append((_("Frames"), str(frames)))
     else:
-        rows.append((_("Dimensions"), _("Not readable by Qt")))
+        # Formats such as AVIF and JXL are decoded by the bundled tools, not Qt.
+        image = load_preview(item.filename)
+        if image is not None and image.width() > 0:
+            rows.append((_("Dimensions"), f"{image.width()} × {image.height()} px"))
+        else:
+            rows.append((_("Dimensions"), _("Not readable by Qt")))
 
-    rows.extend(read_exif(item.filename))
+    rows.extend(read_exif(item.filename, item.mime_type))
     return rows
 
 

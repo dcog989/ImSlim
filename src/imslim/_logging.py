@@ -1,6 +1,7 @@
 import atexit
 import logging
 import logging.handlers
+import os
 import queue
 from datetime import date
 from pathlib import Path
@@ -33,7 +34,12 @@ class _DailyRotatingFileHandler(logging.handlers.RotatingFileHandler):
         self, filename: str, *, max_bytes: int, backup_count: int, encoding: str = "utf-8"
     ) -> None:
         super().__init__(filename, maxBytes=max_bytes, backupCount=backup_count, encoding=encoding)
-        self._day: date = date.today()
+        try:
+            # A file left by an earlier run may already be from yesterday; the
+            # first record today must roll it instead of appending for weeks.
+            self._day: date = date.fromtimestamp(os.path.getmtime(filename))
+        except OSError:
+            self._day = date.today()
 
     @override
     def shouldRollover(self, record: logging.LogRecord) -> bool:

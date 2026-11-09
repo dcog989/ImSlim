@@ -385,6 +385,8 @@ class ImSlimWindow(QWidget):
         )
         dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         dialog.show()
+        # The dialog copied the list it needs; do not pin the batch here.
+        self._batch_items = []
 
     def _update_process_enabled(self) -> None:
         self.options.set_process_enabled(not self.flow.active and self.queue.has_processable_items)

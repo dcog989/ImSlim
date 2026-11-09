@@ -112,7 +112,7 @@ class AnalyzeTask(Task):
                     for candidate in get_image_paths_from_folder(
                         path, self._options.recursive, self.is_cancelled
                     )
-                    if not is_generated_output(candidate)
+                    if not is_generated_output(candidate, root=path)
                 ]
             else:
                 candidates = [path]

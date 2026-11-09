@@ -31,7 +31,7 @@ init:
 
 DATA_HOME = $(or $(XDG_DATA_HOME),$(HOME)/.local/share)
 
-install:
+install: require-tools
 	uv tool install . --force
 	mkdir -p $(DATA_HOME)/applications $(DATA_HOME)/icons/hicolor/scalable/apps
 	@BIN=$$(command -v imslim 2>/dev/null || echo $(HOME)/.local/bin/imslim); \

@@ -1,4 +1,5 @@
 import os
+import subprocess
 from functools import partial
 from typing import override
 
@@ -16,6 +17,40 @@ _JXL_METADATA = ("exif", "xmp", "jumbf")
 _JPEG_METADATA = ("exif", "xmp")
 # cjxl v0.12: -q 100 is lossless (the -q 100/--lossless flag was removed).
 _LOSSLESS_QUALITY = "100"
+# jxlinfo reads the container header without decoding pixels, so one probe
+# avoids spawning djxl three times for metadata that is not present.
+_INFO_TIMEOUT_SECONDS = 10
+_INFO_MARKERS = {"exif": "exif", "xmp": "xml", "jumbf": "jumbf"}
+
+
+def metadata_kinds_from_info(text: str) -> frozenset[str]:
+    """Kinds named in jxlinfo output (e.g. 'Brotli-compressed Exif metadata')."""
+    lower = text.lower()
+    return frozenset(kind for kind, marker in _INFO_MARKERS.items() if marker in lower)
+
+
+def _sidecar_present(path: str) -> bool:
+    try:
+        return os.path.getsize(path) > 0
+    except OSError:
+        return False
+
+
+def metadata_kinds(path: str) -> frozenset[str]:
+    """Metadata kinds present in `path`, or all of them when the probe fails."""
+    try:
+        completed = subprocess.run(
+            [resolve_tool("jxlinfo"), path],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_INFO_TIMEOUT_SECONDS,
+        )
+    except OSError, subprocess.SubprocessError:
+        return frozenset(_JXL_METADATA)
+    if completed.returncode != 0:
+        return frozenset(_JXL_METADATA)
+    return metadata_kinds_from_info(completed.stdout)
 
 
 class JXLCompressor(Compressor):
@@ -52,7 +87,9 @@ class JXLCompressor(Compressor):
             if result_item.mime_type == "image/jpeg":
                 commands += self._jpeg_sidecar_commands(result_item)
             else:
-                commands += self._djxl_sidecar_commands(result_item, input_path)
+                commands += self._djxl_sidecar_commands(
+                    result_item, input_path, metadata_kinds(input_path)
+                )
 
         cjxl = [resolve_tool("cjxl")]
 
@@ -85,9 +122,13 @@ class JXLCompressor(Compressor):
 
         return commands
 
-    def _djxl_sidecar_commands(self, result_item: ResultItem, source: str) -> list[Command]:
+    def _djxl_sidecar_commands(
+        self, result_item: ResultItem, source: str, kinds: frozenset[str]
+    ) -> list[Command]:
         commands: list[Command] = []
         for kind in _JXL_METADATA:
+            if kind not in kinds:
+                continue
             sidecar = self._sidecar_path(result_item, kind)
             commands.append(
                 Command(
@@ -119,7 +160,7 @@ class JXLCompressor(Compressor):
         while i < len(argv):
             if argv[i] == "-x" and i + 1 < len(argv):
                 key, has_value, path = argv[i + 1].partition("=")
-                if has_value and key in _JXL_METADATA and path and not os.path.exists(path):
+                if has_value and key in _JXL_METADATA and path and not _sidecar_present(path):
                     i += 2
                     continue
             pruned.append(argv[i])

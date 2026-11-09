@@ -40,9 +40,18 @@ _GENERATED_OUTPUT_PATTERN = re.compile(
 _GENERATED_DIR_PATTERN = re.compile(rf"^{_OUTPUT_MARKER}-\d{{14}}(?:-\d+)?$", re.IGNORECASE)
 
 
-def is_generated_output(path: str) -> bool:
-    """True when `path` is an output or backup this app created."""
-    if any(_GENERATED_DIR_PATTERN.match(part) for part in Path(path).parts):
+def is_generated_output(path: str, *, root: str | None = None) -> bool:
+    """True when `path` is an output or backup this app created.
+
+    Path components above `root` are ignored, so selecting an existing
+    timestamp directory explicitly still scans its contents.
+    """
+    parts = Path(path).parts
+    if root is not None:
+        root_parts = Path(root).parts
+        if parts[: len(root_parts)] == root_parts:
+            parts = parts[len(root_parts) :]
+    if any(_GENERATED_DIR_PATTERN.match(part) for part in parts):
         return True
     return _GENERATED_OUTPUT_PATTERN.search(os.path.basename(path)) is not None
 
@@ -209,25 +218,38 @@ class ResultItemManager:
         # Overwriting in place has no destination folder to put a directory in.
         return self.options.timestamp_dir and self.options.save_method != SAVE_BACKUP_OVERWRITE
 
-    def _output_parent(self, path: str) -> str:
+    def destination_folder(self, path: str, *, timestamp: bool = True) -> str:
+        """Folder an output for `path` will go to, without creating it."""
         parent = (
             self.options.output_folder
             if self.options.save_method == SAVE_OUTPUT_FOLDER and self.options.output_folder
             else os.path.dirname(path)
         )
+        if timestamp and self._uses_timestamp_dir():
+            parent = os.path.join(parent, f"{_OUTPUT_MARKER}-{self._batch_timestamp}")
+        return parent
+
+    def destination_hint(self, path: str) -> str:
+        """Destination shown before a batch exists; the timestamp is generic."""
+        folder = self.destination_folder(path, timestamp=False)
+        if self._uses_timestamp_dir():
+            folder = os.path.join(folder, f"{_OUTPUT_MARKER}-…")
+        return folder
+
+    def _output_parent(self, path: str) -> str:
+        parent = self.destination_folder(path)
         if not self._uses_timestamp_dir():
             return parent
-        stamp_dir = os.path.join(parent, f"{_OUTPUT_MARKER}-{self._batch_timestamp}")
-        if stamp_dir not in self._timestamp_dirs:
+        if parent not in self._timestamp_dirs:
             try:
-                os.makedirs(stamp_dir, exist_ok=True)
+                os.makedirs(parent, exist_ok=True)
             except OSError as err:
                 # Let the caller report a per-item error instead of encoding a
                 # file whose destination does not exist.
-                logger.warning("Could not create %s: %s", stamp_dir, err)
+                logger.warning("Could not create %s: %s", parent, err)
                 raise
-            self._timestamp_dirs.add(stamp_dir)
-        return stamp_dir
+            self._timestamp_dirs.add(parent)
+        return parent
 
     def _output_path(
         self,

@@ -21,6 +21,7 @@ KNOWN_TOOLS = (
     "djxl",
     "gifsicle",
     "jpegtran",
+    "jxlinfo",
     "oxipng",
     "pngquant",
     "svgo",

@@ -1,3 +1,5 @@
+from subprocess import CompletedProcess
+
 from imslim.exif import _format_value, _parse_tiff, jpeg_orientation, read_exif
 
 
@@ -36,6 +38,20 @@ def test_read_exif_reads_a_tiff_file(tmp_path) -> None:
     path.write_bytes(_tiff_block())
 
     assert read_exif(str(path)) == [
+        ("Camera make", "ACME"),
+        ("Orientation", "Rotated 90° CW"),
+    ]
+
+
+def test_read_exif_uses_djxl_for_a_jxl_file(tmp_path, monkeypatch) -> None:
+    def fake_run(argv, **_kwargs):
+        return CompletedProcess(argv, 0, stdout=_tiff_block(), stderr=b"")
+
+    monkeypatch.setattr("imslim.exif.subprocess.run", fake_run)
+    path = tmp_path / "photo.jxl"
+    path.write_bytes(b"")
+
+    assert read_exif(str(path), "image/jxl") == [
         ("Camera make", "ACME"),
         ("Orientation", "Rotated 90° CW"),
     ]

@@ -1,8 +1,7 @@
 import logging
 import threading
-from collections import deque
 from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from dataclasses import replace
 
 from ._i18n import _
@@ -168,7 +167,7 @@ class CompressionManager:
             max_workers = worker_count()
             max_pending = max_workers * _MAX_PENDING_PER_WORKER
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                pending: deque[Future[None]] = deque()
+                pending: set[Future[None]] = set()
                 break_index = len(result_items)
                 for index, result_item in enumerate(result_items):
                     if context.cancelled:
@@ -185,10 +184,12 @@ class CompressionManager:
                         c_update_result_item(result_item)
                         continue
                     if len(pending) >= max_pending:
-                        # Await the oldest so the queue stays bounded; results
-                        # are still collected in submission order.
-                        pending.popleft().result()
-                    pending.append(
+                        # Wait for any finished job, not the oldest one: a
+                        # single slow file must not keep the other workers idle.
+                        done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                        for future in done:
+                            future.result()
+                    pending.add(
                         executor.submit(
                             self._pipeline.run,
                             compressor,
@@ -200,7 +201,9 @@ class CompressionManager:
                     )
 
                 while pending:
-                    pending.popleft().result()
+                    done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                    for future in done:
+                        future.result()
 
                 if context.cancelled:
                     for result_item in result_items[break_index:]:

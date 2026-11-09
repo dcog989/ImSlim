@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QMessageBox
 
 from ._i18n import _
 from .batch_flow import BatchFlow
+from .batch_summary import BatchSummary
 from .dialogs import CompletionDialog, ProgressDialog
 from .result_item import ResultItem
 from .settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager
@@ -17,6 +18,12 @@ EXIT_USAGE = 2
 
 # Same debounce as the GUI: a tiny batch should not flash a dialog.
 _PROGRESS_DELAY_MS = 1000
+
+
+def exit_code(summary: BatchSummary) -> int:
+    """0 only when every file was compressed or skipped."""
+    unprocessed = summary.total - (summary.compressed + summary.skipped + summary.failed)
+    return EXIT_FAILED if summary.failed or unprocessed > 0 else EXIT_OK
 
 
 class NowRunner(QObject):
@@ -75,7 +82,7 @@ class NowRunner(QObject):
         if self._batch_started is None:
             self._quit()
             return
-        self._code = EXIT_FAILED if self._flow.summary.failed else EXIT_OK
+        self._code = exit_code(self._flow.summary)
         dialog = CompletionDialog(
             self._flow.summary,
             self._batch_items,
@@ -84,6 +91,7 @@ class NowRunner(QObject):
             if self._settings.save_method == SAVE_OUTPUT_FOLDER
             else "",
         )
+        self._batch_items = []
         _res = dialog.exec()
         self._quit()
 

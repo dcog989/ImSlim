@@ -9,7 +9,7 @@ from .command_runner import CompressionContext
 from .compression_manager import CompressionManager
 from .result_item import ResultItem, ResultState
 from .result_item_manager import ResultItemManager
-from .settings_manager import SAVE_OUTPUT_FOLDER, SettingsManager
+from .settings_manager import SettingsManager
 from .workers import AnalyzeTask
 
 logger = logging.getLogger(__name__)
@@ -128,11 +128,7 @@ class BatchFlow(QObject):
     def planned_destination(self, result_item: ResultItem) -> str:
         """Folder this file will be written to; the name is fixed at batch start."""
         options = BatchOptions.from_settings(self._settings)
-        folder = (
-            options.output_folder
-            if options.save_method == SAVE_OUTPUT_FOLDER and options.output_folder
-            else os.path.dirname(result_item.filename) or "."
-        )
+        folder = ResultItemManager(options).destination_hint(result_item.filename) or "."
         return folder if folder.endswith(os.sep) else folder + os.sep
 
     def preview(
@@ -168,14 +164,12 @@ class BatchFlow(QObject):
             self._analyze_worker = None
         self._manager.shutdown()
 
-    def reset(self) -> None:
-        self._summary_timer.stop()
-        self.summary.reset()
-        self.summary_changed.emit()
-
     def _finish_batch(self) -> None:
         self._compressing = False
         self._active = False
+        # The summary has already been built from these identities; keeping
+        # them would pin every processed file until the next batch.
+        self._counted.clear()
         self.compression_enabled.emit(True)
 
     def _on_items_ready(self, result_items: list[ResultItem]) -> None:
@@ -198,6 +192,7 @@ class BatchFlow(QObject):
         self._active = not enabled
         if enabled:
             self._compressing = False
+            self._counted.clear()
 
     def _on_result_updated(self, result_item: ResultItem) -> None:
         # RUNNING is an interim UI refresh, not a terminal outcome to tally.
@@ -220,11 +215,15 @@ class BatchFlow(QObject):
             self._summary_timer.start()
 
     def _on_no_files(self) -> None:
+        if self._shutting_down:
+            return
         self._active = False
         self.no_files.emit()
         self.compression_enabled.emit(True)
 
     def _on_analyze_failed(self) -> None:
+        if self._shutting_down:
+            return
         self._active = False
         self.analyze_failed.emit()
         self.compression_enabled.emit(True)

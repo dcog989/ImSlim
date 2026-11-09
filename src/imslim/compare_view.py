@@ -345,7 +345,7 @@ class CompareView(QWidget):
         self.path_label.setToolTip(plain_tooltip(path))
         self.size_label.setText(sizeof_fmt(size) if size else "")
         self.time_label.setText(
-            time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime)) if mtime else ""
+            time.strftime("%Y-%m-%d %H:%M", time.localtime(mtime)) if mtime > 0 else ""
         )
         if path != self._shown_original:
             self._shown_original = path
