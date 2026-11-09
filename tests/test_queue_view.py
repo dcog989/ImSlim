@@ -43,3 +43,16 @@ def test_removing_the_current_thumbnail_emits_the_new_selection(tmp_path: Path) 
 
     assert view.selected_item() is first
     assert emitted == [first]
+
+
+def test_reselecting_the_same_file_does_not_emit(tmp_path: Path) -> None:
+    view = QueueView(_Settings())  # type: ignore[arg-type]
+    item = _item(tmp_path, "a.png")
+    view.add_items([item])
+    emitted: list[ResultItem | None] = []
+    view.selection_changed.connect(emitted.append)
+
+    view.select(item)
+    view.select(item)
+
+    assert emitted == [item]

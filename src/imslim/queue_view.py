@@ -153,6 +153,9 @@ class QueueView(QWidget):
         # Ordered selection; the last entry is the one the comparison pane shows.
         self._selected: list[ResultItem] = []
         self._anchor: int | None = None
+        # The file the window was last told to show; repeated clicks on the same
+        # row must not re-run the preview encode.
+        self._reported_selection: ResultItem | None = None
         self._busy: bool = False
         # Set while this view updates the grid itself, so the grid's selection
         # signals do not overwrite the selection being applied.
@@ -652,11 +655,11 @@ class QueueView(QWidget):
         if current_item is not None and current_item in self._items:
             self._anchor = self._items.index(current_item)
         if current_item is not None and current_item in self._selected:
-            self.selection_changed.emit(current_item)
+            self._report_selection(current_item)
         elif self._selected:
-            self.selection_changed.emit(self._selected[-1])
+            self._report_selection(self._selected[-1])
         else:
-            self.selection_changed.emit(None)
+            self._report_selection(None)
         self._update_buttons()
 
     @staticmethod
@@ -774,13 +777,20 @@ class QueueView(QWidget):
         for entry, row in self._rows.items():
             row.set_selected(entry in selection)
         current = emit if emit is not None else self.selected_item()
-        self.selection_changed.emit(current)
+        self._report_selection(current)
         self._update_buttons()
+
+    def _report_selection(self, current: ResultItem | None) -> None:
+        """Tell the window which file to show, once per real change."""
+        if current is self._reported_selection:
+            return
+        self._reported_selection = current
+        self.selection_changed.emit(current)
 
     def _select_fallback(self) -> None:
         if not self._items:
             self._selected = []
-            self.selection_changed.emit(None)
+            self._report_selection(None)
             return
         self.select(self._items[0])
 
@@ -812,17 +822,15 @@ class QueueView(QWidget):
         finally:
             self._syncing_selection = False
         if remove.intersection(self._selected):
-            previous = self.selected_item()
             self._selected = [entry for entry in self._selected if entry not in remove]
             if self._selected:
                 if self._view_mode() == _VIEW_THUMBNAILS:
                     self._restore_selection()
-                    if self.selected_item() is not previous:
-                        self.selection_changed.emit(self.selected_item())
                 else:
                     self._set_selection(self._selected, anchor=self.selected_item())
             else:
                 self._select_fallback()
+            self._report_selection(self.selected_item())
         # Removing a row shifts every later index; restripe the survivors so the
         # shading stays alternating instead of repeating a shade.
         for index, row in enumerate(self._rows.values()):
@@ -864,7 +872,7 @@ class QueueView(QWidget):
         self._selected = []
         self._anchor = None
         self._update_chrome()
-        self.selection_changed.emit(None)
+        self._report_selection(None)
 
     def set_busy(self, busy: bool) -> None:
         self._busy = busy
