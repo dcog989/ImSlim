@@ -31,7 +31,7 @@ classifiers = [
   "Topic :: System :: Archiving :: Compression",
 ]
 dependencies = [
-  "PySide6>=6.11",
+  "PySide6>=6.11,<7",
 ]
 
 [project.urls]
