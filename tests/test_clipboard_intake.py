@@ -1,28 +1,38 @@
 from pathlib import Path
 
+from PySide6.QtCore import QStandardPaths
+from PySide6.QtGui import QImage
+
+from imslim import clipboard_intake
 from imslim.clipboard_intake import ClipboardIntake
 
 
-def _intake(directory: Path) -> ClipboardIntake:
+def test_paste_directory_is_stable_and_created(tmp_path: Path, monkeypatch) -> None:
+    class _Pictures:
+        StandardLocation = QStandardPaths.StandardLocation
+
+        @staticmethod
+        def writableLocation(_location: QStandardPaths.StandardLocation) -> str:
+            return str(tmp_path)
+
+    monkeypatch.setattr(clipboard_intake, "QStandardPaths", _Pictures)
     intake = ClipboardIntake(None)  # pyright: ignore[reportArgumentType]
-    intake._paste_temp_dir = str(directory)  # pyright: ignore[reportPrivateUsage]
-    return intake
+
+    first = intake._paste_directory()  # pyright: ignore[reportPrivateUsage]
+    second = intake._paste_directory()  # pyright: ignore[reportPrivateUsage]
+
+    assert first == second == str(tmp_path / "ImSlim")
+    assert Path(first).is_dir()
 
 
-def test_cleanup_keeps_the_dir_while_a_queued_path_is_inside(tmp_path: Path) -> None:
-    intake = _intake(tmp_path)
-    pasted = tmp_path / "pasted-1.png"
-    pasted.write_bytes(b"image")
+def test_saved_paste_is_a_png(tmp_path: Path) -> None:
+    intake = ClipboardIntake(None)  # pyright: ignore[reportArgumentType]
+    intake._paste_directory = lambda: str(tmp_path)  # pyright: ignore[reportPrivateUsage]
+    image = QImage(4, 4, QImage.Format.Format_RGB32)
+    image.fill(0x336699)
 
-    intake.cleanup_unless_used([str(pasted)])
+    path = intake._save_image(image)  # pyright: ignore[reportPrivateUsage]
 
-    assert tmp_path.exists()
-
-
-def test_cleanup_removes_the_dir_when_nothing_uses_it(tmp_path: Path) -> None:
-    intake = _intake(tmp_path)
-    (tmp_path / "pasted-1.png").write_bytes(b"image")
-
-    intake.cleanup_unless_used(["/somewhere/else.png"])
-
-    assert not tmp_path.exists()
+    assert path is not None
+    assert Path(path).is_file()
+    assert path.endswith(".png")

@@ -139,6 +139,7 @@ class ImSlimWindow(QWidget):
         _res = self.options.about_requested.connect(self.on_about)
         _res = self.options.options_changed.connect(self._on_options_changed)
         _res = self.clipboard.paths_ready.connect(self.add_paths)
+        _res = self.clipboard.paste_failed.connect(self._on_paste_failed)
 
     def create_actions(self) -> None:
         self.act_select: QAction = QAction(_("Add Files"), self)
@@ -382,17 +383,7 @@ class ImSlimWindow(QWidget):
             # "Open with" can arrive while a batch runs; queue it for the next.
             self._pending_paths.extend(paths)
             return
-        self.clipboard.cleanup_unless_used([*self._queue_paths(), *paths])
         self.flow.analyze(paths)
-
-    def _queue_paths(self) -> list[str]:
-        """Every queued source and result path; a pasted item's temp dir holds both."""
-        paths: list[str] = []
-        for item in self.queue.items:
-            paths.append(item.filename)
-            if item.new_filename:
-                paths.append(item.new_filename)
-        return paths
 
     def _drain_pending(self) -> None:
         if self.flow.active or not self._pending_paths:
@@ -417,6 +408,9 @@ class ImSlimWindow(QWidget):
 
     def on_paste(self) -> None:
         self.clipboard.request()
+
+    def _on_paste_failed(self, message: str) -> None:
+        _res = QMessageBox.warning(self, _("Paste"), message)
 
     def on_select(self) -> None:
         files, _filter = QFileDialog.getOpenFileNames(
@@ -517,7 +511,6 @@ class ImSlimWindow(QWidget):
         if self._preview_dir:
             shutil.rmtree(self._preview_dir, ignore_errors=True)
         self.flow.shutdown()
-        self.clipboard.cleanup_unless_used(self._queue_paths())
         self.settings.window_geometry = bytes(self.saveGeometry().data())
         self.settings.layout_state = bytes(self.splitter.saveState().data())
         # Geometry and the view settings skip the per-change flush; write them now.

@@ -1,12 +1,24 @@
 """Clipboard intake: turn pasted files or an image into paths to compress."""
 
+import logging
 import os
-import shutil
-import tempfile
 import time
 
-from PySide6.QtCore import QMimeData, QObject, QTimer, Signal
+from PySide6.QtCore import QMimeData, QObject, QStandardPaths, QTimer, Signal
 from PySide6.QtGui import QClipboard, QImage
+
+from ._i18n import _
+
+logger = logging.getLogger(__name__)
+
+# Wayland hands image data over asynchronously, so the first reads can come
+# back empty; retry on the UI thread for about a second.
+_IMAGE_READ_ATTEMPTS = 20
+_IMAGE_READ_RETRY_MS = 50
+
+# Pasted images live here so the default "next to original" destination is a
+# real, discoverable folder instead of a temp dir a reboot wipes.
+_PASTE_FOLDER_NAME = "ImSlim"
 
 
 def urls_to_paths(mime: QMimeData) -> list[str]:
@@ -22,65 +34,52 @@ def urls_to_paths(mime: QMimeData) -> list[str]:
 class ClipboardIntake(QObject):
     """Reads a paste request and reports local paths to compress.
 
-    URLs are delivered as-is. A bare image is written into a private temp dir
-    (removed on `cleanup`) before being reported.
+    URLs are delivered as-is. A bare image is written into the user's Pictures
+    folder so the compressed result has a stable home.
     """
 
     paths_ready: Signal = Signal(list)
+    paste_failed: Signal = Signal(str)
 
     def __init__(self, clipboard: QClipboard, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._clipboard: QClipboard = clipboard
-        self._paste_temp_dir: str | None = None
+        # Incremented per request so a stale retry chain cannot report a
+        # failure (or save a duplicate) after a newer paste started.
+        self._request_token: int = 0
 
     def request(self) -> None:
+        self._request_token += 1
         paths = urls_to_paths(self._clipboard.mimeData())
         if paths:
             self.paths_ready.emit(paths)
             return
-        self._read_image(attempts=0)
+        self._read_image(attempts=0, token=self._request_token)
 
-    def cleanup(self) -> None:
-        directory = self._paste_temp_dir
-        self._paste_temp_dir = None
-        if directory is not None:
-            shutil.rmtree(directory, ignore_errors=True)
-
-    def cleanup_unless_used(self, paths: list[str]) -> None:
-        """Drop the pasted-image temp dir unless one of `paths` is inside it.
-
-        Callers must pass every path still in use (the new batch plus anything
-        already queued): a queued paste or its result lives in this dir.
-        """
-        directory = self._paste_temp_dir
-        if directory is None:
+    def _read_image(self, attempts: int, token: int) -> None:
+        if token != self._request_token:
             return
-        prefix = directory + os.sep
-        if any(path.startswith(prefix) for path in paths):
-            return
-        self.cleanup()
-
-    def _read_image(self, attempts: int) -> None:
-        # On Wayland, image data is transferred asynchronously from the
-        # clipboard owner, so the first read may come back empty. Retry on a
-        # QTimer instead of sleeping in a loop so the UI thread stays responsive.
         image = self._clipboard.image()
         if not image.isNull():
             self._handle_image(image)
             return
-        if attempts >= 20:
+        if attempts >= _IMAGE_READ_ATTEMPTS:
+            self.paste_failed.emit(_("No image or file on the clipboard."))
             return
-        QTimer.singleShot(50, lambda: self._read_image(attempts + 1))
+        QTimer.singleShot(_IMAGE_READ_RETRY_MS, lambda: self._read_image(attempts + 1, token))
 
     def _handle_image(self, image: QImage) -> None:
-        path = self._save_image(image)
+        try:
+            path = self._save_image(image)
+        except OSError as err:
+            logger.warning("Could not save the pasted image: %s", err)
+            path = None
         if path:
             self.paths_ready.emit([path])
+        else:
+            self.paste_failed.emit(_("Could not save the pasted image."))
 
     def _save_image(self, image: QImage) -> str | None:
-        # Paste sources and their compressed output live in a private (0700)
-        # temp dir so nothing predictable is written to shared /tmp; the dir is
-        # removed on clear/close.
         directory = self._paste_directory()
         path = os.path.join(directory, f"pasted-{time.time_ns()}.png")
         # PySide6's stub types `format` as bytes, but the runtime requires str.
@@ -88,7 +87,9 @@ class ClipboardIntake(QObject):
             return path
         return None
 
-    def _paste_directory(self) -> str:
-        if self._paste_temp_dir is None:
-            self._paste_temp_dir = tempfile.mkdtemp(prefix="imslim-pasted-")
-        return self._paste_temp_dir
+    @staticmethod
+    def _paste_directory() -> str:
+        pictures = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.PicturesLocation)
+        directory = os.path.join(pictures or os.path.expanduser("~"), _PASTE_FOLDER_NAME)
+        os.makedirs(directory, exist_ok=True)
+        return directory
