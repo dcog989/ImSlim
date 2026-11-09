@@ -350,7 +350,9 @@ class CompareView(QWidget):
         self.processed_path.setText(shown)
         self.processed_path.setToolTip(shown)
         self.processed_size.setText(sizeof_fmt(size) if size else "")
-        self.processed_savings.setText(f"{savings}%" if size else "")
+        self.processed_savings.setText(
+            _("{percent}% saved").format(percent=savings) if size else ""
+        )
         self._load(self._processed, path, _("Loading…"))
 
     def clear_processed(self, placeholder: str | None = None) -> None:
