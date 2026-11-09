@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: imslim 0.11.4\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 09:38+0000\n"
+"POT-Creation-Date: 2026-11-09 13:00+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -47,23 +47,29 @@ msgstr ""
 msgid "{count} failed"
 msgstr ""
 
-#: src/imslim/compare_view.py:218 src/imslim/compare_view.py:277
+#: src/imslim/compare_view.py:239 src/imslim/compare_view.py:370
 msgid "Select a file to preview it."
 msgstr ""
 
-#: src/imslim/compare_view.py:219 src/imslim/compare_view.py:270
+#: src/imslim/compare_view.py:240 src/imslim/compare_view.py:363
 msgid "The processed image appears here."
 msgstr ""
 
-#: src/imslim/compare_view.py:260 src/imslim/compare_view.py:266
+#: src/imslim/compare_view.py:335 src/imslim/compare_view.py:356
 msgid "Loading…"
 msgstr ""
 
-#: src/imslim/compare_view.py:298
+#: src/imslim/compare_view.py:354
+#, python-brace-format
+msgid "{percent}% saved"
+msgstr ""
+
+#: src/imslim/compare_view.py:394
 msgid "Preview unavailable."
 msgstr ""
 
-#: src/imslim/compression_manager.py:126 src/imslim/result_item_manager.py:85
+#: src/imslim/compression_manager.py:120 src/imslim/compression_manager.py:165
+#: src/imslim/result_item_manager.py:85
 msgid "Format of this file is not supported."
 msgstr ""
 
@@ -79,13 +85,13 @@ msgstr ""
 msgid "Info"
 msgstr ""
 
-#: src/imslim/dialogs.py:46 src/imslim/result_item_row.py:305
+#: src/imslim/dialogs.py:46 src/imslim/result_item_row.py:302
 msgid "Warning"
 msgstr ""
 
-#: src/imslim/dialogs.py:47 src/imslim/now.py:101 src/imslim/now.py:107
-#: src/imslim/result_item_row.py:297 src/imslim/window.py:352
-#: src/imslim/window.py:356
+#: src/imslim/dialogs.py:47 src/imslim/now.py:103 src/imslim/now.py:109
+#: src/imslim/result_item_row.py:294 src/imslim/window.py:469
+#: src/imslim/window.py:473
 msgid "Error"
 msgstr ""
 
@@ -97,113 +103,120 @@ msgstr ""
 msgid "Cancel"
 msgstr ""
 
-#: src/imslim/dialogs.py:95
+#: src/imslim/dialogs.py:98
 #, python-brace-format
 msgid "{done} of {total} images"
 msgstr ""
 
-#: src/imslim/dialogs.py:110
+#: src/imslim/dialogs.py:130
 msgid "Finished"
 msgstr ""
 
-#: src/imslim/dialogs.py:121
+#: src/imslim/dialogs.py:139
 msgid "Compression finished"
 msgstr ""
 
-#: src/imslim/dialogs.py:133 src/imslim/formats.py:309
+#: src/imslim/dialogs.py:150 src/imslim/formats.py:309
 msgid "Images"
 msgstr ""
 
-#: src/imslim/dialogs.py:134
+#: src/imslim/dialogs.py:151
 msgid "Time"
 msgstr ""
 
-#: src/imslim/dialogs.py:135 src/imslim/properties.py:31
+#: src/imslim/dialogs.py:152 src/imslim/properties.py:31
 msgid "Size"
 msgstr ""
 
-#: src/imslim/dialogs.py:136 src/imslim/result_item_row.py:285
+#: src/imslim/dialogs.py:153 src/imslim/result_item_row.py:282
 msgid "Skipped"
 msgstr ""
 
-#: src/imslim/dialogs.py:137 src/imslim/queue_view.py:528
+#: src/imslim/dialogs.py:154 src/imslim/queue_view.py:578
 msgid "Failed"
 msgstr ""
 
-#: src/imslim/dialogs.py:149 src/imslim/dialogs.py:384
-#: src/imslim/properties.py:80
+#: src/imslim/dialogs.py:165 src/imslim/dialogs.py:392
+#: src/imslim/options_view.py:384 src/imslim/properties.py:80
 msgid "Close"
 msgstr ""
 
-#: src/imslim/dialogs.py:151 src/imslim/results_view.py:90
+#: src/imslim/dialogs.py:167
 msgid "Open Output Folder"
 msgstr ""
 
-#: src/imslim/dialogs.py:154 src/imslim/item_menu.py:25
-msgid "Show in Folder"
-msgstr ""
-
-#: src/imslim/dialogs.py:173
+#: src/imslim/dialogs.py:199
 #, python-brace-format
 msgid "Failed: {name}"
 msgstr ""
 
-#: src/imslim/dialogs.py:177
+#: src/imslim/dialogs.py:202
 #, python-brace-format
 msgid "Skipped: {name}"
 msgstr ""
 
-#: src/imslim/dialogs.py:216
+#: src/imslim/dialogs.py:204
+#, python-brace-format
+msgid "Cancelled: {name}"
+msgstr ""
+
+#: src/imslim/dialogs.py:207
+#, python-brace-format
+msgid "{name} — {percent}%"
+msgstr ""
+
+#: src/imslim/dialogs.py:224
 #, python-brace-format
 msgid "{seconds:.1f} s"
 msgstr ""
 
-#: src/imslim/dialogs.py:218
+#: src/imslim/dialogs.py:226
 #, python-brace-format
 msgid "{minutes} min {seconds:.0f} s"
 msgstr ""
 
-#: src/imslim/dialogs.py:251
+#: src/imslim/dialogs.py:259
 msgid "Compress common image formats, lossless or lossy."
 msgstr ""
 
-#: src/imslim/dialogs.py:266
+#: src/imslim/dialogs.py:274
 msgid "Version"
 msgstr ""
 
-#: src/imslim/dialogs.py:270
+#: src/imslim/dialogs.py:278
 msgid "Config"
 msgstr ""
 
-#: src/imslim/dialogs.py:272
+#: src/imslim/dialogs.py:280
 msgid "Logs"
 msgstr ""
 
-#: src/imslim/dialogs.py:277
+#: src/imslim/dialogs.py:285
 msgid "Latest log"
 msgstr ""
 
-#: src/imslim/dialogs.py:278
+#: src/imslim/dialogs.py:286
 msgid "Open latest log"
 msgstr ""
 
-#: src/imslim/dialogs.py:281
+#: src/imslim/dialogs.py:289
 msgid "Log level"
 msgstr ""
 
-#: src/imslim/dialogs.py:285
+#: src/imslim/dialogs.py:293
 msgid "Source"
 msgstr ""
 
-#: src/imslim/dialogs.py:289 src/imslim/dialogs.py:369
+#: src/imslim/dialogs.py:297 src/imslim/dialogs.py:377
 msgid "Copy Environment"
 msgstr ""
 
-#: src/imslim/dialogs.py:368
+#: src/imslim/dialogs.py:376
 msgid "Copied"
 msgstr ""
 
-#: src/imslim/dialogs.py:377
+#: src/imslim/dialogs.py:385 src/imslim/options_view.py:232
+#: src/imslim/options_view.py:233
 msgid "About ImSlim"
 msgstr ""
 
@@ -240,17 +253,17 @@ msgid "Rotated 90° CCW"
 msgstr ""
 
 #: src/imslim/formats.py:45
-msgid "Set the quality; 100 is best."
+msgid "Image quality; 100 is best."
 msgstr ""
 
 #: src/imslim/formats.py:49
 #, python-brace-format
-msgid "Set the level; {} is highest but slowest."
+msgid "Processing effort; {} is highest and slowest."
 msgstr ""
 
 #: src/imslim/formats.py:93 src/imslim/formats.py:109 src/imslim/formats.py:131
 #: src/imslim/formats.py:147 src/imslim/formats.py:163
-#: src/imslim/formats.py:179 src/imslim/options_view.py:164
+#: src/imslim/formats.py:179 src/imslim/options_view.py:167
 msgid "Lossy"
 msgstr ""
 
@@ -260,7 +273,7 @@ msgid "Effort"
 msgstr ""
 
 #: src/imslim/formats.py:114
-msgid "Progressive Encode"
+msgid "Progressive"
 msgstr ""
 
 #: src/imslim/formats.py:115
@@ -268,7 +281,7 @@ msgid "Render incrementally, from blurry to clear."
 msgstr ""
 
 #: src/imslim/formats.py:199
-msgid "Maximum Compression Level"
+msgid "Maximum Compression"
 msgstr ""
 
 #: src/imslim/formats.py:200
@@ -281,6 +294,10 @@ msgstr ""
 
 #: src/imslim/item_menu.py:23
 msgid "Open Image"
+msgstr ""
+
+#: src/imslim/item_menu.py:25
+msgid "Show in Folder"
 msgstr ""
 
 #: src/imslim/item_menu.py:34 src/imslim/properties.py:81
@@ -315,139 +332,150 @@ msgstr ""
 msgid "ImSlimNow needs a graphical session."
 msgstr ""
 
-#: src/imslim/now.py:95 src/imslim/window.py:349
+#: src/imslim/now.py:97 src/imslim/window.py:466
 msgid "No files found"
 msgstr ""
 
-#: src/imslim/now.py:95
+#: src/imslim/now.py:97
 msgid "No image files were found in the given paths."
 msgstr ""
 
-#: src/imslim/now.py:101 src/imslim/window.py:352
+#: src/imslim/now.py:103 src/imslim/window.py:469
 msgid "Can't create the output folder."
 msgstr ""
 
-#: src/imslim/now.py:107 src/imslim/window.py:356
+#: src/imslim/now.py:109 src/imslim/window.py:473
 msgid "An unexpected error occurred while analyzing the images."
 msgstr ""
 
-#: src/imslim/now.py:115 src/imslim/window.py:226
+#: src/imslim/now.py:117 src/imslim/window.py:343
 msgid "Processing"
 msgstr ""
 
-#: src/imslim/options_view.py:45
-msgid "Overwrite the original (backup)"
-msgstr ""
-
-#: src/imslim/options_view.py:46
-msgid "Next to the original"
-msgstr ""
-
 #: src/imslim/options_view.py:47
+msgid "Overwrite original"
+msgstr ""
+
+#: src/imslim/options_view.py:48
+msgid "Next to original"
+msgstr ""
+
+#: src/imslim/options_view.py:49
 msgid "Specified directory"
 msgstr ""
 
-#: src/imslim/options_view.py:51
+#: src/imslim/options_view.py:53
 msgid ""
 "BMP and TIFF images are always decoded and re-encoded to WebP; their "
-"original format cannot be kept. Converting an animated image keeps only its "
-"first frame."
+"original format cannot be kept."
 msgstr ""
 
-#: src/imslim/options_view.py:84
+#: src/imslim/options_view.py:56
+msgid "SVG images are always compressed losslessly."
+msgstr ""
+
+#: src/imslim/options_view.py:57
+msgid "Converting an animated image keeps only its first frame."
+msgstr ""
+
+#: src/imslim/options_view.py:58
+msgid "JPEG has no lossless encoder, so it is always compressed lossily."
+msgstr ""
+
+#: src/imslim/options_view.py:101
 msgid "Same as input"
 msgstr ""
 
-#: src/imslim/options_view.py:85
+#: src/imslim/options_view.py:102
 msgid ""
 "Output format. Keep each file's format, or convert everything to one format."
 msgstr ""
 
-#: src/imslim/options_view.py:93
-msgid "Output format"
-msgstr ""
-
-#: src/imslim/options_view.py:98
+#: src/imslim/options_view.py:117
 msgid ""
-"Where the compressed files go. Overwriting keeps a timestamped backup beside "
-"the original."
+"Where processed files go. Overwriting keeps a timestamped backup beside the "
+"original."
 msgstr ""
 
-#: src/imslim/options_view.py:104
-msgid "Destination"
-msgstr ""
-
-#: src/imslim/options_view.py:107
+#: src/imslim/options_view.py:125
 msgid "Choose a folder"
 msgstr ""
 
-#: src/imslim/options_view.py:110
+#: src/imslim/options_view.py:128
 msgid "Browse…"
 msgstr ""
 
-#: src/imslim/options_view.py:119
+#: src/imslim/options_view.py:137 src/imslim/options_view.py:144
 msgid "New timestamped directory"
 msgstr ""
 
-#: src/imslim/options_view.py:121
+#: src/imslim/options_view.py:139
 msgid ""
 "Write the results into an imslim-<timestamp> directory inside the "
 "destination."
 msgstr ""
 
-#: src/imslim/options_view.py:127
+#: src/imslim/options_view.py:147 src/imslim/options_view.py:204
 msgid "Include sub-directories"
 msgstr ""
 
-#: src/imslim/options_view.py:132
+#: src/imslim/options_view.py:151 src/imslim/options_view.py:205
 msgid "Keep EXIF and metadata"
 msgstr ""
 
-#: src/imslim/options_view.py:137
+#: src/imslim/options_view.py:155 src/imslim/options_view.py:206
 msgid "Keep file attributes"
 msgstr ""
 
-#: src/imslim/options_view.py:142
-msgid "Skip if the result is larger"
-msgstr ""
-
-#: src/imslim/options_view.py:144
-msgid "Keep the original when compressing would not make the file smaller."
-msgstr ""
-
-#: src/imslim/options_view.py:156
-msgid ""
-"Maximum seconds a single compression tool may run on one image before it is "
-"stopped. Raise it for very large AVIF or JXL images."
+#: src/imslim/options_view.py:159 src/imslim/options_view.py:209
+msgid "Skip if result is larger"
 msgstr ""
 
 #: src/imslim/options_view.py:161
-msgid "Tool timeout"
+msgid "Keep the original when compressing would not make the file smaller."
 msgstr ""
 
-#: src/imslim/options_view.py:164
+#: src/imslim/options_view.py:167
 msgid "Lossless"
 msgstr ""
 
-#: src/imslim/options_view.py:165
+#: src/imslim/options_view.py:168
 msgid ""
 "Lossy is much smaller with some quality loss; lossless keeps the pixels "
 "exact."
 msgstr ""
 
-#: src/imslim/options_view.py:169
-msgid "Compression"
+#: src/imslim/options_view.py:182
+msgid ""
+"Maximum seconds a single compression tool may run on one image before it is "
+"stopped."
 msgstr ""
 
-#: src/imslim/options_view.py:190
-msgid "About"
+#: src/imslim/options_view.py:199
+msgid "Output format"
 msgstr ""
 
-#: src/imslim/options_view.py:195
+#: src/imslim/options_view.py:200
+msgid "Destination"
+msgstr ""
+
+#: src/imslim/options_view.py:213
+msgid "Tool timeout"
+msgstr ""
+
+#: src/imslim/options_view.py:215
+msgid "Compression mode"
+msgstr ""
+
+#: src/imslim/options_view.py:247
 msgid "Process"
 msgstr ""
 
-#: src/imslim/options_view.py:397
+#: src/imslim/options_view.py:352 src/imslim/options_view.py:359
+msgid "Format notes"
+msgstr ""
+
+#: src/imslim/options_view.py:563
 msgid "Select Output Folder"
 msgstr ""
 
@@ -464,7 +492,7 @@ msgstr ""
 msgid "Compression has reached the configured timeout of %s seconds."
 msgstr ""
 
-#: src/imslim/pipeline.py:50 src/imslim/window.py:217
+#: src/imslim/pipeline.py:50
 msgid "Compression failed."
 msgstr ""
 
@@ -476,7 +504,7 @@ msgstr ""
 msgid "An unknown error has occurred."
 msgstr ""
 
-#: src/imslim/pipeline.py:121
+#: src/imslim/pipeline.py:123
 msgid "Can't find the compressed file"
 msgstr ""
 
@@ -519,76 +547,76 @@ msgstr ""
 msgid "Properties — {name}"
 msgstr ""
 
-#: src/imslim/queue_view.py:148
+#: src/imslim/queue_view.py:187
 msgid "Add files"
 msgstr ""
 
-#: src/imslim/queue_view.py:152
+#: src/imslim/queue_view.py:191
 msgid "Add a directory"
 msgstr ""
 
-#: src/imslim/queue_view.py:160
-msgid "Remove the selected files from the queue"
+#: src/imslim/queue_view.py:199
+msgid "Remove selected files from queue"
 msgstr ""
 
-#: src/imslim/queue_view.py:165
-msgid "Clear the queue"
+#: src/imslim/queue_view.py:204
+msgid "Clear entire queue"
 msgstr ""
 
-#: src/imslim/queue_view.py:257
+#: src/imslim/queue_view.py:297
 msgid "Drop or paste files or directory here to compress."
 msgstr ""
 
-#: src/imslim/queue_view.py:273
+#: src/imslim/queue_view.py:313
 msgid "Add"
 msgstr ""
 
-#: src/imslim/queue_view.py:321
+#: src/imslim/queue_view.py:371
 msgid "List view; click for thumbnails"
 msgstr ""
 
-#: src/imslim/queue_view.py:322
+#: src/imslim/queue_view.py:372
 msgid "Thumbnail view; click for a list"
 msgstr ""
 
-#: src/imslim/queue_view.py:376
+#: src/imslim/queue_view.py:426
 msgid "Add Files…"
 msgstr ""
 
-#: src/imslim/queue_view.py:378
+#: src/imslim/queue_view.py:428
 msgid "Add Directory…"
 msgstr ""
 
-#: src/imslim/queue_view.py:384
+#: src/imslim/queue_view.py:434
 msgid "Remove from Queue"
 msgstr ""
 
-#: src/imslim/queue_view.py:387
+#: src/imslim/queue_view.py:437
 msgid "Clear Queue"
 msgstr ""
 
-#: src/imslim/queue_view.py:425
+#: src/imslim/queue_view.py:475
 #, python-format
 msgid "Showing only the first %d files; all of them are still processed."
 msgstr ""
 
-#: src/imslim/queue_view.py:524
+#: src/imslim/queue_view.py:574
 msgid "Compressing…"
 msgstr ""
 
-#: src/imslim/queue_view.py:526 src/imslim/result_item_row.py:229
+#: src/imslim/queue_view.py:576 src/imslim/result_item_row.py:226
 msgid "Cancelled"
 msgstr ""
 
-#: src/imslim/queue_view.py:532 src/imslim/result_item_row.py:235
+#: src/imslim/queue_view.py:582 src/imslim/result_item_row.py:232
 msgid "Already optimal"
 msgstr ""
 
-#: src/imslim/queue_view.py:598
+#: src/imslim/queue_view.py:648
 msgid "1 file"
 msgstr ""
 
-#: src/imslim/queue_view.py:598
+#: src/imslim/queue_view.py:648
 #, python-brace-format
 msgid "{count} files"
 msgstr ""
@@ -597,47 +625,18 @@ msgstr ""
 msgid "This file doesn't exist."
 msgstr ""
 
-#: src/imslim/result_item_manager.py:143
+#: src/imslim/result_item_manager.py:153
 msgid "Animation will be lost: only the first frame is kept."
 msgstr ""
 
-#: src/imslim/result_item_row.py:217
+#: src/imslim/result_item_row.py:214
 msgid "More Information"
 msgstr ""
 
-#: src/imslim/result_item_row.py:287
+#: src/imslim/result_item_row.py:284
 msgid ""
 "Compression was skipped because compressing the file would have resulted in "
 "a larger file size."
-msgstr ""
-
-#: src/imslim/results_view.py:84
-msgid "Stop"
-msgstr ""
-
-#: src/imslim/results_view.py:84
-msgid "Stop the current compression."
-msgstr ""
-
-#: src/imslim/results_view.py:91
-msgid "Open the folder the compressed files were written to."
-msgstr ""
-
-#: src/imslim/results_view.py:144
-msgid "Image:"
-msgstr ""
-
-#: src/imslim/results_view.py:163
-#, python-format
-msgid "Showing only the first %d results."
-msgstr ""
-
-#: src/imslim/results_view.py:225
-msgid "Size change:"
-msgstr ""
-
-#: src/imslim/results_view.py:225
-msgid "Reduced by:"
 msgstr ""
 
 #: src/imslim/system_info.py:31 src/imslim/system_info.py:54
@@ -645,34 +644,30 @@ msgstr ""
 msgid "Version not available"
 msgstr ""
 
-#: src/imslim/window.py:118
+#: src/imslim/window.py:137
 msgid "Add Files"
 msgstr ""
 
-#: src/imslim/window.py:122
+#: src/imslim/window.py:141
 msgid "Add Directory"
 msgstr ""
 
-#: src/imslim/window.py:125
+#: src/imslim/window.py:144
 msgid "Paste from Clipboard"
 msgstr ""
 
-#: src/imslim/window.py:129
+#: src/imslim/window.py:148
 msgid "Quit"
 msgstr ""
 
-#: src/imslim/window.py:215
-msgid "Skipped: the result would not be smaller."
+#: src/imslim/window.py:271
+msgid "Generating preview…"
 msgstr ""
 
-#: src/imslim/window.py:219
-msgid "Cancelled."
-msgstr ""
-
-#: src/imslim/window.py:287
+#: src/imslim/window.py:404
 msgid "Select Images"
 msgstr ""
 
-#: src/imslim/window.py:294
+#: src/imslim/window.py:411
 msgid "Select Folder"
 msgstr ""

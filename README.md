@@ -28,11 +28,9 @@ Inspired by [Curtail](https://github.com/Huluti/Curtail) - feature parity + much
 - configurable compression timeout, log level and log rotation.
 - follows the system light/dark theme; UI strings are translatable.
 
-## Installation
+## Install
 
-### AppImage (recommended)
-
-[Download latest release](https://github.com/dcog989/ImSlim/releases/latest) AppImage, then run:
+[Download latest release](https://github.com/dcog989/ImSlim/releases/latest) then run:
 
 ```sh
 bash install_appimage.sh ImSlim-*-linux-x86_64.AppImage

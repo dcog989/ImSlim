@@ -42,11 +42,11 @@ class CompressorType(StrEnum):
     SVG = "svg"
 
 
-_QUALITY_HINT = _("Set the quality; 100 is best.")
+_QUALITY_HINT = _("Image quality; 100 is best.")
 
 
 def _level_hint(max_level: int) -> str:
-    return _("Set the level; {} is highest but slowest.").format(max_level)
+    return _("Processing effort; {} is highest and slowest.").format(max_level)
 
 
 @dataclass(frozen=True)
@@ -111,7 +111,7 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
                 "jpg-progressive",
                 "flag",
                 False,
-                _("Progressive Encode"),
+                _("Progressive"),
                 _("Render incrementally, from blurry to clear."),
             ),
         ),
@@ -196,7 +196,7 @@ FORMAT_SPECS: tuple[FormatSpec, ...] = (
                 "svg-maximum-level",
                 "flag",
                 False,
-                _("Maximum Compression Level"),
+                _("Maximum Compression"),
                 _("Enable maximum cleaning of SVG images; can be more destructive."),
             ),
         ),

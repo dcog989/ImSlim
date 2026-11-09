@@ -114,7 +114,7 @@ class OptionsView(QWidget):
         self.combo_destination: QComboBox = self._combo(
             tuple(label for label, _value in _DESTINATIONS),
             _(
-                "Where the compressed files go. Overwriting keeps a timestamped "
+                "Where processed files go. Overwriting keeps a timestamped "
                 + "backup beside the original."
             ),
         )
@@ -180,7 +180,7 @@ class OptionsView(QWidget):
         self.spin_timeout.setToolTip(
             _(
                 "Maximum seconds a single compression tool may run on one image "
-                + "before it is stopped. Raise it for very large AVIF or JXL images."
+                + "before it is stopped."
             )
         )
         _res = self.spin_timeout.valueChanged.connect(self._on_timeout)
@@ -204,7 +204,11 @@ class OptionsView(QWidget):
         self._add_wide(self._check_row(_("Include sub-directories"), self.check_recursive))
         self._add_wide(self._check_row(_("Keep EXIF and metadata"), self.check_metadata))
         self._add_wide(self._check_row(_("Keep file attributes"), self.check_attributes))
-        self._add_wide(self._check_row(_("Skip if result is larger"), self.check_skip_if_larger))
+        self._add_wide(
+            self._check_row(
+                _("Skip if result is larger"), self.check_skip_if_larger, with_hint=False
+            )
+        )
         self._add_wide(self._divider())
         self._add_field(_("Tool timeout"), self.spin_timeout)
         self._add_wide(self._divider())
@@ -308,7 +312,7 @@ class OptionsView(QWidget):
         check.setAccessibleName(label)
         return check
 
-    def _check_row(self, label: str, check: QCheckBox) -> QWidget:
+    def _check_row(self, label: str, check: QCheckBox, *, with_hint: bool = True) -> QWidget:
         """A label, its checkbox and the hint button, with one shared gap."""
         row = QWidget()
         layout = QHBoxLayout(row)
@@ -321,7 +325,7 @@ class OptionsView(QWidget):
             text.setToolTip(hint)
         layout.addWidget(text)
         layout.addStretch(1)
-        if hint:
+        if hint and with_hint:
             info = self._info_button(label, partial(self._show_note_dialog, label, hint))
             layout.addWidget(info)
         layout.addWidget(check)
@@ -421,12 +425,13 @@ class OptionsView(QWidget):
             knobs_row.setContentsMargins(0, 0, 0, 0)
             knobs_row.setSpacing(16)
             knobs_row.addStretch(1)
-            # Flags get their own line: a checkbox beside two level knobs makes
-            # the row wider than the pane.
+            # Flags get their own line unless a single level knob shares it: a
+            # checkbox beside two level knobs makes the row wider than the pane.
+            level_knobs = [knob for knob in spec.knobs if knob.kind != "flag"]
             flags: list[QWidget] = []
             for knob in spec.knobs:
                 widget = self._knob_widget(knob)
-                if knob.kind == "flag":
+                if knob.kind == "flag" and len(level_knobs) != 1:
                     flags.append(widget)
                 else:
                     knobs_row.addWidget(widget)
