@@ -1,5 +1,6 @@
 """Column 3: the original and the processed image, side by side (stacked)."""
 
+import logging
 import math
 import time
 from typing import override
@@ -27,11 +28,13 @@ from .workers import Task, start_task
 _MIN_ZOOM = 1.0
 _MAX_ZOOM = 8.0
 _ZOOM_STEP = 1.25
-# Freed pixels beyond the fit are limited so a drag cannot lose the image.
+# Padding so a fitted image does not touch the pane frame.
 _PANE_MARGIN = 8
 # The decoded image is already capped in preview.py; this bounds the *display*
 # zoom to roughly 2x the viewport area, as the design asks.
 _VIEWPORT_AREA_BUDGET = 2.0
+
+logger = logging.getLogger(__name__)
 
 
 class _PreviewTask(Task):
@@ -47,7 +50,14 @@ class _PreviewTask(Task):
     @override
     def run(self) -> None:
         try:
-            self.loaded.emit(self._token, load_preview(self._path))
+            try:
+                image: QImage | None = load_preview(self._path)
+            except Exception:
+                # Never leave the pane on "Loading…": report a failed decode
+                # the same way load_preview() reports an unreadable file.
+                logger.exception("Preview decode failed unexpectedly for %s", self._path)
+                image = None
+            self.loaded.emit(self._token, image)
         finally:
             self.finished.emit()
 
@@ -87,6 +97,9 @@ class ImagePane(QWidget):
 
     def has_image(self) -> bool:
         return self._image is not None
+
+    def image(self) -> QImage | None:
+        return self._image
 
     # ------------------------------------------------------------------ zoom
     @property
@@ -147,20 +160,19 @@ class ImagePane(QWidget):
                 int(Qt.AlignmentFlag.AlignCenter) | int(Qt.TextFlag.TextWordWrap),
                 self._placeholder,
             )
-            _res = painter.end()
             return
         scale = self._fit_scale() * self._zoom
         width = image.width() * scale
         height = image.height() * scale
+        # Pan is stored in image pixels so both panes show the same region.
         target = QRectF(
-            (self.width() - width) / 2 + self._pan.x(),
-            (self.height() - height) / 2 + self._pan.y(),
+            (self.width() - width) / 2 + self._pan.x() * scale,
+            (self.height() - height) / 2 + self._pan.y() * scale,
             width,
             height,
         )
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         painter.drawImage(target, image)
-        _res = painter.end()
 
     # ------------------------------------------------------------- interaction
     @override
@@ -179,11 +191,11 @@ class ImagePane(QWidget):
             self._pan = QPointF()
             return
         scale = self._fit_scale() * self._zoom
-        overflow_x = max(0.0, (image.width() * scale - self.width()) / 2)
-        overflow_y = max(0.0, (image.height() * scale - self.height()) / 2)
+        half_width = max(0.0, (image.width() - self.width() / scale) / 2)
+        half_height = max(0.0, (image.height() - self.height() / scale) / 2)
         self._pan = QPointF(
-            max(-overflow_x, min(overflow_x, self._pan.x())),
-            max(-overflow_y, min(overflow_y, self._pan.y())),
+            max(-half_width, min(half_width, self._pan.x())),
+            max(-half_height, min(half_height, self._pan.y())),
         )
 
     def set_pan(self, pan: QPointF) -> None:
@@ -208,7 +220,8 @@ class ImagePane(QWidget):
         if event.buttons() & Qt.MouseButton.LeftButton and self._dragging():
             delta = event.position() - self._last_pos
             self._last_pos = event.position()
-            self._pan += delta
+            # Widget pixels to image pixels: both panes must move the same region.
+            self._pan += delta / (self._fit_scale() * self._zoom)
             self._clamp_pan()
             self.update()
             self.pan_changed.emit(self._pan)
@@ -228,6 +241,16 @@ class ImagePane(QWidget):
         super().resizeEvent(event)
 
 
+def _savings_text(size: int, savings: int) -> str:
+    if not size:
+        return ""
+    if savings < 0:
+        return _("{percent}% larger").format(percent=-savings)
+    if savings == 0:
+        return _("No change")
+    return _("{percent}% saved").format(percent=savings)
+
+
 class CompareView(QWidget):
     """Vertical comparison of the source and the processed output."""
 
@@ -236,9 +259,14 @@ class CompareView(QWidget):
         self._request: int = 0
         self._tokens: dict[ImagePane, int] = {}
         self._pending: dict[int, ImagePane] = {}
+        # One decode per pane at a time; the newest request replaces any queued.
+        self._decoding: set[ImagePane] = set()
+        self._queued: dict[ImagePane, tuple[int, str, str]] = {}
+        self._split_done: bool = False
         # The source currently shown; repeated item updates must not decode it
         # again (that also resets the zoom and pan the user set).
         self._shown_original: str = ""
+        self._shown_processed: str = ""
         self._original: ImagePane = ImagePane(_("Select a file to preview it."))
         self._processed: ImagePane = ImagePane(_("The processed image appears here."))
 
@@ -301,8 +329,8 @@ class CompareView(QWidget):
             (self._processed, self._original),
         ):
             _res = pane.zoom_changed.connect(other.set_zoom)
-            _res = pane.zoom_changed.connect(self._on_zoom_changed)
             _res = pane.pan_changed.connect(other.set_pan)
+        _res = self._original.zoom_changed.connect(self._on_zoom_changed)
         self._on_zoom_changed(self._original.zoom)
 
     # ------------------------------------------------------------------ images
@@ -316,7 +344,8 @@ class CompareView(QWidget):
     @override
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
-        self._split_evenly()
+        if not self._split_done:
+            self._split_evenly()
 
     def _split_evenly(self) -> None:
         """Give both images half the height; the after header sits on top."""
@@ -326,6 +355,8 @@ class CompareView(QWidget):
         if half <= 0:
             return
         self._splitter.setSizes([half, half + header])
+        # The user's own split must survive later shows; a double-click resets it.
+        self._split_done = True
 
     def refresh_theme(self) -> None:
         """Re-apply the splitter colors and muted header labels after a palette change."""
@@ -367,13 +398,22 @@ class CompareView(QWidget):
         self.processed_path.setText(shown)
         self.processed_path.setToolTip(plain_tooltip(shown))
         self.processed_size.setText(sizeof_fmt(size) if size else "")
-        self.processed_savings.setText(
-            _("{percent}% saved").format(percent=savings) if size else ""
-        )
+        self.processed_savings.setText(_savings_text(size, savings))
+        if path == self._shown_processed:
+            return
+        self._shown_processed = path
+        if path == self._shown_original and self._original.has_image():
+            # Mid-batch the source is shown here; reuse the top pane's decode.
+            self._tokens[self._processed] = -1
+            _res = self._queued.pop(self._processed, None)
+            self._processed.set_image(self._original.image())
+            return
         self._load(self._processed, path, _("Loading…"))
 
     def clear_processed(self, placeholder: str | None = None) -> None:
         self._tokens[self._processed] = -1
+        _res = self._queued.pop(self._processed, None)
+        self._shown_processed = ""
         self.processed_path.setText("")
         self.processed_size.setText("")
         self.processed_savings.setText("")
@@ -381,6 +421,7 @@ class CompareView(QWidget):
 
     def clear(self) -> None:
         self._tokens[self._original] = -1
+        _res = self._queued.pop(self._original, None)
         self._shown_original = ""
         self.path_label.setText("")
         self.size_label.setText("")
@@ -389,9 +430,18 @@ class CompareView(QWidget):
         self.clear_processed()
 
     def _load(self, pane: ImagePane, path: str, placeholder: str) -> None:
+        # One decode per pane at a time: a fast click-through must not queue a
+        # full decode per file with the newest one last.
         self._request += 1
         token = self._request
         self._tokens[pane] = token
+        if pane in self._decoding:
+            self._queued[pane] = (token, path, placeholder)
+            return
+        self._start_load(pane, token, path, placeholder)
+
+    def _start_load(self, pane: ImagePane, token: int, path: str, placeholder: str) -> None:
+        self._decoding.add(pane)
         self._pending[token] = pane
         # Keep the pane's current placeholder when it is already empty; swapping
         # text in before the image lands is a second flash.
@@ -403,7 +453,16 @@ class CompareView(QWidget):
 
     def _on_loaded(self, token: int, image: object) -> None:
         pane = self._pending.pop(token, None)
-        if pane is None or self._tokens.get(pane) != token:
+        if pane is None:
+            return
+        self._decoding.discard(pane)
+        queued = self._queued.pop(pane, None)
+        if queued is not None:
+            # Decode only the newest request that arrived while this one ran.
+            if self._tokens.get(pane) == queued[0]:
+                self._start_load(pane, *queued)
+            return
+        if self._tokens.get(pane) != token:
             # A newer selection won; a late decode must not replace it.
             return
         if isinstance(image, QImage):

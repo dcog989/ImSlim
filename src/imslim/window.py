@@ -237,6 +237,7 @@ class ImSlimWindow(QWidget):
             _res = self._progress.close()
             self._progress = None
         self._finish_batch()
+        self._refresh_selected()
         self._drain_pending()
 
     def _on_summary(self) -> None:
@@ -278,17 +279,33 @@ class ImSlimWindow(QWidget):
                 result_item.new_size,
                 savings_percent(result_item.size, result_item.new_size),
             )
-        elif self.flow.active:
-            # No preview runs mid-batch, so the source is the only reference.
-            self.compare.show_processed(result_item.filename)
         elif result_item.state is ResultState.ERROR or (
             result_item.mime_type not in ALLOWED_MIME_TYPES
         ):
             # Analysis already failed or the format is unsupported: no preview
             # will ever arrive, so do not leave the pane on a loading placeholder.
             self.compare.clear_processed(_("Preview unavailable."))
+        elif result_item.state is ResultState.SKIPPED:
+            self.compare.clear_processed(_("Output not smaller: original kept."))
+        elif result_item.state is ResultState.CANCELLED:
+            self.compare.clear_processed(_("Cancelled."))
+        elif result_item.state is ResultState.DONE:
+            # The output vanished after the batch; nothing left to compare with.
+            self.compare.clear_processed(_("Preview unavailable."))
+        elif self.flow.active:
+            # No preview runs mid-batch, so the source is the only reference.
+            self.compare.show_processed(result_item.filename)
         else:
             self.compare.clear_processed(_("Generating preview…"))
+
+    def _refresh_selected(self) -> None:
+        """Resolve the pane after a batch: previews do not run while it is active."""
+        item = self.queue.selected_item()
+        if not isinstance(item, ResultItem):
+            return
+        self._refresh_compare(item)
+        if item.state is ResultState.IDLE:
+            self._schedule_preview(item)
 
     # --------------------------------------------------------------- previews
     def _on_options_changed(self) -> None:
@@ -304,6 +321,8 @@ class ImSlimWindow(QWidget):
             or result_item.mime_type not in ALLOWED_MIME_TYPES
         ):
             return
+        # Invalidate a preview encoded with the settings the user just changed.
+        self._cancel_preview()
         self._preview_item = result_item
         self._preview_timer.start()
 
