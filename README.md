@@ -105,7 +105,7 @@ UI strings are wrapped in `_()` from `imslim._i18n`, which loads gettext catalog
 `make translations` to regenerate the template and compile the `.mo` files (requires GNU gettext). Untranslated builds fall back to English.
 
 > [!NOTE]
-> `make install`: installs the app into the user's home (via `uv tool install`), registers it as a handler for supported image types, and refreshes the desktop menu cache with whatever tool the distro provides (`kbuildsycoca` on KDE, `update-desktop-database` on freedesktop-based DEs). It runs `kbuildsycoca6`/`kbuildsycoca5` or `update-desktop-database` when present, so it works across KDE, GNOME, XFCE, and others.
+> `make install`: installs the app into the user's home (via `uv tool install`), registers it as a handler for supported image types and directories, and refreshes the desktop menu cache with whatever tool the distro provides (`kbuildsycoca` on KDE, `update-desktop-database` on freedesktop-based DEs). It runs `kbuildsycoca6`/`kbuildsycoca5` or `update-desktop-database` when present, so it works across KDE, GNOME, XFCE, and others.
 
 ---
 

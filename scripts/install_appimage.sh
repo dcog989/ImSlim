@@ -46,7 +46,7 @@ Icon=imslim
 Terminal=false
 Categories=Graphics;Utility;
 Keywords=image;compress;optimize;png;jpeg;webp;avif;jxl;svg;
-MimeType=image/png;image/jpeg;image/gif;image/webp;image/avif;image/jxl;image/svg+xml;image/bmp;image/tiff;
+MimeType=inode/directory;image/png;image/jpeg;image/gif;image/webp;image/avif;image/jxl;image/svg+xml;image/bmp;image/tiff;
 EOF
 fi
 
