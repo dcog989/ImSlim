@@ -100,7 +100,11 @@ class NowRunner(QObject):
 
     def _on_output_folder_error(self) -> None:
         self._code = EXIT_USAGE
-        _res = QMessageBox.warning(None, _("Error"), _("Can't create the output folder."))
+        _res = QMessageBox.warning(
+            None,
+            _("Error"),
+            _("Can't use the output folder. Choose a folder or another destination."),
+        )
         self._quit()
 
     def _on_analyze_failed(self) -> None:
