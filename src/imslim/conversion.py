@@ -1,5 +1,7 @@
+import subprocess
 import sys
 import threading
+from contextlib import nullcontext
 from functools import partial
 
 from .binary_resolver import resolve_tool
@@ -48,6 +50,21 @@ def decode_commands(
             )
         return commands
     return [_qt_decode_command(source, destination)]
+
+
+def run_commands(commands: list[Command], timeout: float) -> None:
+    """Run decode commands in order, honouring each command's concurrency limit."""
+    for command in commands:
+        with command.limit if command.limit is not None else nullcontext():
+            if command.argv is not None:
+                _res = subprocess.run(
+                    command.argv,
+                    check=True,
+                    capture_output=True,
+                    timeout=timeout,
+                )
+            elif command.action is not None:
+                command.action()
 
 
 def _qt_decode_command(source: str, destination: str) -> Command:
