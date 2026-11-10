@@ -68,6 +68,9 @@ _BMP_TIFF_NOTE = _(
     + "original format cannot be kept."
 )
 _SVG_NOTE = _("SVG images are always compressed losslessly.")
+_ANIMATED_GIF_NOTE = _(
+    "Animated GIFs are always compressed losslessly; the lossy level only applies to static GIFs."
+)
 _ANIMATION_NOTE = _("Converting an animated image keeps only its first frame.")
 _JPEG_NOTE = _("JPEG has no lossless encoder, so it is always compressed lossily.")
 _METADATA_NOTE = _("EXIF/XMP metadata is not carried across different formats.")
@@ -79,7 +82,7 @@ _LOSSLESS_INDEX = 1
 def _format_notes(target: Format) -> list[str]:
     """Caveats that apply to the currently selected output format."""
     if target is Format.KEEP:
-        return [_BMP_TIFF_NOTE, _SVG_NOTE]
+        return [_BMP_TIFF_NOTE, _SVG_NOTE, _ANIMATED_GIF_NOTE]
     if target is Format.JPEG:
         return [_JPEG_NOTE, _ANIMATION_NOTE, _METADATA_NOTE]
     return [_ANIMATION_NOTE, _METADATA_NOTE]

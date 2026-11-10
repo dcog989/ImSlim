@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: imslim 2.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-09 21:00+0000\n"
+"POT-Creation-Date: 2026-11-10 07:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -133,7 +133,7 @@ msgid "Failed"
 msgstr ""
 
 #: src/imslim/dialogs.py:195 src/imslim/dialogs.py:480
-#: src/imslim/options_view.py:433 src/imslim/properties.py:120
+#: src/imslim/options_view.py:436 src/imslim/properties.py:120
 msgid "Close"
 msgstr ""
 
@@ -216,8 +216,8 @@ msgstr ""
 msgid "Copied"
 msgstr ""
 
-#: src/imslim/dialogs.py:472 src/imslim/options_view.py:270
-#: src/imslim/options_view.py:271
+#: src/imslim/dialogs.py:472 src/imslim/options_view.py:273
+#: src/imslim/options_view.py:274
 msgid "About ImSlim"
 msgstr ""
 
@@ -300,7 +300,7 @@ msgstr ""
 
 #: src/imslim/formats.py:93 src/imslim/formats.py:109 src/imslim/formats.py:131
 #: src/imslim/formats.py:147 src/imslim/formats.py:163
-#: src/imslim/formats.py:179 src/imslim/options_view.py:201
+#: src/imslim/formats.py:179 src/imslim/options_view.py:204
 msgid "Lossy"
 msgstr ""
 
@@ -353,7 +353,7 @@ msgstr ""
 msgid "Copy Error Details"
 msgstr ""
 
-#: src/imslim/main.py:126
+#: src/imslim/main.py:132
 msgid ""
 "Usage: imslim [FILES...]\n"
 "       imslim --now FILES...\n"
@@ -365,11 +365,21 @@ msgid ""
 "  -V, --version  Show the version and exit."
 msgstr ""
 
-#: src/imslim/main.py:394
+#: src/imslim/main.py:203
+#, python-brace-format
+msgid "Unknown option: {option}"
+msgstr ""
+
+#: src/imslim/main.py:207
+#, python-brace-format
+msgid "Not a local file: {arg}"
+msgstr ""
+
+#: src/imslim/main.py:442
 msgid "ImSlimNow needs a graphical session."
 msgstr ""
 
-#: src/imslim/main.py:406
+#: src/imslim/main.py:454
 msgid "Usage: imslim --decode-png SOURCE DESTINATION"
 msgstr ""
 
@@ -431,124 +441,130 @@ msgstr ""
 msgid "SVG images are always compressed losslessly."
 msgstr ""
 
-#: src/imslim/options_view.py:71
+#: src/imslim/options_view.py:72
+msgid ""
+"Animated GIFs are always compressed losslessly; the lossy level only applies "
+"to static GIFs."
+msgstr ""
+
+#: src/imslim/options_view.py:74
 msgid "Converting an animated image keeps only its first frame."
 msgstr ""
 
-#: src/imslim/options_view.py:72
+#: src/imslim/options_view.py:75
 msgid "JPEG has no lossless encoder, so it is always compressed lossily."
 msgstr ""
 
-#: src/imslim/options_view.py:73
+#: src/imslim/options_view.py:76
 msgid "EXIF/XMP metadata is not carried across different formats."
 msgstr ""
 
-#: src/imslim/options_view.py:116
+#: src/imslim/options_view.py:119
 msgid "Same as input"
 msgstr ""
 
-#: src/imslim/options_view.py:117
+#: src/imslim/options_view.py:120
 msgid ""
 "Output format. Keep each file's format, or convert everything to one format."
 msgstr ""
 
-#: src/imslim/options_view.py:132
+#: src/imslim/options_view.py:135
 msgid ""
 "Where processed files go. Overwriting keeps a timestamped backup beside the "
 "original."
 msgstr ""
 
-#: src/imslim/options_view.py:141
+#: src/imslim/options_view.py:144
 msgid "Where the Add Files and Add Folder dialogs start."
 msgstr ""
 
-#: src/imslim/options_view.py:147 src/imslim/options_view.py:159
+#: src/imslim/options_view.py:150 src/imslim/options_view.py:162
 msgid "Choose a folder"
 msgstr ""
 
-#: src/imslim/options_view.py:150 src/imslim/options_view.py:162
+#: src/imslim/options_view.py:153 src/imslim/options_view.py:165
 msgid "Browse…"
 msgstr ""
 
-#: src/imslim/options_view.py:171 src/imslim/options_view.py:178
+#: src/imslim/options_view.py:174 src/imslim/options_view.py:181
 msgid "New timestamped directory"
 msgstr ""
 
-#: src/imslim/options_view.py:173
+#: src/imslim/options_view.py:176
 msgid ""
 "Write the results into an imslim-<timestamp> directory inside the "
 "destination."
 msgstr ""
 
-#: src/imslim/options_view.py:181 src/imslim/options_view.py:238
+#: src/imslim/options_view.py:184 src/imslim/options_view.py:236
 msgid "Include sub-directories"
 msgstr ""
 
-#: src/imslim/options_view.py:185 src/imslim/options_view.py:239
+#: src/imslim/options_view.py:188 src/imslim/options_view.py:242
 msgid "Keep EXIF and metadata"
 msgstr ""
 
-#: src/imslim/options_view.py:189 src/imslim/options_view.py:240
+#: src/imslim/options_view.py:192 src/imslim/options_view.py:243
 msgid "Keep file attributes"
 msgstr ""
 
-#: src/imslim/options_view.py:193 src/imslim/options_view.py:243
+#: src/imslim/options_view.py:196 src/imslim/options_view.py:246
 msgid "Skip if result is larger"
 msgstr ""
 
-#: src/imslim/options_view.py:195
+#: src/imslim/options_view.py:198
 msgid "Keep the original when compressing would not make the file smaller."
 msgstr ""
 
-#: src/imslim/options_view.py:201
+#: src/imslim/options_view.py:204
 msgid "Lossless"
 msgstr ""
 
-#: src/imslim/options_view.py:202
+#: src/imslim/options_view.py:205
 msgid ""
 "Lossy is much smaller with some quality loss; lossless keeps the pixels "
 "exact."
 msgstr ""
 
-#: src/imslim/options_view.py:216
+#: src/imslim/options_view.py:219
 msgid ""
 "Maximum seconds a single compression tool may run on one image before it is "
 "stopped."
 msgstr ""
 
-#: src/imslim/options_view.py:233
+#: src/imslim/options_view.py:237
 msgid "Output format"
 msgstr ""
 
-#: src/imslim/options_view.py:234
+#: src/imslim/options_view.py:238
 msgid "Destination"
 msgstr ""
 
-#: src/imslim/options_view.py:247
+#: src/imslim/options_view.py:250
 msgid "Open on startup"
 msgstr ""
 
-#: src/imslim/options_view.py:250
+#: src/imslim/options_view.py:253
 msgid "Tool timeout"
 msgstr ""
 
-#: src/imslim/options_view.py:252
+#: src/imslim/options_view.py:255
 msgid "Compression mode"
 msgstr ""
 
-#: src/imslim/options_view.py:285
+#: src/imslim/options_view.py:288
 msgid "Process"
 msgstr ""
 
-#: src/imslim/options_view.py:401 src/imslim/options_view.py:408
+#: src/imslim/options_view.py:404 src/imslim/options_view.py:411
 msgid "Format notes"
 msgstr ""
 
-#: src/imslim/options_view.py:628
+#: src/imslim/options_view.py:631
 msgid "Select Output Folder"
 msgstr ""
 
-#: src/imslim/options_view.py:646
+#: src/imslim/options_view.py:649
 msgid "Select Startup Folder"
 msgstr ""
 
@@ -717,7 +733,7 @@ msgstr ""
 msgid "Can't create the output folder."
 msgstr ""
 
-#: src/imslim/result_item_manager.py:214
+#: src/imslim/result_item_manager.py:218
 msgid "Animation will be lost: only the first frame is kept."
 msgstr ""
 
