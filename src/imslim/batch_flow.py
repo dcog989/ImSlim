@@ -1,5 +1,4 @@
 import logging
-import os
 
 from PySide6.QtCore import QObject, QThreadPool, QTimer, Signal
 
@@ -126,10 +125,10 @@ class BatchFlow(QObject):
         )
 
     def planned_destination(self, result_item: ResultItem) -> str:
-        """Folder this file will be written to; the name is fixed at batch start."""
+        """Output file this item will get; the batch timestamp is generic here."""
         options = BatchOptions.from_settings(self._settings)
-        folder = ResultItemManager(options).destination_hint(result_item.filename) or "."
-        return folder if folder.endswith(os.sep) else folder + os.sep
+        manager = ResultItemManager(options)
+        return manager.planned_filename(result_item.filename, result_item.mime_type)
 
     def preview(
         self,

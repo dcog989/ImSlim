@@ -164,6 +164,30 @@ def test_destination_folder_includes_the_timestamp_dir_without_creating_it(tmp_p
     assert manager.destination_hint(str(tmp_path / "photo.png")) == str(tmp_path / "imslim-…")
 
 
+def test_planned_filename_shows_the_file_inside_the_timestamp_hint(tmp_path) -> None:
+    manager = ResultItemManager(_options(timestamp_dir=True))
+
+    planned = manager.planned_filename(str(tmp_path / "photo.png"), "image/png")
+
+    assert planned == str(tmp_path / "imslim-…" / "photo.png")
+
+
+def test_planned_filename_carries_the_target_extension(tmp_path) -> None:
+    manager = ResultItemManager(_options(timestamp_dir=True, target_format=Format.WEBP))
+
+    planned = manager.planned_filename(str(tmp_path / "photo.tiff"), "image/tiff")
+
+    assert planned == str(tmp_path / "imslim-…" / "photo.webp")
+
+
+def test_planned_filename_marks_the_generic_batch_timestamp(tmp_path) -> None:
+    manager = ResultItemManager(_options())
+
+    planned = manager.planned_filename(str(tmp_path / "photo.png"), "image/png")
+
+    assert planned == str(tmp_path / "photo.imslim.….png")
+
+
 def test_timestamp_dir_is_ignored_when_overwriting_in_place(tmp_path) -> None:
     source = tmp_path / "photo.png"
     source.write_bytes(b"x")

@@ -176,26 +176,30 @@ class ResultItemManager:
 
     def create_new_filename(self, path: str, mime: str) -> str:
         """The output path for `path`."""
+        return self._output_path(
+            path,
+            _OUTPUT_MARKER,
+            mime,
+            self._output_extension(mime),
+            # Overwriting in place keeps the original name (only the extension
+            # can change); every other destination gets the marker.
+            allow_source=self.options.save_method == SAVE_BACKUP_OVERWRITE,
+        )
+
+    def _output_extension(self, mime: str) -> str | None:
         # None keeps the source extension; only re-encoded formats swap it.
         extension = (
             TARGET_EXTENSIONS[self.options.target_format]
             if is_converting(self.options.target_format)
             else OUTPUT_EXTENSIONS.get(mime)
         )
-        # Overwriting in place keeps the original name (only the extension can
-        # change); every other destination gets the marker so nothing clashes.
-        overwrite = self.options.save_method == SAVE_BACKUP_OVERWRITE
         # A same-format re-encode must reuse the source file, .jpeg included:
         # otherwise the original is left behind without a backup.
-        if overwrite and not is_format_change(mime, self.options.target_format):
-            extension = None
-        return self._output_path(
-            path,
-            _OUTPUT_MARKER,
-            mime,
-            extension,
-            allow_source=overwrite,
-        )
+        if self.options.save_method == SAVE_BACKUP_OVERWRITE and not is_format_change(
+            mime, self.options.target_format
+        ):
+            return None
+        return extension
 
     def create_backup_filename(self, path: str, mime: str) -> str:
         return self._output_path(path, _BACKUP_MARKER, mime)
@@ -235,6 +239,17 @@ class ResultItemManager:
         if self._uses_timestamp_dir():
             folder = os.path.join(folder, f"{_OUTPUT_MARKER}-…")
         return folder
+
+    def planned_filename(self, path: str, mime: str) -> str:
+        """Output path shown before a batch; only the batch timestamp is generic."""
+        stem, source_extension = os.path.splitext(os.path.basename(path))
+        extension = self._output_extension(mime)
+        if extension is None:
+            extension = source_extension
+        folder = self.destination_hint(path)
+        if self.options.save_method == SAVE_BACKUP_OVERWRITE or self._uses_timestamp_dir():
+            return os.path.join(folder, f"{stem}{extension}")
+        return os.path.join(folder, f"{stem}.{_OUTPUT_MARKER}.…{extension}")
 
     def _output_parent(self, path: str) -> str:
         parent = self.destination_folder(path)
