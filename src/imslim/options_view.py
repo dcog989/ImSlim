@@ -246,11 +246,10 @@ class OptionsView(QWidget):
                 _("Skip if result is larger"), self.check_skip_if_larger, with_hint=False
             )
         )
+        self._add_field(_("Tool timeout"), self.spin_timeout)
         self._add_wide(self._divider())
         self._add_field(_("Open on startup"), self.combo_start)
         self._add_field("", self.start_folder_row, fill=True)
-        self._add_wide(self._divider())
-        self._add_field(_("Tool timeout"), self.spin_timeout)
         self._add_wide(self._divider())
         self._add_field(_("Compression mode"), self.combo_compression)
         self._add_wide(self.knobs_container)

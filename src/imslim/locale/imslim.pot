@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: imslim 2.0.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 07:21+0000\n"
+"POT-Creation-Date: 2026-11-10 07:31+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -133,7 +133,7 @@ msgid "Failed"
 msgstr ""
 
 #: src/imslim/dialogs.py:202 src/imslim/dialogs.py:513
-#: src/imslim/options_view.py:436 src/imslim/properties.py:120
+#: src/imslim/options_view.py:435 src/imslim/properties.py:120
 msgid "Close"
 msgstr ""
 
@@ -220,8 +220,8 @@ msgstr ""
 msgid "Copy Environment"
 msgstr ""
 
-#: src/imslim/dialogs.py:505 src/imslim/options_view.py:273
-#: src/imslim/options_view.py:274
+#: src/imslim/dialogs.py:505 src/imslim/options_view.py:272
+#: src/imslim/options_view.py:273
 msgid "About ImSlim"
 msgstr ""
 
@@ -544,31 +544,31 @@ msgstr ""
 msgid "Destination"
 msgstr ""
 
-#: src/imslim/options_view.py:250
-msgid "Open on startup"
-msgstr ""
-
-#: src/imslim/options_view.py:253
+#: src/imslim/options_view.py:249
 msgid "Tool timeout"
 msgstr ""
 
-#: src/imslim/options_view.py:255
+#: src/imslim/options_view.py:251
+msgid "Open on startup"
+msgstr ""
+
+#: src/imslim/options_view.py:254
 msgid "Compression mode"
 msgstr ""
 
-#: src/imslim/options_view.py:288
+#: src/imslim/options_view.py:287
 msgid "Process"
 msgstr ""
 
-#: src/imslim/options_view.py:404 src/imslim/options_view.py:411
+#: src/imslim/options_view.py:403 src/imslim/options_view.py:410
 msgid "Format notes"
 msgstr ""
 
-#: src/imslim/options_view.py:631
+#: src/imslim/options_view.py:630
 msgid "Select Output Folder"
 msgstr ""
 
-#: src/imslim/options_view.py:649
+#: src/imslim/options_view.py:648
 msgid "Select Startup Folder"
 msgstr ""
 
