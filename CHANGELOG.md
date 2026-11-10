@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.1.0 - 2026-11-10
+
+#### Features
+
+- (4c9357e) copy the batch results from the finished window - dcog989
+
+- (cee294a) note that animated GIFs stay lossless - dcog989
+
+#### Bug Fixes
+
+- (6f072b0) repaint the rows once the layout settles - dcog989
+
+- (33d336b) label the after image with its planned output file - dcog989
+
+#### Refactoring
+
+- (d25ad00) move the tool timeout under the size check - dcog989
+- - -
+
 ## v2.0.0 - 2026-11-09
 
 #### Features
