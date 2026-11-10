@@ -239,6 +239,9 @@ class QueueView(QWidget):
         self.list_page: QWidget = QWidget()
 
         self.rows_container: QWidget = QWidget()
+        # Opaque so the gaps between rows are painted with the queue background
+        # instead of whatever the hidden thumbnail grid left there.
+        self.rows_container.setAutoFillBackground(True)
         self.rows_layout: QVBoxLayout = QVBoxLayout(self.rows_container)
         self.rows_layout.setContentsMargins(8, 0, 8, 8)
         self.rows_layout.setSpacing(2)
@@ -566,6 +569,14 @@ class QueueView(QWidget):
             self.rows_container.setUpdatesEnabled(True)
         if self._pending_rows:
             self._row_timer.start()
+        elif self._view_mode() == _VIEW_DETAILS:
+            # The rows were laid out while updates were off; at fractional
+            # scales the last one can keep a strip of the old view at its edge.
+            # Settle the layout, then repaint the container and the rows.
+            _res = self.rows_layout.activate()
+            self.rows_container.repaint()
+            for row in self._rows.values():
+                row.update()
 
     def _build_row(self, item: ResultItem, index: int) -> ResultItemRow:
         row = ResultItemRow(item)
@@ -704,6 +715,9 @@ class QueueView(QWidget):
             widget = layout_item.widget()
             if widget is None:
                 continue
+            # deleteLater() runs only when the event loop goes idle; until then
+            # the row stays visible and keeps painting over the rebuilt list.
+            widget.hide()
             widget.deleteLater()
         self._rows.clear()
 
