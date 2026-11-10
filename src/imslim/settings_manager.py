@@ -203,14 +203,7 @@ class SettingsManager:
 
     @property
     def window_geometry(self) -> bytes:
-        raw = self._settings.value("window-geometry", b"")
-        if isinstance(raw, QByteArray):
-            return bytes(raw.data())
-        if isinstance(raw, bytearray):
-            return bytes(raw)
-        if isinstance(raw, bytes):
-            return raw
-        return b""
+        return self._byte_setting("window-geometry")
 
     @window_geometry.setter
     def window_geometry(self, value: bytes) -> None:
@@ -218,16 +211,27 @@ class SettingsManager:
 
     @property
     def layout_state(self) -> bytes:
-        raw = self._settings.value("layout-state", b"")
+        return self._byte_setting("layout-state")
+
+    @layout_state.setter
+    def layout_state(self, value: bytes) -> None:
+        self._settings.setValue("layout-state", QByteArray(value))
+
+    @property
+    def completion_geometry(self) -> bytes:
+        return self._byte_setting("completion-geometry")
+
+    @completion_geometry.setter
+    def completion_geometry(self, value: bytes) -> None:
+        self._settings.setValue("completion-geometry", QByteArray(value))
+
+    def _byte_setting(self, key: str) -> bytes:
+        raw = self._settings.value(key, b"")
         if isinstance(raw, QByteArray):
             return bytes(raw.data())
         if isinstance(raw, (bytes, bytearray)):
             return bytes(raw)
         return b""
-
-    @layout_state.setter
-    def layout_state(self, value: bytes) -> None:
-        self._settings.setValue("layout-state", QByteArray(value))
 
     save_method = _setting("save-method", int)
     output_folder = _setting("output-folder", str)

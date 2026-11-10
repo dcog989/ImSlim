@@ -404,6 +404,7 @@ class ImSlimWindow(QWidget):
             elapsed,
             self._batch_output_folder,
             self,
+            settings=self.settings,
         )
         dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         dialog.show()

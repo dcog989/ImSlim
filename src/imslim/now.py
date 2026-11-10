@@ -90,6 +90,7 @@ class NowRunner(QObject):
             self._settings.output_folder
             if self._settings.save_method == SAVE_OUTPUT_FOLDER
             else "",
+            settings=self._settings,
         )
         self._batch_items = []
         _res = dialog.exec()

@@ -139,11 +139,18 @@ class CompletionDialog(QDialog):
         elapsed_seconds: float,
         output_folder: str,
         parent: QWidget | None = None,
+        *,
+        settings: SettingsManager | None = None,
     ) -> None:
         super().__init__(parent)
+        self._settings: SettingsManager | None = settings
         self.setWindowTitle(_("Finished"))
         self.setMinimumWidth(460)
+        if settings is not None and settings.completion_geometry:
+            # The user's size and position must survive the next batch.
+            _res = self.restoreGeometry(settings.completion_geometry)
         self._rows: list[ResultItem] = list(result_items)
+        self._summary_rows: list[tuple[str, str]] = []
         self._output_folders: list[str] = (
             [output_folder] if output_folder else self._result_folders()
         )
@@ -193,6 +200,9 @@ class CompletionDialog(QDialog):
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.button(QDialogButtonBox.StandardButton.Close).setText(_("Close"))
+        self.copy_button: QPushButton = QPushButton(_("Copy Results"))
+        _res = self.copy_button.clicked.connect(self._copy_results)
+        buttons.addButton(self.copy_button, QDialogButtonBox.ButtonRole.ActionRole)
         if len(self._output_folders) == 1:
             open_folder = QPushButton(_("Open Output Folder"))
             _res = open_folder.clicked.connect(self._open_output_folder)
@@ -200,15 +210,38 @@ class CompletionDialog(QDialog):
         _res = buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
 
-    @staticmethod
-    def _grid_row(grid: QGridLayout, row: int, label: str, value: str) -> QLabel:
+        self._copy_reset: QTimer = QTimer(self)
+        self._copy_reset.setSingleShot(True)
+        self._copy_reset.setInterval(_COPY_RESET_MS)
+        _res = self._copy_reset.timeout.connect(self._reset_copy_button)
+
+    def _grid_row(self, grid: QGridLayout, row: int, label: str, value: str) -> QLabel:
         key = QLabel(label)
         key.setWordWrap(False)
         grid.addWidget(key, row, 0)
         value_label = QLabel(value)
         value_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         grid.addWidget(value_label, row, 1)
+        self._summary_rows.append((label, value))
         return value_label
+
+    def _copy_results(self) -> None:
+        lines = [self.headline.text()]
+        lines += [f"{label}: {value}" for label, value in self._summary_rows]
+        lines.append("")
+        lines += [self._row_text(item) for item in self._rows]
+        QApplication.clipboard().setText("\n".join(lines))
+        self.copy_button.setText(_("Copied"))
+        self._copy_reset.start()
+
+    def _reset_copy_button(self) -> None:
+        self.copy_button.setText(_("Copy Results"))
+
+    @override
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if self._settings is not None:
+            self._settings.completion_geometry = bytes(self.saveGeometry().data())
+        super().closeEvent(event)
 
     def _populate_list(self) -> None:
         failures = [item for item in self._rows if item.state is ResultState.ERROR]
@@ -240,7 +273,7 @@ class CompletionDialog(QDialog):
                 text = _("Failed: {name}").format(name=name)
                 return f"{text} — {item.error_message}" if item.error_message else text
             case ResultState.SKIPPED:
-                return _("Skipped: {name}").format(name=name)
+                return _("{name} — Skipped").format(name=name)
             case ResultState.CANCELLED:
                 return _("Cancelled: {name}").format(name=name)
             case _:

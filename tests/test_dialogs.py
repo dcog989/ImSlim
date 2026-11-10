@@ -1,3 +1,5 @@
+from PySide6.QtWidgets import QApplication
+
 from imslim.batch_summary import BatchSummary
 from imslim.dialogs import _MAX_LISTED, CompletionDialog, _elapsed_text, batch_size_totals
 from imslim.result_item import ResultItem, ResultState
@@ -43,6 +45,60 @@ def test_completion_reports_cancelled_items() -> None:
 
     assert dialog.headline.text() == "Compression cancelled"
     assert dialog.list.item(1).text() == "Cancelled: stopped.png"
+
+
+def test_completion_copies_the_summary_and_every_row() -> None:
+    summary = BatchSummary()
+    summary.total = 2
+    summary.failed = 1
+    items = [
+        ResultItem(filename="/p/ok.png", size=100, new_size=50, state=ResultState.DONE),
+        ResultItem(
+            filename="/p/bad.png",
+            size=100,
+            state=ResultState.ERROR,
+            error_message="boom",
+        ),
+    ]
+
+    dialog = CompletionDialog(summary, items, 1.0, "")
+    dialog._copy_results()
+
+    text = QApplication.clipboard().text()
+    assert text.splitlines()[0] == "Compression finished"
+    assert "Images: 2" in text
+    assert "Failed: 1" in text
+    assert "ok.png — 50%" in text
+    assert "Failed: bad.png — boom" in text
+
+
+def test_completion_dialog_saves_and_restores_its_geometry() -> None:
+    class _Settings:
+        completion_geometry = b""
+
+    summary = BatchSummary()
+    summary.total = 1
+    settings = _Settings()
+    dialog = CompletionDialog(summary, [], 1.0, "", settings=settings)  # type: ignore[arg-type]
+    dialog.show()
+    dialog.resize(700, 480)
+    assert dialog.close()
+
+    assert settings.completion_geometry
+
+    again = CompletionDialog(summary, [], 1.0, "", settings=settings)  # type: ignore[arg-type]
+    assert again.width() == 700
+
+
+def test_completion_lists_a_skipped_file_by_name_first() -> None:
+    summary = BatchSummary()
+    summary.total = 1
+    summary.skipped = 1
+    items = [ResultItem(filename="/p/big.png", size=100, state=ResultState.SKIPPED)]
+
+    dialog = CompletionDialog(summary, items, 1.0, "")
+
+    assert dialog._row_text(items[0]) == "big.png — Skipped"
 
 
 def test_completion_list_shows_failures_first_and_caps_rows() -> None:
