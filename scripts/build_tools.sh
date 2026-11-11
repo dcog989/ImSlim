@@ -150,8 +150,9 @@ latest_git_commit() {
 }
 
 latest_node_version() {
+    # index.json lists pre-releases first; skip them so svgo never pins an alpha.
     curl -fsSL https://nodejs.org/dist/index.json \
-        | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["version"])'
+        | python3 -c 'import json,sys; print(next(v["version"] for v in json.load(sys.stdin) if "-" not in v["version"]))'
 }
 
 latest_svgo_version() {

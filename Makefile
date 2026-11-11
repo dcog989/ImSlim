@@ -1,4 +1,4 @@
-.PHONY: build check clean distclean fix init install install-appimage package-linux require-tools run tools translations uninstall upgrade
+.PHONY: build check clean distclean fix init install install-appimage package-linux require-tools run tools translations uninstall update-tools upgrade
 
 build: require-tools
 	uv build
@@ -65,8 +65,14 @@ package-linux:
 run:
 	uv run imslim
 
+# Builds the tools.lock-pinned versions (reproducible; CI caches on the lock).
 tools:
 	./scripts/build_tools.sh
+
+# Resolves the latest upstream versions, rewrites tools.lock and rebuilds.
+# Pass groups to limit the refresh: make update-tools GROUPS=libjxl
+update-tools:
+	./scripts/build_tools.sh --update $(GROUPS)
 
 translations:
 	./scripts/translations.sh all

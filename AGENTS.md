@@ -45,7 +45,7 @@
 - Install: `uv sync`
 - Dev: `uv run imslim` (or `python -m imslim`; `make run`)
 - Headless batch: `uv run imslim --now FILES...`
-- Build bundled tools: `./scripts/build_tools.sh` (populates `src/imslim/bin/linux-x86_64/`); run after a fresh clone so the app has its backends. Pinned in `tools.lock`; `--update` refreshes pins, `--check` reports stale ones
+- Build bundled tools: `make tools` (`scripts/build_tools.sh`, populates `src/imslim/bin/linux-x86_64/`); run after a fresh clone so the app has its backends. Builds the versions pinned in `tools.lock`; `make update-tools` (optionally `GROUPS=libjxl`) refreshes the pins to latest and rebuilds, `--check` reports stale ones
 - Test: `uv run pytest`
 - Type-check: `uv run basedpyright src/imslim`
 - Lint: `uv run ruff check` (`make fix` auto-fixes and formats)

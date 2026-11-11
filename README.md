@@ -85,9 +85,10 @@ make init           # runs uv sync, installs deps
 make install        # install locally (even if version unchanged)
 make package-linux  # build the Linux AppImage
 make run            # runs the app
-make tools          # runs build / update script for image libraries
+make tools          # runs build script for image libraries
 make translations   # extract strings and rebuild translation catalogs
 make uninstall      # remove the uv tool, desktop entry, icon and AppImage
+make update-tools   # update and build tools to latest versions
 make upgrade        # refresh dependency lockfile to newest versions
 ```
 
