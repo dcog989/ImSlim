@@ -188,9 +188,5 @@ jobs:
           files: |
             dist/ImSlim-*-linux-x86_64.AppImage
             dist/*.whl
-            scripts/install_appimage.sh
-            assets/imslim.desktop
-            assets/imslim-now.desktop
-            src/imslim/assets/imslim.svg
             CHANGELOG.md
           body_path: release-body.md

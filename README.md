@@ -26,13 +26,14 @@ A Linux image compressor / converter for all common image formats. Lossless or l
 
 ## Install
 
-[Download the latest release](https://github.com/dcog989/ImSlim/releases/latest) — the AppImage, `install_appimage.sh`, `imslim.desktop`, `imslim-now.desktop` and `imslim.svg` into one folder — then run:
+[Download the latest release](https://github.com/dcog989/ImSlim/releases/latest), move it to a permanent location (e.g. `~/Applications`), then make the AppImage executable and run it:
 
 ```sh
-bash install_appimage.sh ImSlim-*-linux-x86_64.AppImage
+chmod +x ImSlim-*-linux-x86_64.AppImage
+./ImSlim-*-linux-x86_64.AppImage
 ```
 
-This copies the AppImage to `~/Applications`, adds ImSlim to your application menu, and registers it as a handler for the supported image types.
+On first launch the AppImage adds ImSlim to application menu, installs its icon and registers itself as a handler for the supported image types.
 
 ## Command line
 

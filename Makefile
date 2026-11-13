@@ -1,4 +1,4 @@
-.PHONY: build check clean distclean fix init install install-appimage package-linux require-tools run tools translations uninstall update-tools upgrade
+.PHONY: build check clean distclean fix init install package-linux require-tools run tools translations uninstall update-tools upgrade
 
 build: require-tools
 	uv build
@@ -55,9 +55,6 @@ uninstall:
 	elif command -v kbuildsycoca5 >/dev/null 2>&1; then kbuildsycoca5; fi
 	@if command -v update-desktop-database >/dev/null 2>&1; then \
 		update-desktop-database $(DATA_HOME)/applications 2>/dev/null || true; fi
-
-install-appimage:
-	./scripts/install_appimage.sh
 
 package-linux:
 	./scripts/package_linux.sh

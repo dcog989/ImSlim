@@ -68,10 +68,45 @@ for size in 16 32 64 128 256 512; do
 done
 ln -sf "usr/share/icons/hicolor/512x512/apps/imslim.png" "$APP_DIR/imslim.png"
 
+# AppRun also installs the menu entries and icons it ships, so a downloaded
+# AppImage is a complete install with no extra steps. $APPIMAGE is the real
+# file the user runs; $SELF is a path inside the mounted image.
 cat > "$APP_DIR/AppRun" <<'EOF'
 #!/bin/sh
 SELF="$(readlink -f "$0")"
 HERE="${SELF%/*}"
+APP="${APPIMAGE:-$SELF}"
+
+DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
+changed=0
+
+# Rewrite Exec to the AppImage's current path, and redo it when the user
+# moves the file, so the menu entry never points at a stale location.
+entry() {
+    grep -qF "Exec=\"$APP\"$3" "$2" 2>/dev/null && return 0
+    mkdir -p "${2%/*}" && sed "s|^Exec=.*|Exec=\"$APP\"$3|" "$1" > "$2" || return 0
+    changed=1
+}
+
+entry "$HERE/usr/share/applications/imslim.desktop" \
+    "$DATA/applications/imslim.desktop" " %F"
+entry "$HERE/usr/share/applications/imslim-now.desktop" \
+    "$DATA/applications/imslim-now.desktop" " --now %F"
+
+for size in 16 32 64 128 256 512; do
+    dst="$DATA/icons/hicolor/${size}x${size}/apps/imslim.png"
+    [ -f "$dst" ] && continue
+    mkdir -p "${dst%/*}" && cp "$HERE/usr/share/icons/hicolor/${size}x${size}/apps/imslim.png" "$dst" \
+        && changed=1
+done
+
+# Installation is a courtesy: never let it stop the app from starting.
+if [ "$changed" = 1 ]; then
+    command -v kbuildsycoca6 >/dev/null 2>&1 && kbuildsycoca6 >/dev/null 2>&1
+    command -v update-desktop-database >/dev/null 2>&1 && \
+        update-desktop-database "$DATA/applications" >/dev/null 2>&1
+fi
+
 exec "$HERE/usr/bin/ImSlim" "$@"
 EOF
 chmod +x "$APP_DIR/AppRun"
