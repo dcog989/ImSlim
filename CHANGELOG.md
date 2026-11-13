@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.2.0 - 2026-11-13
+
+#### Features
+
+- (90786b6) let the AppImage install itself on first launch - dcog989
+- - -
+
 ## v2.1.0 - 2026-11-10
 
 #### Features
