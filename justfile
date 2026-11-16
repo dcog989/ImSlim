@@ -104,3 +104,7 @@ release:
 # BasedPyright type check.
 types:
     uv run basedpyright src/imslim
+
+# Verify commit messages in a range (`just commits origin/main..HEAD`).
+commits range="origin/main..HEAD":
+    cog check {{range}}

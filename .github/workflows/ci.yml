@@ -48,7 +48,7 @@ jobs:
 
       - name: Commit message check
         if: github.event_name == 'pull_request'
-        run: cog check -i origin/${{ github.base_ref }}..HEAD
+        run: just commits "-i origin/${{ github.base_ref }}..HEAD"
 
   typecheck:
     name: Type check
