@@ -96,3 +96,7 @@ clean:
 # Also remove the bundled tools, which take minutes to rebuild.
 distclean: clean
     rm -rf .build src/imslim/bin
+
+# Bump the version from conventional commits and tag it.
+release:
+    cog bump --auto
