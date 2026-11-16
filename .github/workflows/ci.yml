@@ -169,4 +169,4 @@ jobs:
         run: ./dist/ImSlim-*-linux-x86_64.AppImage --appimage-extract-and-run --version
 
       - name: Run the encoder tests against the bundled tools
-        run: uv run pytest tests/test_encoder_behavior.py
+        run: just test-file tests/test_encoder_behavior.py

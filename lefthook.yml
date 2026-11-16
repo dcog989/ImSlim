@@ -3,12 +3,12 @@ pre-commit:
   commands:
     lint:
       glob: "*.py"
-      run: uv run ruff check {staged_files}
+      run: just lint-staged {staged_files}
     format:
       glob: "*.py"
-      run: uv run ruff format --check {staged_files}
+      run: just format-check-staged {staged_files}
 
 commit-msg:
   commands:
     cog:
-      run: cog verify --file {1}
+      run: just commit-check {1}

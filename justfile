@@ -108,3 +108,19 @@ types:
 # Verify commit messages in a range (`just commits origin/main..HEAD`).
 commits range="origin/main..HEAD":
     cog check {{range}}
+
+# Ruff lint over a file list, as the pre-commit hook passes it.
+lint-staged *files:
+    uv run ruff check {{files}}
+
+# Ruff format check over a file list, as the pre-commit hook passes it.
+format-check-staged *files:
+    uv run ruff format --check {{files}}
+
+# Run specific tests (`just test-file tests/test_x.py`).
+test-file *files:
+    uv run pytest {{files}}
+
+# Verify a commit message file, as the commit-msg hook passes it.
+commit-check file:
+    cog verify --file {{file}}
