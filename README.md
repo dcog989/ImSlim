@@ -90,7 +90,7 @@ just tools          # runs build script for image libraries
 just translations   # extract strings and rebuild translation catalogs
 just uninstall      # remove the uv tool, desktop entry, icon and AppImage
 just update-tools   # update and build tools to latest versions
-just upgrade        # refresh dependency lockfile to newest versions
+just update         # refresh dependency lockfile to newest versions
 ```
 
 ```sh

@@ -85,7 +85,7 @@ init:
     uv sync
 
 # Bump the lockfile to the latest allowed versions.
-upgrade:
+update:
     uv lock --upgrade
 
 # Remove build artifacts.
