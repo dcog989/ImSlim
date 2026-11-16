@@ -71,26 +71,26 @@ Requires Python 3.14+, [`uv`](https://docs.astral.sh/uv/); C/C++ toolchain (CMak
 ```sh
 git clone https://github.com/dcog989/ImSlim
 cd ImSlim
-make init           # uv sync
-make tools          # build src/imslim/bin/linux-x86_64/
-make run
+just init           # uv sync
+just tools          # build src/imslim/bin/linux-x86_64/
+just run
 ```
 
 ```sh
-make build          # build the wheel + sdist
-make check          # runs ruff check + ruff format check + basedpyright + pytest
-make clean          # remove all build artifacts
-make distclean      # remove build tools - expensive!
-make fix            # auto fix lint issues and format
-make init           # runs uv sync, installs deps
-make install        # install locally (even if version unchanged)
-make package-linux  # build the Linux AppImage
-make run            # runs the app
-make tools          # runs build script for image libraries
-make translations   # extract strings and rebuild translation catalogs
-make uninstall      # remove the uv tool, desktop entry, icon and AppImage
-make update-tools   # update and build tools to latest versions
-make upgrade        # refresh dependency lockfile to newest versions
+just build          # build the wheel + sdist
+just check          # runs ruff check + ruff format check + basedpyright + pytest
+just clean          # remove all build artifacts
+just distclean      # remove build tools - expensive!
+just fix            # auto fix lint issues and format
+just init           # runs uv sync, installs deps
+just install        # install locally (even if version unchanged)
+just package-linux  # build the Linux AppImage
+just run            # runs the app
+just tools          # runs build script for image libraries
+just translations   # extract strings and rebuild translation catalogs
+just uninstall      # remove the uv tool, desktop entry, icon and AppImage
+just update-tools   # update and build tools to latest versions
+just upgrade        # refresh dependency lockfile to newest versions
 ```
 
 ```sh
@@ -100,10 +100,10 @@ uv tool upgrade --all        # global uv-installed tools
 ```
 
 UI strings are wrapped in `_()` from `imslim._i18n`, which loads gettext catalogs from `src/imslim/locale/`. Add a language with `./scripts/translations.sh init <lang>`, edit its `.po`, then
-`make translations` to regenerate the template and compile the `.mo` files (requires GNU gettext). Untranslated builds fall back to English.
+`just translations` to regenerate the template and compile the `.mo` files (requires GNU gettext). Untranslated builds fall back to English.
 
 > [!NOTE]
-> `make install`: installs the app into the user's home (via `uv tool install`), registers it as a handler for supported image types and directories, and refreshes the desktop menu cache with whatever tool the distro provides (`kbuildsycoca` on KDE, `update-desktop-database` on freedesktop-based DEs). It runs `kbuildsycoca6`/`kbuildsycoca5` or `update-desktop-database` when present, so it works across KDE, GNOME, XFCE, and others.
+> `just install`: installs the app into the user's home (via `uv tool install`), registers it as a handler for supported image types and directories, and refreshes the desktop menu cache with whatever tool the distro provides (`kbuildsycoca` on KDE, `update-desktop-database` on freedesktop-based DEs). It runs `kbuildsycoca6`/`kbuildsycoca5` or `update-desktop-database` when present, so it works across KDE, GNOME, XFCE, and others.
 
 ---
 

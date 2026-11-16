@@ -32,11 +32,13 @@ jobs:
       - name: Sync dependencies
         run: uv sync --locked
 
-      - name: Ruff check
-        run: uv run ruff check .
+      - uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2
+        with:
+          tool: just
 
-      - name: Ruff format check
-        run: uv run ruff format --check .
+      # The justfile owns the lint set; running it here keeps CI and `just lint` from drifting.
+      - name: Lint
+        run: just lint
 
       - name: Install cocogitto
         if: github.event_name == 'pull_request'
@@ -92,8 +94,11 @@ jobs:
           sudo apt-get install -y -qq \
             libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
 
+      - uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2
+        with:
+          tool: just
       - name: Pytest
-        run: uv run pytest
+        run: just test
 
   build:
     name: Build distribution
@@ -140,7 +145,7 @@ jobs:
         run: ./scripts/build_tools.sh --no-deps
 
       - name: Build wheel and sdist
-        run: make build
+        run: just build
 
       - name: Check the wheel bundles the tools
         run: unzip -l dist/*.whl | grep -q "imslim/bin/"

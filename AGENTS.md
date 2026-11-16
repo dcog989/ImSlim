@@ -43,16 +43,16 @@
 ### Commands
 
 - Install: `uv sync`
-- Dev: `uv run imslim` (or `python -m imslim`; `make run`)
+- Dev: `just run` (`uv run imslim`, or `python -m imslim`)
 - Headless batch: `uv run imslim --now FILES...`
-- Build bundled tools: `make tools` (`scripts/build_tools.sh`, populates `src/imslim/bin/linux-x86_64/`); run after a fresh clone so the app has its backends. Builds the versions pinned in `tools.lock`; `make update-tools` (optionally `GROUPS=libjxl`) refreshes the pins to latest and rebuilds, `--check` reports stale ones
-- Test: `uv run pytest`
+- Build bundled tools: `just tools` (`scripts/build_tools.sh`, populates `src/imslim/bin/linux-x86_64/`); run after a fresh clone so the app has its backends. Builds the versions pinned in `tools.lock`; `just update-tools` (optionally `GROUPS=libjxl`) refreshes the pins to latest and rebuilds, `--check` reports stale ones
+- Test: `just test`
 - Type-check: `uv run basedpyright src/imslim`
-- Lint: `uv run ruff check` (`make fix` auto-fixes and formats)
-- Format: `uv run ruff format .`
-- Full gate (what CI runs): `make check` → `ruff check`, `ruff format --check`, `basedpyright src/imslim`, `pytest`
-- Translations: `./scripts/translations.sh all` (extract + update + compile; wraps `_()` strings and needs GNU gettext) or `make translations`
-- Build wheel/sdist: `uv build` / `uvx --from build python -m build` (build backend: uv_build; `make build` first runs `scripts/check_bundled_tools.py` and fails when the gitignored bundled tools are missing, since the wheel carries them)
+- Lint: `just lint` (`just fix` auto-fixes and formats)
+- Format: `just format`
+- Full gate (what CI runs): `just check` → `ruff check`, `ruff format --check`, `basedpyright src/imslim`, `pytest`
+- Translations: `./scripts/translations.sh all` (extract + update + compile; wraps `_()` strings and needs GNU gettext) or `just translations`
+- Build wheel/sdist: `uv build` / `uvx --from build python -m build` (build backend: uv_build; `just build` first runs `scripts/check_bundled_tools.py` and fails when the gitignored bundled tools are missing, since the wheel carries them)
 - Package standalone binary: `./scripts/package_linux.sh` → `dist/ImSlim-*-linux-x86_64.AppImage` (PyInstaller via `imslim.spec`; icons via `scripts/make_icons.py`)
 - Release: `cog bump --auto` (Cocogitto, external Rust binary — `cargo install cocogitto` / `pacman -S cocogitto` / `brew install cocogitto`; config in `cog.toml`, changelog template `changelog.tpl` filters to feat/fix/perf/refactor). Bumps version, syncs `pyproject.toml` + `src/imslim/__init__.py`, writes `CHANGELOG.md`, and tags. Pushing a version tag (e.g. `v0.5.1`, with `v` prefix via `tag_prefix` in `cog.toml`) runs `.github/workflows/release.yml`, which builds the Linux AppImage and wheel and attaches them to the GitHub release.
 

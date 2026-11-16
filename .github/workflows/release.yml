@@ -39,7 +39,7 @@ jobs:
             libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
 
       - name: Full gate
-        run: make check
+        run: just check
 
   linux:
     name: Linux AppImage (x86_64)
@@ -130,7 +130,7 @@ jobs:
         run: ./scripts/build_tools.sh --no-deps
 
       - name: Build wheel
-        run: make build
+        run: just build
 
       # The payload is linux-x86_64 binaries, so the wheel must not look
       # installable anywhere else (uv_build always tags pure-Python wheels
