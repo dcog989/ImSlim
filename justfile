@@ -9,13 +9,13 @@ check: lint test
 
 # Ruff lint, format check and types.
 lint:
-    uv run ruff check
-    uv run ruff format --check
-    uv run basedpyright src/imslim
+    uv run --locked ruff check
+    uv run --locked ruff format --check
+    uv run --locked basedpyright src/imslim
 
 # Test suite.
 test:
-    uv run pytest
+    uv run --locked pytest
 
 # Auto-fix lint issues and rewrite formatting.
 fix:
@@ -34,9 +34,9 @@ build: require-tools
 require-tools:
     python3 scripts/check_bundled_tools.py
 
-# Build the tools.lock-pinned backends into src/imslim/bin/.
-tools:
-    ./scripts/build_tools.sh
+# Build the tools.lock-pinned backends into src/imslim/bin/ (`just tools --no-deps`).
+tools *args:
+    ./scripts/build_tools.sh {{args}}
 
 # Resolve the latest upstream tools, rewrite tools.lock and rebuild (`GROUPS=libjxl` limits it).
 update-tools:
@@ -69,7 +69,7 @@ uninstall:
     update-desktop-database "$data_home/applications" 2>/dev/null || true
 
 # AppImage via scripts/package_linux.sh.
-package-linux:
+package:
     ./scripts/package_linux.sh
 
 # Run the app.
@@ -103,7 +103,7 @@ release:
 
 # BasedPyright type check.
 types:
-    uv run basedpyright src/imslim
+    uv run --locked basedpyright src/imslim
 
 # Verify commit messages in a range (`just commits origin/main..HEAD`).
 commits range="origin/main..HEAD":
@@ -119,7 +119,7 @@ format-check-staged *files:
 
 # Run specific tests (`just test-file tests/test_x.py`).
 test-file *files:
-    uv run pytest {{files}}
+    uv run --locked pytest {{files}}
 
 # Verify a commit message file, as the commit-msg hook passes it.
 commit-check file *args:

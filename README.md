@@ -84,7 +84,7 @@ just distclean      # remove build tools - expensive!
 just fix            # auto fix lint issues and format
 just init           # runs uv sync, installs deps
 just install        # install locally (even if version unchanged)
-just package-linux  # build the Linux AppImage
+just package        # build the Linux AppImage
 just run            # runs the app
 just tools          # runs build script for image libraries
 just translations   # extract strings and rebuild translation catalogs
