@@ -47,7 +47,7 @@
 - Headless batch: `uv run imslim --now FILES...`
 - Build bundled tools: `just tools` (`scripts/build_tools.sh`, populates `src/imslim/bin/linux-x86_64/`); run after a fresh clone so the app has its backends. Builds the versions pinned in `tools.lock`; `just update-tools` (optionally `GROUPS=libjxl`) refreshes the pins to latest and rebuilds, `--check` reports stale ones
 - Test: `just test`
-- Type-check: `uv run basedpyright src/imslim`
+- Type-check: `just types`
 - Lint: `just lint` (`just fix` auto-fixes and formats)
 - Format: `just format`
 - Full gate (what CI runs): `just check` → `ruff check`, `ruff format --check`, `basedpyright src/imslim`, `pytest`

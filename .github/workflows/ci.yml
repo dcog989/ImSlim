@@ -68,7 +68,7 @@ jobs:
         run: uv sync --locked
 
       - name: BasedPyright
-        run: uv run basedpyright src/imslim
+        run: just types
 
   test:
     name: Tests

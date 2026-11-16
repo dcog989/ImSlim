@@ -95,7 +95,7 @@ just update         # refresh dependency lockfile to newest versions
 
 ```sh
 uv tool upgrade imslim       # just imslim
-uv lock --upgrade && uv sync # this project's Python deps
+just update && uv sync # this project's Python deps
 uv tool upgrade --all        # global uv-installed tools
 ```
 

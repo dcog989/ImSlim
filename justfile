@@ -100,3 +100,7 @@ distclean: clean
 # Bump the version from conventional commits and tag it.
 release:
     cog bump --auto
+
+# BasedPyright type check.
+types:
+    uv run basedpyright src/imslim
