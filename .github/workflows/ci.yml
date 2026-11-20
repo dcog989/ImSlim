@@ -67,6 +67,10 @@ jobs:
       - name: Sync dependencies
         run: uv sync --locked
 
+      - uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2
+        with:
+          tool: just
+
       - name: BasedPyright
         run: just types
 
@@ -140,6 +144,10 @@ jobs:
 
       - name: Sync dependencies
         run: uv sync --locked
+
+      - uses: taiki-e/install-action@682ce6c3c696a4cd5168a05f98e51aa02b877941 # v2
+        with:
+          tool: just
 
       - name: Build bundled tools
         run: just tools --no-deps
