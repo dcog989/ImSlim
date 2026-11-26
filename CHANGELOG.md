@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## v2.2.1 - 2026-11-26
+#### Bug Fixes
+- (**build**) rename package-linux to package and call just in CI - (1b29c2c) - dcog989
+#### Documentation
+- readme tidy - (9c53678) - dcog989
+#### Build system
+- (**deps**) bump astral-sh/setup-uv from 10.3.3 to 10.4.0 - (c27770f) - dependabot[bot]
+- (**deps**) bump taiki-e/install-action from 2.90.5 to 2.90.8 - (44ffdff) - dependabot[bot]
+- (**deps**) bump taiki-e/install-action from 2.90.3 to 2.90.5 - (a4b1e9a) - dependabot[bot]
+- (**deps**) bump taiki-e/install-action from 2.89.1 to 2.90.3 - (c2f9386) - dependabot[bot]
+- (**deps**) bump softprops/action-gh-release from 3.0.3 to 3.0.4 - (e0ba698) - dependabot[bot]
+- (**deps-dev**) bump ruff from 0.17.5 to 0.17.6 in the tooling group - (7d2c9bf) - dependabot[bot]
+#### Continuous Integration
+- install just in the typecheck and build jobs - (0cb230c) - dcog989
+#### Miscellaneous Chores
+- (**build**) call just from the git hooks - (6b2ac46) - dcog989
+- (**build**) call just from the git hooks - (210eda7) - dcog989
+- (**build**) close the remaining raw-command gaps - (81dda01) - dcog989
+- (**build**) call the just recipes from CI, hooks and docs - (90cffdc) - dcog989
+- (**build**) wrap the remaining dev scripts in just - (eb86e18) - dcog989
+- (**build**) add an update recipe - (3e70539) - dcog989
+- (**build**) move the Makefile targets to just - (453f5c0) - dcog989
+- (**release**) use the built-in changelog template - (8507f73) - dcog989
+- updates, remove package updates from dependabot - (d030a2b) - dcog989
+- sync with scaffold - (eb17ba1) - dcog989
+
+- - -
+
 ## v2.2.0 - 2026-11-13
 
 #### Features
